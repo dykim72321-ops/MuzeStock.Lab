@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Brain, Download, CheckCircle2, AlertCircle, Loader2, Star } from 'lucide-react';
+import { ArrowLeft, Brain, Download, CheckCircle2, AlertCircle, Loader2, Star, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { ComparisonChart } from './ComparisonChart';
-import { MOCK_BENCHMARK, MOCK_ANALYSIS, getStockHistory } from '../../data/mockData';
+import { MOCK_BENCHMARK, getStockHistory } from '../../data/mockData';
 import { fetchStockQuote } from '../../services/stockService';
 import type { Stock } from '../../types';
 import clsx from 'clsx';
@@ -14,13 +14,29 @@ import { fetchStockAnalysis, type AIAnalysis } from '../../services/analysisServ
 export const DnaMatchView = () => {
   const { id } = useParams(); // Now id is the ticker symbol
   const [stock, setStock] = useState<Stock | null>(null);
-  const [analysis, setAnalysis] = useState<AIAnalysis>(MOCK_ANALYSIS);
+  const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [analysisLoading, setAnalysisLoading] = useState(true);
   const [inWatchlist, setInWatchlist] = useState(false);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
 
   const benchmark = MOCK_BENCHMARK;
+
+  const loadAIAnalysis = async (stockData: Stock) => {
+    setAnalysisLoading(true);
+    setAnalysis(null);
+    try {
+      const aiResult = await fetchStockAnalysis(stockData);
+      if (aiResult) {
+        setAnalysis(aiResult);
+        setStock(prev => prev ? { ...prev, dnaScore: aiResult.dnaScore } : null);
+      }
+    } catch (err) {
+      console.error('AI Analysis failed:', err);
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,16 +53,7 @@ export const DnaMatchView = () => {
 
         // Fetch AI Analysis separately to not block main UI
         if (stockData) {
-          setAnalysisLoading(true);
-          fetchStockAnalysis(stockData).then(aiResult => {
-            if (aiResult) {
-              setAnalysis(aiResult);
-              // Update stock DNA score with dynamic one if available
-              setStock(prev => prev ? { ...prev, dnaScore: aiResult.dnaScore } : null);
-            }
-          }).finally(() => {
-            setAnalysisLoading(false);
-          });
+          loadAIAnalysis(stockData);
         }
       } catch (err) {
         console.error('Failed to fetch stock:', err);
@@ -168,22 +175,47 @@ export const DnaMatchView = () => {
             </div>
           </Card>
 
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+             <Card className="p-4 bg-slate-900/50 border-slate-800">
+                <div className="text-xs text-slate-500 uppercase mb-1">PER (주가수익비율)</div>
+                <div className="text-lg font-bold text-white">{stock.relevantMetrics.peRatio ? stock.relevantMetrics.peRatio.toFixed(2) : '-'}</div>
+                <div className="text-xs text-slate-400 mt-1">valuation</div>
+             </Card>
+             <Card className="p-4 bg-slate-900/50 border-slate-800">
+                <div className="text-xs text-slate-500 uppercase mb-1">EPS (주당순이익)</div>
+                <div className="text-lg font-bold text-white">${stock.relevantMetrics.eps ? stock.relevantMetrics.eps.toFixed(2) : '-'}</div>
+                <div className="text-xs text-slate-400 mt-1">earnings</div>
+             </Card>
+             <Card className="p-4 bg-slate-900/50 border-slate-800">
+                <div className="text-xs text-slate-500 uppercase mb-1">영업 이익률</div>
+                <div className="text-lg font-bold text-white">{stock.relevantMetrics.operatingMargin ? `${(stock.relevantMetrics.operatingMargin * 100).toFixed(1)}%` : '-'}</div>
+                <div className="text-xs text-slate-400 mt-1">efficiency</div>
+             </Card>
+             <Card className="p-4 bg-slate-900/50 border-slate-800">
+                <div className="text-xs text-slate-500 uppercase mb-1">연간 매출 (TTM)</div>
+                <div className="text-lg font-bold text-white">{stock.relevantMetrics.revenue ? `$${(stock.relevantMetrics.revenue / 1000000000).toFixed(1)}B` : '-'}</div>
+                <div className="text-xs text-slate-400 mt-1">revenue</div>
+             </Card>
+          </div>
+
+        
+        {/* Additional Stats Row */}
           <div className="grid grid-cols-3 gap-4">
-             <Card className="p-4 bg-slate-900/50 border-slate-800">
-                <div className="text-xs text-slate-500 uppercase mb-1">R&D 비율</div>
-                <div className="text-xl font-bold text-white">{stock.relevantMetrics.rndRatio}%</div>
-                <div className="text-xs text-emerald-400 mt-1">벤치마크 대비 +5%</div>
-             </Card>
-             <Card className="p-4 bg-slate-900/50 border-slate-800">
-                <div className="text-xs text-slate-500 uppercase mb-1">부채 비율</div>
-                <div className="text-xl font-bold text-white">{stock.relevantMetrics.debtToEquity}</div>
-                <div className="text-xs text-indigo-400 mt-1">최적 범위</div>
-             </Card>
-             <Card className="p-4 bg-slate-900/50 border-slate-800">
-                <div className="text-xs text-slate-500 uppercase mb-1">매출 성장률</div>
-                <div className="text-xl font-bold text-white">{stock.relevantMetrics.revenueGrowth}%</div>
-                <div className="text-xs text-emerald-400 mt-1">가속화 중</div>
-             </Card>
+              <Card className="p-4 bg-slate-900/50 border-slate-800">
+                 <div className="text-xs text-slate-500 uppercase mb-1">R&D 비율</div>
+                 <div className="text-xl font-bold text-white">{stock.relevantMetrics.rndRatio}%</div>
+                 <div className="text-xs text-emerald-400 mt-1">벤치마크 대비 +5%</div>
+              </Card>
+              <Card className="p-4 bg-slate-900/50 border-slate-800">
+                 <div className="text-xs text-slate-500 uppercase mb-1">부채 비율</div>
+                 <div className="text-xl font-bold text-white">{stock.relevantMetrics.debtToEquity}</div>
+                 <div className="text-xs text-indigo-400 mt-1">최적 범위</div>
+              </Card>
+              <Card className="p-4 bg-slate-900/50 border-slate-800">
+                 <div className="text-xs text-slate-500 uppercase mb-1">매출 성장률</div>
+                 <div className="text-xl font-bold text-white">{stock.relevantMetrics.revenueGrowth ? stock.relevantMetrics.revenueGrowth.toFixed(1) : '-'}%</div>
+                 <div className="text-xs text-emerald-400 mt-1">가속화 중</div>
+              </Card>
           </div>
         </div>
 
@@ -198,43 +230,61 @@ export const DnaMatchView = () => {
                  {analysisLoading && <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />}
               </div>
               
-              <div className={clsx("prose prose-invert prose-sm max-w-none flex-1", analysisLoading && "opacity-50 animate-pulse")}>
-                 <div className="bg-slate-800/50 p-4 rounded-lg mb-6 border border-slate-700 relative">
-                    <div className="absolute -top-3 left-4 px-2 bg-slate-900 text-xs text-indigo-300 border border-indigo-500/30 rounded">
-                        패턴 인식
-                    </div>
-                    <p className="text-slate-300 leading-relaxed italic">
-                       "{analysis.matchReasoning}"
-                    </p>
-                 </div>
+              <div className={clsx("flex-1", analysisLoading && "opacity-50 animate-pulse")}>
+                 {analysis ? (
+                   <>
+                     <div className="bg-slate-800/50 p-4 rounded-lg mb-6 border border-slate-700 relative">
+                        <div className="absolute -top-3 left-4 px-2 bg-slate-900 text-xs text-indigo-300 border border-indigo-500/30 rounded">
+                            패턴 인식
+                        </div>
+                        <p className="text-slate-300 leading-relaxed italic">
+                           "{analysis.matchReasoning}"
+                        </p>
+                     </div>
 
-                 <div className="space-y-4">
-                    <div>
-                       <h3 className="text-emerald-400 font-medium flex items-center gap-2 mb-2">
-                          <CheckCircle2 className="w-4 h-4" /> 낙관적 전망 (Bull Case)
-                       </h3>
-                       <ul className="space-y-2">
-                          {analysis.bullCase.map((item, i) => (
-                             <li key={i} className="text-slate-400 pl-4 border-l-2 border-emerald-500/20 text-xs">
-                                {item}
-                             </li>
-                          ))}
-                       </ul>
-                    </div>
+                     <div className="space-y-4">
+                        <div>
+                           <h3 className="text-emerald-400 font-medium flex items-center gap-2 mb-2">
+                              <CheckCircle2 className="w-4 h-4" /> 낙관적 전망 (Bull Case)
+                           </h3>
+                           <ul className="space-y-2">
+                              {analysis.bullCase.map((item, i) => (
+                                 <li key={i} className="text-slate-400 pl-4 border-l-2 border-emerald-500/20 text-xs">
+                                    {item}
+                                 </li>
+                              ))}
+                           </ul>
+                        </div>
 
-                    <div>
-                       <h3 className="text-rose-400 font-medium flex items-center gap-2 mb-2">
-                          <AlertCircle className="w-4 h-4" /> 비관적 전망 (Bear Case)
-                       </h3>
-                       <ul className="space-y-2">
-                          {analysis.bearCase.map((item, i) => (
-                             <li key={i} className="text-slate-400 pl-4 border-l-2 border-rose-500/20 text-xs">
-                                {item}
-                             </li>
-                          ))}
-                       </ul>
-                    </div>
-                 </div>
+                        <div>
+                           <h3 className="text-rose-400 font-medium flex items-center gap-2 mb-2">
+                              <AlertCircle className="w-4 h-4" /> 비관적 전망 (Bear Case)
+                           </h3>
+                           <ul className="space-y-2">
+                              {analysis.bearCase.map((item, i) => (
+                                 <li key={i} className="text-slate-400 pl-4 border-l-2 border-rose-500/20 text-xs">
+                                    {item}
+                                 </li>
+                              ))}
+                           </ul>
+                        </div>
+                     </div>
+                   </>
+                 ) : !analysisLoading && (
+                   <div className="flex flex-col items-center justify-center py-10 text-center h-full">
+                     <AlertTriangle className="w-10 h-10 text-amber-500 mb-3 opacity-80" />
+                     <h3 className="text-slate-300 font-medium mb-1">AI 분석을 불러올 수 없습니다</h3>
+                     <p className="text-slate-500 text-xs mb-4 max-w-[200px]">
+                       일시적인 오류이거나 API 한도를 초과했을 수 있습니다.
+                     </p>
+                     <button 
+                       onClick={() => stock && loadAIAnalysis(stock)}
+                       className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-indigo-400 text-sm rounded-lg transition-colors flex items-center gap-2"
+                     >
+                       <RefreshCw className="w-3 h-3" /> 다시 시도
+                     </button>
+                   </div>
+                 )}
               </div>
 
               <div className="mt-6 pt-4 border-t border-slate-800 flex justify-between items-center text-xs text-slate-500">

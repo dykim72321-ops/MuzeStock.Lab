@@ -16,6 +16,9 @@ export async function fetchStockAnalysis(stock: Stock): Promise<AIAnalysis | nul
         price: stock.price,
         change: stock.changePercent,
         volume: stock.volume,
+        peRatio: stock.relevantMetrics.peRatio,
+        revenueGrowth: stock.relevantMetrics.revenueGrowth,
+        operatingMargin: stock.relevantMetrics.operatingMargin,
       },
     });
 

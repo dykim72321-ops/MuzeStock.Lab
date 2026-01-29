@@ -24,11 +24,21 @@ serve(async (req) => {
       })
     }
 
-    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
-    const response = await fetch(url)
-    const data = await response.json()
+    const quoteUrl = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
+    const overviewUrl = `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
+    
+    const [quoteRes, overviewRes] = await Promise.all([
+      fetch(quoteUrl),
+      fetch(overviewUrl)
+    ])
 
-    return new Response(JSON.stringify(data), {
+    const quoteData = await quoteRes.json()
+    const overviewData = await overviewRes.json()
+
+    return new Response(JSON.stringify({ 
+      quote: quoteData, 
+      overview: overviewData 
+    }), {
       headers: { 
         "Content-Type": "application/json",
         'Access-Control-Allow-Origin': '*',

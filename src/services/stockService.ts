@@ -23,12 +23,23 @@ export async function fetchStockQuote(ticker: string): Promise<Stock | null> {
     
     if (error) throw error;
     
-    if (!data['Global Quote'] || !data['Global Quote']['05. price']) {
+    // Defensive checks for API rate limiting or empty responses
+    if (!data || !data.quote) {
+      console.warn(`No API response for ${ticker} (possible rate limit)`);
+      return null;
+    }
+    
+    const { quote: quoteData, overview: overviewData } = data;
+    
+    if (!quoteData || !quoteData['Global Quote'] || !quoteData['Global Quote']['05. price']) {
       console.warn(`No data for ${ticker}`);
       return null;
     }
+    
+    // Ensure overviewData exists (may be empty for some stocks or during rate limiting)
+    const overview = overviewData || {};
 
-    const quote = data['Global Quote'];
+    const quote = quoteData['Global Quote'];
     const price = parseFloat(quote['05. price']);
     const changePercent = parseFloat(quote['10. change percent'].replace('%', ''));
     const volume = parseInt(quote['06. volume'], 10);
@@ -46,9 +57,14 @@ export async function fetchStockQuote(ticker: string): Promise<Stock | null> {
       sector: getSector(ticker),
       description: getDescription(ticker),
       relevantMetrics: {
-        debtToEquity: 0.3, // Placeholder - needs fundamental data
-        rndRatio: 15.0,
-        revenueGrowth: 25,
+        debtToEquity: parseFloat(overview['DebtToEquityTTL'] || '0'), 
+        rndRatio: 15.0, // R&D data often hard to get from free APIs, usually kept as estimate or separate calculation
+        revenueGrowth: parseFloat(overview['QuarterlyRevenueGrowthYOY'] || '0') * 100,
+        peRatio: parseFloat(overview['PERatio'] || '0'),
+        eps: parseFloat(overview['EPS'] || '0'),
+        revenue: parseInt(overview['RevenueTTM'] || '0', 10),
+        grossProfit: parseInt(overview['GrossProfitTTM'] || '0', 10),
+        operatingMargin: parseFloat(overview['OperatingMarginTTM'] || '0'),
       },
     };
 

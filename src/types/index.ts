@@ -12,7 +12,13 @@ export interface Stock {
   relevantMetrics: {
     debtToEquity: number;
     rndRatio: number; // R&D as % of Revenue
-    revenueGrowth: number;
+    revenueGrowth?: number;
+    // New Fundamentals
+    peRatio?: number;
+    eps?: number;
+    revenue?: number; // Latest Annual Revenue
+    grossProfit?: number; // Latest Annual Gross Profit
+    operatingMargin?: number;
   };
 }
 

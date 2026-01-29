@@ -13,6 +13,7 @@ echo "⚡ Deploying Supabase Edge Functions..."
 PROJECT_REF="drnxydtrsjumjksqmdgi"
 npx supabase functions deploy --project-ref $PROJECT_REF get-stock-quote
 npx supabase functions deploy --project-ref $PROJECT_REF analyze-stock
+npx supabase functions deploy --project-ref $PROJECT_REF update-market-context
 
 # 3. Apply DB Migrations (Optional - usually done via CI/CD or Manual)
 # echo "💾 Pushing database changes..."
