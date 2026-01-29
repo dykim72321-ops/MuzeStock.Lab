@@ -35,4 +35,5 @@ export interface AnalysisReport {
   bullCase: string[];
   bearCase: string[];
   matchReasoning: string;
+  dnaScore: number;
 }

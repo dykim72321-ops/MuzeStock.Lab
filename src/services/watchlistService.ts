@@ -1,9 +1,4 @@
-/**
- * Watchlist Service
- * Manages user's stock watchlist with localStorage persistence
- */
-
-const WATCHLIST_KEY = 'stock_watchlist';
+import { supabase } from '../lib/supabase';
 
 export interface WatchlistItem {
   ticker: string;
@@ -12,65 +7,86 @@ export interface WatchlistItem {
 }
 
 /**
- * Get all watchlist items
+ * Get all watchlist items from Supabase
  */
-export function getWatchlist(): WatchlistItem[] {
-  try {
-    const stored = localStorage.getItem(WATCHLIST_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
+export async function getWatchlist(): Promise<WatchlistItem[]> {
+  const { data, error } = await supabase
+    .from('watchlist')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching watchlist:', error);
     return [];
   }
+
+  return data.map(item => ({
+    ticker: item.ticker,
+    addedAt: item.created_at,
+    notes: item.notes,
+  }));
 }
 
 /**
  * Check if a stock is in the watchlist
  */
-export function isInWatchlist(ticker: string): boolean {
-  const watchlist = getWatchlist();
-  return watchlist.some(item => item.ticker.toUpperCase() === ticker.toUpperCase());
+export async function isInWatchlist(ticker: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('watchlist')
+    .select('*', { count: 'exact', head: true })
+    .eq('ticker', ticker.toUpperCase());
+
+  if (error) {
+    console.error('Error checking watchlist:', error);
+    return false;
+  }
+
+  return (count ?? 0) > 0;
 }
 
 /**
  * Add a stock to the watchlist
  */
-export function addToWatchlist(ticker: string, notes?: string): void {
-  const watchlist = getWatchlist();
+export async function addToWatchlist(ticker: string, notes?: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
   
-  if (isInWatchlist(ticker)) {
-    return; // Already exists
+  const { error } = await supabase
+    .from('watchlist')
+    .upsert({
+      ticker: ticker.toUpperCase(),
+      user_id: user?.id, // Optional if not logged in but RLS might block it
+      notes,
+    });
+
+  if (error) {
+    console.error('Error adding to watchlist:', error);
   }
-
-  const newItem: WatchlistItem = {
-    ticker: ticker.toUpperCase(),
-    addedAt: new Date().toISOString(),
-    notes,
-  };
-
-  watchlist.push(newItem);
-  localStorage.setItem(WATCHLIST_KEY, JSON.stringify(watchlist));
 }
 
 /**
  * Remove a stock from the watchlist
  */
-export function removeFromWatchlist(ticker: string): void {
-  const watchlist = getWatchlist();
-  const filtered = watchlist.filter(
-    item => item.ticker.toUpperCase() !== ticker.toUpperCase()
-  );
-  localStorage.setItem(WATCHLIST_KEY, JSON.stringify(filtered));
+export async function removeFromWatchlist(ticker: string): Promise<void> {
+  const { error } = await supabase
+    .from('watchlist')
+    .delete()
+    .eq('ticker', ticker.toUpperCase());
+
+  if (error) {
+    console.error('Error removing from watchlist:', error);
+  }
 }
 
 /**
  * Toggle a stock in/out of the watchlist
  */
-export function toggleWatchlist(ticker: string): boolean {
-  if (isInWatchlist(ticker)) {
-    removeFromWatchlist(ticker);
+export async function toggleWatchlist(ticker: string): Promise<boolean> {
+  const inWatchlist = await isInWatchlist(ticker);
+  if (inWatchlist) {
+    await removeFromWatchlist(ticker);
     return false;
   } else {
-    addToWatchlist(ticker);
+    await addToWatchlist(ticker);
     return true;
   }
 }
@@ -78,6 +94,13 @@ export function toggleWatchlist(ticker: string): boolean {
 /**
  * Clear the entire watchlist
  */
-export function clearWatchlist(): void {
-  localStorage.removeItem(WATCHLIST_KEY);
+export async function clearWatchlist(): Promise<void> {
+  const { error } = await supabase
+    .from('watchlist')
+    .delete()
+    .neq('ticker', ''); // Delete all
+
+  if (error) {
+    console.error('Error clearing watchlist:', error);
+  }
 }

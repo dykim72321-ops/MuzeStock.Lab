@@ -132,4 +132,5 @@ export const MOCK_ANALYSIS: AnalysisReport = {
     'Sector volatility is currently high',
   ],
   matchReasoning: 'The AI has identified a 92% correlation in the "Capital Allocation Efficiency" vector. Just like NVIDIA in the early 2000s, NANO is reinvesting nearly all gross profit into R&D while maintaining zero long-term debt. This specific pattern often precedes a product-led breakout.',
+  dnaScore: 92,
 };

@@ -32,11 +32,11 @@ export const DailyPicks = () => {
         setRecommendations(picks);
         setBriefingSummary(generateBriefingSummary(picks));
 
-        // Update watchlist status
+        // Update watchlist status asynchronously
         const status: Record<string, boolean> = {};
-        picks.forEach(pick => {
-          status[pick.stock.ticker] = isInWatchlist(pick.stock.ticker);
-        });
+        await Promise.all(picks.map(async (pick) => {
+          status[pick.stock.ticker] = await isInWatchlist(pick.stock.ticker);
+        }));
         setWatchlistStatus(status);
 
         // Send notification if enabled
@@ -68,8 +68,8 @@ export const DailyPicks = () => {
     setNotificationsEnabled(false);
   };
 
-  const handleAddToWatchlist = (ticker: string) => {
-    addToWatchlist(ticker);
+  const handleAddToWatchlist = async (ticker: string) => {
+    await addToWatchlist(ticker);
     setWatchlistStatus(prev => ({ ...prev, [ticker]: true }));
   };
 

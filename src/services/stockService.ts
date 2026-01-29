@@ -1,29 +1,12 @@
+import { supabase } from '../lib/supabase';
 import type { Stock } from '../types';
 
-const API_KEY = import.meta.env.VITE_ALPHA_VANTAGE_API_KEY;
-const BASE_URL = 'https://www.alphavantage.co/query';
+// Penny stock tickers to scan
+export const PENNY_STOCK_TICKERS = ['SNDL', 'CLOV', 'SOFI', 'PLTR', 'BB'];
 
 // Cache for storing fetched data
 const cache = new Map<string, { data: Stock; timestamp: number }>();
 const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
-
-interface AlphaVantageQuote {
-  'Global Quote': {
-    '01. symbol': string;
-    '02. open': string;
-    '03. high': string;
-    '04. low': string;
-    '05. price': string;
-    '06. volume': string;
-    '07. latest trading day': string;
-    '08. previous close': string;
-    '09. change': string;
-    '10. change percent': string;
-  };
-}
-
-// Penny stock tickers to scan (these are example tickers - real penny stocks)
-export const PENNY_STOCK_TICKERS = ['SNDL', 'CLOV', 'SOFI', 'PLTR', 'BB'];
 
 export async function fetchStockQuote(ticker: string): Promise<Stock | null> {
   // Check cache first
@@ -33,15 +16,12 @@ export async function fetchStockQuote(ticker: string): Promise<Stock | null> {
   }
 
   try {
-    const response = await fetch(
-      `${BASE_URL}?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${API_KEY}`
-    );
+    // Calling Supabase Edge Function instead of direct Alpha Vantage to secure the API key
+    const { data, error } = await supabase.functions.invoke('get-stock-quote', {
+      body: { ticker }
+    });
     
-    if (!response.ok) {
-      throw new Error(`HTTP error: ${response.status}`);
-    }
-
-    const data: AlphaVantageQuote = await response.json();
+    if (error) throw error;
     
     if (!data['Global Quote'] || !data['Global Quote']['05. price']) {
       console.warn(`No data for ${ticker}`);

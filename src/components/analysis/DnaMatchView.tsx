@@ -1,19 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Brain, Download, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Brain, Download, CheckCircle2, AlertCircle, Loader2, Star } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { ComparisonChart } from './ComparisonChart';
 import { MOCK_BENCHMARK, MOCK_ANALYSIS, getStockHistory } from '../../data/mockData';
 import { fetchStockQuote } from '../../services/stockService';
 import type { Stock } from '../../types';
+import clsx from 'clsx';
+import { addToWatchlist, isInWatchlist, removeFromWatchlist } from '../../services/watchlistService';
+
+import { fetchStockAnalysis, type AIAnalysis } from '../../services/analysisService';
 
 export const DnaMatchView = () => {
   const { id } = useParams(); // Now id is the ticker symbol
   const [stock, setStock] = useState<Stock | null>(null);
+  const [analysis, setAnalysis] = useState<AIAnalysis>(MOCK_ANALYSIS);
   const [loading, setLoading] = useState(true);
+  const [analysisLoading, setAnalysisLoading] = useState(true);
+  const [inWatchlist, setInWatchlist] = useState(false);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
 
   const benchmark = MOCK_BENCHMARK;
-  const analysis = MOCK_ANALYSIS;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -21,10 +28,29 @@ export const DnaMatchView = () => {
       
       setLoading(true);
       try {
-        const data = await fetchStockQuote(id.toUpperCase());
-        setStock(data);
+        const [stockData, favoriteStatus] = await Promise.all([
+          fetchStockQuote(id.toUpperCase()),
+          isInWatchlist(id.toUpperCase())
+        ]);
+        setStock(stockData);
+        setInWatchlist(favoriteStatus);
+
+        // Fetch AI Analysis separately to not block main UI
+        if (stockData) {
+          setAnalysisLoading(true);
+          fetchStockAnalysis(stockData).then(aiResult => {
+            if (aiResult) {
+              setAnalysis(aiResult);
+              // Update stock DNA score with dynamic one if available
+              setStock(prev => prev ? { ...prev, dnaScore: aiResult.dnaScore } : null);
+            }
+          }).finally(() => {
+            setAnalysisLoading(false);
+          });
+        }
       } catch (err) {
         console.error('Failed to fetch stock:', err);
+        setAnalysisLoading(false);
       } finally {
         setLoading(false);
       }
@@ -32,6 +58,24 @@ export const DnaMatchView = () => {
 
     fetchData();
   }, [id]);
+
+  const handleToggleWatchlist = async () => {
+    if (!stock) return;
+    setWatchlistLoading(true);
+    try {
+      if (inWatchlist) {
+        await removeFromWatchlist(stock.ticker);
+        setInWatchlist(false);
+      } else {
+        await addToWatchlist(stock.ticker);
+        setInWatchlist(true);
+      }
+    } catch (err) {
+      console.error('Failed to toggle watchlist:', err);
+    } finally {
+      setWatchlistLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -69,8 +113,18 @@ export const DnaMatchView = () => {
           <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
             <Download className="w-4 h-4" /> 리포트 내보내기
           </button>
-          <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
-            관심 종목 추가
+          <button 
+            onClick={handleToggleWatchlist}
+            disabled={watchlistLoading}
+            className={clsx(
+              "px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2",
+              inWatchlist 
+                ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" 
+                : "bg-indigo-600 hover:bg-indigo-500 text-white"
+            )}
+          >
+            {watchlistLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Star className={clsx("w-4 h-4", inWatchlist && "fill-current")} />}
+            {inWatchlist ? '모니터링 중' : '관심 종목 추가'}
           </button>
         </div>
       </div>
@@ -136,12 +190,15 @@ export const DnaMatchView = () => {
         {/* Right Col: AI Analysis */}
         <div className="space-y-6">
            <Card className="p-6 h-full flex flex-col bg-slate-900 border-indigo-500/20 shadow-[0_0_20px_-10px_rgba(99,102,241,0.3)]">
-              <div className="flex items-center gap-2 mb-6 border-b border-indigo-500/20 pb-4">
-                 <Brain className="w-5 h-5 text-indigo-400" />
-                 <h2 className="font-semibold text-indigo-100">AI 분석 노트</h2>
+              <div className="flex items-center justify-between mb-6 border-b border-indigo-500/20 pb-4">
+                 <div className="flex items-center gap-2">
+                   <Brain className="w-5 h-5 text-indigo-400" />
+                   <h2 className="font-semibold text-indigo-100">AI 분석 노트</h2>
+                 </div>
+                 {analysisLoading && <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />}
               </div>
               
-              <div className="prose prose-invert prose-sm max-w-none flex-1">
+              <div className={clsx("prose prose-invert prose-sm max-w-none flex-1", analysisLoading && "opacity-50 animate-pulse")}>
                  <div className="bg-slate-800/50 p-4 rounded-lg mb-6 border border-slate-700 relative">
                     <div className="absolute -top-3 left-4 px-2 bg-slate-900 text-xs text-indigo-300 border border-indigo-500/30 rounded">
                         패턴 인식
@@ -181,8 +238,8 @@ export const DnaMatchView = () => {
               </div>
 
               <div className="mt-6 pt-4 border-t border-slate-800 flex justify-between items-center text-xs text-slate-500">
-                 <span>모델: MuzeStock-v2.1</span>
-                 <span>신뢰도: 높음</span>
+                 <span>모델: {analysisLoading ? '분석 중...' : 'GPT-4o-mini'}</span>
+                 <span>신뢰도: {analysisLoading ? '-' : '높음'}</span>
               </div>
            </Card>
         </div>
