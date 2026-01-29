@@ -1,0 +1,192 @@
+import { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft, Brain, Download, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Card } from '../ui/Card';
+import { ComparisonChart } from './ComparisonChart';
+import { MOCK_BENCHMARK, MOCK_ANALYSIS, getStockHistory } from '../../data/mockData';
+import { fetchStockQuote } from '../../services/stockService';
+import type { Stock } from '../../types';
+
+export const DnaMatchView = () => {
+  const { id } = useParams(); // Now id is the ticker symbol
+  const [stock, setStock] = useState<Stock | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const benchmark = MOCK_BENCHMARK;
+  const analysis = MOCK_ANALYSIS;
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!id) return;
+      
+      setLoading(true);
+      try {
+        const data = await fetchStockQuote(id.toUpperCase());
+        setStock(data);
+      } catch (err) {
+        console.error('Failed to fetch stock:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-40">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
+
+  if (!stock) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-slate-400">Stock not found: {id}</p>
+        <Link to="/" className="text-indigo-400 hover:underline mt-4 inline-block">
+          Back to Dashboard
+        </Link>
+      </div>
+    );
+  }
+
+  const history = getStockHistory(stock.ticker);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4 mb-2">
+        <Link to="/" className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+          <ArrowLeft className="w-5 h-5" />
+        </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            {stock.name} <span className="text-slate-500 font-normal">({stock.ticker})</span>
+          </h1>
+        </div>
+        <div className="ml-auto flex gap-2">
+          <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+            <Download className="w-4 h-4" /> Export Report
+          </button>
+          <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+            Add to Watchlist
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Col: Match Score & Chart */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Growth DNA Match</h2>
+                <p className="text-sm text-slate-400">Comparing price action & fundamentals</p>
+              </div>
+              <div className="flex items-center gap-3">
+                 <div className="text-right">
+                    <div className="text-xs text-slate-500 uppercase font-bold">Match Score</div>
+                    <div className="text-3xl font-bold text-emerald-400">{stock.dnaScore}%</div>
+                 </div>
+                 <div className="h-12 w-12 rounded-full border-4 border-emerald-500/30 flex items-center justify-center">
+                    <Brain className="w-6 h-6 text-emerald-400" />
+                 </div>
+              </div>
+            </div>
+
+            <ComparisonChart 
+               currentData={history}
+               benchmarkData={benchmark.historicalData}
+               currentName={stock.ticker}
+               benchmarkName={benchmark.name}
+            />
+            
+            <div className="mt-4 flex justify-center gap-6 text-sm">
+               <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 bg-emerald-500 rounded-full"></span>
+                  <span className="text-slate-300">{stock.ticker} (Current)</span>
+               </div>
+               <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 bg-indigo-500 rounded-full opacity-50"></span>
+                  <span className="text-slate-300">{benchmark.name} (Historical)</span>
+               </div>
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-3 gap-4">
+             <Card className="p-4 bg-slate-900/50 border-slate-800">
+                <div className="text-xs text-slate-500 uppercase mb-1">R&D Ratio</div>
+                <div className="text-xl font-bold text-white">{stock.relevantMetrics.rndRatio}%</div>
+                <div className="text-xs text-emerald-400 mt-1">+5% vs Benchmark</div>
+             </Card>
+             <Card className="p-4 bg-slate-900/50 border-slate-800">
+                <div className="text-xs text-slate-500 uppercase mb-1">Debt/Equity</div>
+                <div className="text-xl font-bold text-white">{stock.relevantMetrics.debtToEquity}</div>
+                <div className="text-xs text-indigo-400 mt-1">Optimal Range</div>
+             </Card>
+             <Card className="p-4 bg-slate-900/50 border-slate-800">
+                <div className="text-xs text-slate-500 uppercase mb-1">Rev. Growth</div>
+                <div className="text-xl font-bold text-white">{stock.relevantMetrics.revenueGrowth}%</div>
+                <div className="text-xs text-emerald-400 mt-1">Accelerating</div>
+             </Card>
+          </div>
+        </div>
+
+        {/* Right Col: AI Analysis */}
+        <div className="space-y-6">
+           <Card className="p-6 h-full flex flex-col bg-slate-900 border-indigo-500/20 shadow-[0_0_20px_-10px_rgba(99,102,241,0.3)]">
+              <div className="flex items-center gap-2 mb-6 border-b border-indigo-500/20 pb-4">
+                 <Brain className="w-5 h-5 text-indigo-400" />
+                 <h2 className="font-semibold text-indigo-100">AI Analyst Note</h2>
+              </div>
+              
+              <div className="prose prose-invert prose-sm max-w-none flex-1">
+                 <div className="bg-slate-800/50 p-4 rounded-lg mb-6 border border-slate-700 relative">
+                    <div className="absolute -top-3 left-4 px-2 bg-slate-900 text-xs text-indigo-300 border border-indigo-500/30 rounded">
+                        Pattern Recognition
+                    </div>
+                    <p className="text-slate-300 leading-relaxed italic">
+                       "{analysis.matchReasoning}"
+                    </p>
+                 </div>
+
+                 <div className="space-y-4">
+                    <div>
+                       <h3 className="text-emerald-400 font-medium flex items-center gap-2 mb-2">
+                          <CheckCircle2 className="w-4 h-4" /> Bull Case
+                       </h3>
+                       <ul className="space-y-2">
+                          {analysis.bullCase.map((item, i) => (
+                             <li key={i} className="text-slate-400 pl-4 border-l-2 border-emerald-500/20 text-xs">
+                                {item}
+                             </li>
+                          ))}
+                       </ul>
+                    </div>
+
+                    <div>
+                       <h3 className="text-rose-400 font-medium flex items-center gap-2 mb-2">
+                          <AlertCircle className="w-4 h-4" /> Bear Case
+                       </h3>
+                       <ul className="space-y-2">
+                          {analysis.bearCase.map((item, i) => (
+                             <li key={i} className="text-slate-400 pl-4 border-l-2 border-rose-500/20 text-xs">
+                                {item}
+                             </li>
+                          ))}
+                       </ul>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-slate-800 flex justify-between items-center text-xs text-slate-500">
+                 <span>Model: GrowthDNA-v2.1</span>
+                 <span>Confidence: High</span>
+              </div>
+           </Card>
+        </div>
+      </div>
+    </div>
+  );
+};
