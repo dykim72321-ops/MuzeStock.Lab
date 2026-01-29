@@ -4,10 +4,10 @@ import clsx from 'clsx';
 
 export const Sidebar = () => {
   const navItems = [
-    { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
-    { name: 'Watchlist', icon: List, path: '/watchlist' },
-    { name: 'DNA Scanner', icon: Dna, path: '/scanner' },
-    { name: 'Settings', icon: Settings, path: '/settings' },
+    { name: '대시보드', icon: LayoutDashboard, path: '/' },
+    { name: '모니터링 리스트', icon: List, path: '/watchlist' },
+    { name: 'DNA 스캐너', icon: Dna, path: '/scanner' },
+    { name: '설정', icon: Settings, path: '/settings' },
   ];
 
   return (
@@ -16,7 +16,7 @@ export const Sidebar = () => {
         <div className="bg-indigo-600 p-2 rounded-lg">
           <Dna className="w-6 h-6 text-white" />
         </div>
-        <span className="font-bold text-xl text-white tracking-tight">GrowthDNA</span>
+        <span className="font-bold text-xl text-white tracking-tight">MuzeStock.Lab</span>
       </div>
 
       <nav className="flex-1 px-4 py-6 space-y-2">
@@ -41,10 +41,10 @@ export const Sidebar = () => {
 
       <div className="p-4 border-t border-slate-800">
         <div className="bg-slate-800/50 rounded-lg p-4">
-          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">System Status</p>
+          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">시스템 상태</p>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-            <span className="text-sm text-emerald-400">Online</span>
+            <span className="text-sm text-emerald-400">온라인</span>
           </div>
         </div>
       </div>

@@ -7,63 +7,43 @@ export interface Recommendation {
   action: 'buy' | 'watch' | 'avoid';
 }
 
-interface RecommendationCriteria {
-  minDnaScore: number;
-  maxPrice: number;
-  minVolume: number;
-  minChangePercent?: number;
-}
 
-const DEFAULT_CRITERIA: RecommendationCriteria = {
-  minDnaScore: 65,
-  maxPrice: 50, // Under $50 for growth stocks
-  minVolume: 1000000,
-};
+
 
 /**
  * Analyzes a stock and generates a recommendation
  */
-export function analyzeStock(stock: Stock, criteria = DEFAULT_CRITERIA): Recommendation | null {
-  const { minDnaScore, maxPrice, minVolume } = criteria;
+export const analyzeStock = (stock: Stock): Recommendation => {
+  const { dnaScore, changePercent, volume } = stock;
+  
+  let action: Recommendation['action'] = 'watch';
+  let confidence: Recommendation['confidence'] = 'medium';
+  let reason = '';
 
-  // Filter out stocks that don't meet basic criteria
-  if (stock.price > maxPrice || stock.volume < minVolume) {
-    return null;
-  }
-
-  // Generate recommendation based on DNA score
-  let action: Recommendation['action'];
-  let confidence: Recommendation['confidence'];
-  let reason: string;
-
-  if (stock.dnaScore >= 80) {
+  if (dnaScore > 85) {
     action = 'buy';
     confidence = 'high';
-    reason = `High DNA score (${stock.dnaScore}) with strong volume. Pattern matches early-stage tech giants.`;
-  } else if (stock.dnaScore >= 70) {
+    reason = `매우 높은 DNA 점수(${dnaScore})와 강력한 모멘텀을 보유하고 있습니다.`;
+  } else if (dnaScore > 75) {
     action = 'buy';
     confidence = 'medium';
-    reason = `Good DNA score (${stock.dnaScore}). Showing potential growth indicators.`;
-  } else if (stock.dnaScore >= minDnaScore) {
+    reason = `양호한 DNA 점수(${dnaScore})를 기록하며 성장 지표가 유효합니다.`;
+  } else if (changePercent > 5 && volume > 500000) {
+    action = 'buy';
+    confidence = 'low';
+    reason = `높은 거래량과 함께 가격 급등이 포착되었습니다. 단기 변동성에 주의하세요.`;
+  } else if (dnaScore > 60) {
     action = 'watch';
-    confidence = 'low';
-    reason = `Moderate DNA score (${stock.dnaScore}). Add to watchlist for further monitoring.`;
+    confidence = 'medium';
+    reason = `잠재적 DNA 일치 가능성이 있으나 추가적인 거래량 확인이 필요합니다.`;
   } else {
-    return null; // Don't recommend low-scoring stocks
-  }
-
-  // Adjust based on momentum
-  if (stock.changePercent > 5) {
-    reason += ' Strong upward momentum today.';
-    if (confidence === 'medium') confidence = 'high';
-  } else if (stock.changePercent < -5) {
-    reason += ' Caution: Significant drop today.';
-    if (action === 'buy') action = 'watch';
+    action = 'avoid';
     confidence = 'low';
+    reason = `현재 기준 DNA 점수가 낮으며 리스크가 높습니다.`;
   }
 
   return { stock, reason, confidence, action };
-}
+};
 
 /**
  * Gets top daily stock picks based on recommendation criteria
@@ -92,13 +72,13 @@ export function generateBriefingSummary(recommendations: Recommendation[]): stri
   const highConfCount = recommendations.filter(r => r.confidence === 'high').length;
 
   if (buyCount === 0 && watchCount === 0) {
-    return 'No strong opportunities identified today. Market conditions may be volatile.';
+    return '현재 스캔 결과 강력한 추천 종목이 없습니다. 시장 상황을 계속 모니터링 중입니다.';
   }
 
-  let summary = `Today's scan found ${buyCount} buy signal${buyCount !== 1 ? 's' : ''} and ${watchCount} watch candidate${watchCount !== 1 ? 's' : ''}.`;
+  let summary = `오늘의 스캔 결과 ${buyCount}개의 매수 신호와 ${watchCount}개의 관찰 대상 종목이 발견되었습니다.`;
   
   if (highConfCount > 0) {
-    summary += ` ${highConfCount} high-confidence pick${highConfCount !== 1 ? 's' : ''} detected.`;
+    summary += ` 그 중 ${highConfCount}개는 높은 신뢰도의 추천 종목입니다.`;
   }
 
   return summary;

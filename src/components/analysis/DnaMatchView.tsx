@@ -44,9 +44,9 @@ export const DnaMatchView = () => {
   if (!stock) {
     return (
       <div className="text-center py-20">
-        <p className="text-slate-400">Stock not found: {id}</p>
+        <p className="text-slate-400">주식을 찾을 수 없습니다: {id}</p>
         <Link to="/" className="text-indigo-400 hover:underline mt-4 inline-block">
-          Back to Dashboard
+          대시보드로 돌아가기
         </Link>
       </div>
     );
@@ -67,10 +67,10 @@ export const DnaMatchView = () => {
         </div>
         <div className="ml-auto flex gap-2">
           <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
-            <Download className="w-4 h-4" /> Export Report
+            <Download className="w-4 h-4" /> 리포트 내보내기
           </button>
           <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
-            Add to Watchlist
+            관심 종목 추가
           </button>
         </div>
       </div>
@@ -81,12 +81,12 @@ export const DnaMatchView = () => {
           <Card className="p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-lg font-semibold text-white">Growth DNA Match</h2>
-                <p className="text-sm text-slate-400">Comparing price action & fundamentals</p>
+                <h2 className="text-lg font-semibold text-white">성장 DNA 매치</h2>
+                <p className="text-sm text-slate-400">가격 변동 및 펀더멘털 비교</p>
               </div>
               <div className="flex items-center gap-3">
                  <div className="text-right">
-                    <div className="text-xs text-slate-500 uppercase font-bold">Match Score</div>
+                    <div className="text-xs text-slate-500 uppercase font-bold">매치 점수</div>
                     <div className="text-3xl font-bold text-emerald-400">{stock.dnaScore}%</div>
                  </div>
                  <div className="h-12 w-12 rounded-full border-4 border-emerald-500/30 flex items-center justify-center">
@@ -105,30 +105,30 @@ export const DnaMatchView = () => {
             <div className="mt-4 flex justify-center gap-6 text-sm">
                <div className="flex items-center gap-2">
                   <span className="w-3 h-3 bg-emerald-500 rounded-full"></span>
-                  <span className="text-slate-300">{stock.ticker} (Current)</span>
+                  <span className="text-slate-300">{stock.ticker} (현재)</span>
                </div>
                <div className="flex items-center gap-2">
                   <span className="w-3 h-3 bg-indigo-500 rounded-full opacity-50"></span>
-                  <span className="text-slate-300">{benchmark.name} (Historical)</span>
+                  <span className="text-slate-300">{benchmark.name} (과거)</span>
                </div>
             </div>
           </Card>
 
           <div className="grid grid-cols-3 gap-4">
              <Card className="p-4 bg-slate-900/50 border-slate-800">
-                <div className="text-xs text-slate-500 uppercase mb-1">R&D Ratio</div>
+                <div className="text-xs text-slate-500 uppercase mb-1">R&D 비율</div>
                 <div className="text-xl font-bold text-white">{stock.relevantMetrics.rndRatio}%</div>
-                <div className="text-xs text-emerald-400 mt-1">+5% vs Benchmark</div>
+                <div className="text-xs text-emerald-400 mt-1">벤치마크 대비 +5%</div>
              </Card>
              <Card className="p-4 bg-slate-900/50 border-slate-800">
-                <div className="text-xs text-slate-500 uppercase mb-1">Debt/Equity</div>
+                <div className="text-xs text-slate-500 uppercase mb-1">부채 비율</div>
                 <div className="text-xl font-bold text-white">{stock.relevantMetrics.debtToEquity}</div>
-                <div className="text-xs text-indigo-400 mt-1">Optimal Range</div>
+                <div className="text-xs text-indigo-400 mt-1">최적 범위</div>
              </Card>
              <Card className="p-4 bg-slate-900/50 border-slate-800">
-                <div className="text-xs text-slate-500 uppercase mb-1">Rev. Growth</div>
+                <div className="text-xs text-slate-500 uppercase mb-1">매출 성장률</div>
                 <div className="text-xl font-bold text-white">{stock.relevantMetrics.revenueGrowth}%</div>
-                <div className="text-xs text-emerald-400 mt-1">Accelerating</div>
+                <div className="text-xs text-emerald-400 mt-1">가속화 중</div>
              </Card>
           </div>
         </div>
@@ -138,13 +138,13 @@ export const DnaMatchView = () => {
            <Card className="p-6 h-full flex flex-col bg-slate-900 border-indigo-500/20 shadow-[0_0_20px_-10px_rgba(99,102,241,0.3)]">
               <div className="flex items-center gap-2 mb-6 border-b border-indigo-500/20 pb-4">
                  <Brain className="w-5 h-5 text-indigo-400" />
-                 <h2 className="font-semibold text-indigo-100">AI Analyst Note</h2>
+                 <h2 className="font-semibold text-indigo-100">AI 분석 노트</h2>
               </div>
               
               <div className="prose prose-invert prose-sm max-w-none flex-1">
                  <div className="bg-slate-800/50 p-4 rounded-lg mb-6 border border-slate-700 relative">
                     <div className="absolute -top-3 left-4 px-2 bg-slate-900 text-xs text-indigo-300 border border-indigo-500/30 rounded">
-                        Pattern Recognition
+                        패턴 인식
                     </div>
                     <p className="text-slate-300 leading-relaxed italic">
                        "{analysis.matchReasoning}"
@@ -154,7 +154,7 @@ export const DnaMatchView = () => {
                  <div className="space-y-4">
                     <div>
                        <h3 className="text-emerald-400 font-medium flex items-center gap-2 mb-2">
-                          <CheckCircle2 className="w-4 h-4" /> Bull Case
+                          <CheckCircle2 className="w-4 h-4" /> 낙관적 전망 (Bull Case)
                        </h3>
                        <ul className="space-y-2">
                           {analysis.bullCase.map((item, i) => (
@@ -167,7 +167,7 @@ export const DnaMatchView = () => {
 
                     <div>
                        <h3 className="text-rose-400 font-medium flex items-center gap-2 mb-2">
-                          <AlertCircle className="w-4 h-4" /> Bear Case
+                          <AlertCircle className="w-4 h-4" /> 비관적 전망 (Bear Case)
                        </h3>
                        <ul className="space-y-2">
                           {analysis.bearCase.map((item, i) => (
@@ -181,8 +181,8 @@ export const DnaMatchView = () => {
               </div>
 
               <div className="mt-6 pt-4 border-t border-slate-800 flex justify-between items-center text-xs text-slate-500">
-                 <span>Model: GrowthDNA-v2.1</span>
-                 <span>Confidence: High</span>
+                 <span>모델: MuzeStock-v2.1</span>
+                 <span>신뢰도: 높음</span>
               </div>
            </Card>
         </div>

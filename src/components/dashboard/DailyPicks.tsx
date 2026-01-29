@@ -89,6 +89,24 @@ export const DailyPicks = () => {
     }
   };
 
+  const translateConfidence = (confidence: string) => {
+    switch (confidence) {
+      case 'high': return '높은 신뢰도';
+      case 'medium': return '중간 신뢰도';
+      case 'low': return '낮은 신뢰도';
+      default: return confidence;
+    }
+  };
+
+  const translateAction = (action: string) => {
+    switch (action) {
+      case 'buy': return '매수';
+      case 'watch': return '관찰';
+      case 'avoid': return '회피';
+      default: return action;
+    }
+  };
+
   if (loading) {
     return (
       <Card className="p-6 animate-pulse">
@@ -107,8 +125,8 @@ export const DailyPicks = () => {
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Daily Picks</h2>
-            <p className="text-sm text-slate-400">AI-powered recommendations</p>
+            <h2 className="text-xl font-bold text-white">오늘의 추천 종목</h2>
+            <p className="text-sm text-slate-400">AI 기반 추천 시스템</p>
           </div>
         </div>
         
@@ -122,7 +140,7 @@ export const DailyPicks = () => {
           )}
         >
           {notificationsEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
-          {notificationsEnabled ? 'Alerts On' : 'Enable Alerts'}
+          {notificationsEnabled ? '알림 켬' : '알림 활성화'}
         </button>
       </div>
 
@@ -134,7 +152,7 @@ export const DailyPicks = () => {
       {/* Recommendations */}
       {recommendations.length === 0 ? (
         <Card className="p-8 text-center">
-          <p className="text-slate-400">No strong recommendations today. Check back later.</p>
+          <p className="text-slate-400">오늘 추천된 종목이 없습니다. 나중에 다시 확인해 주세요.</p>
         </Card>
       ) : (
         <div className="space-y-4">
@@ -156,7 +174,7 @@ export const DailyPicks = () => {
                     <Badge 
                       variant={rec.confidence === 'high' ? 'success' : rec.confidence === 'medium' ? 'primary' : 'neutral'}
                     >
-                      {rec.confidence} confidence
+                      {translateConfidence(rec.confidence)}
                     </Badge>
                   </div>
                   
@@ -164,7 +182,7 @@ export const DailyPicks = () => {
                   
                   <div className="flex items-center gap-4 text-sm">
                     <span className="text-slate-300">
-                      <span className="text-slate-500">Price:</span> ${rec.stock.price.toFixed(2)}
+                      <span className="text-slate-500">가격:</span> ${rec.stock.price.toFixed(2)}
                     </span>
                     <span className={rec.stock.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
                       {rec.stock.changePercent >= 0 ? '+' : ''}{rec.stock.changePercent.toFixed(2)}%
@@ -181,7 +199,7 @@ export const DailyPicks = () => {
                     getActionColor(rec.action)
                   )}>
                     {getActionIcon(rec.action)}
-                    <span className="capitalize">{rec.action}</span>
+                    <span className="capitalize">{translateAction(rec.action)}</span>
                   </div>
                   
                   <button
@@ -195,7 +213,7 @@ export const DailyPicks = () => {
                     )}
                   >
                     <Star className={clsx('w-4 h-4', watchlistStatus[rec.stock.ticker] && 'fill-current')} />
-                    {watchlistStatus[rec.stock.ticker] ? 'Added' : 'Watchlist'}
+                    {watchlistStatus[rec.stock.ticker] ? '추가됨' : '모니터링 리스트'}
                   </button>
                 </div>
               </div>

@@ -45,14 +45,15 @@ export const StockScreener = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Stock Screener</h1>
-          <p className="text-slate-400 mt-2">Filter and sort stocks based on Growth DNA parameters.</p>
+          <h1 className="text-3xl font-bold text-white tracking-tight">주식 스캐너</h1>
+          <p className="text-slate-400 mt-2">MuzeStock.Lab 파라미터를 기반으로 주식을 필터링하고 정렬합니다.</p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={fetchStocks}
             disabled={loading}
             className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+            title="새로고침"
           >
             <RefreshCw className={clsx('w-5 h-5', loading && 'animate-spin')} />
           </button>
@@ -60,7 +61,7 @@ export const StockScreener = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
             <input 
               type="text" 
-              placeholder="Search tickers..." 
+              placeholder="티커 또는 회사명 검색..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="bg-slate-900 border border-slate-700 text-white rounded-lg pl-10 pr-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none w-64"
@@ -79,13 +80,13 @@ export const StockScreener = () => {
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-800/50 text-slate-400 uppercase font-medium">
                 <tr>
-                  <th className="px-6 py-4">Ticker</th>
-                  <th className="px-6 py-4">Price</th>
-                  <th className="px-6 py-4">Change</th>
-                  <th className="px-6 py-4">Volume</th>
-                  <th className="px-6 py-4">Market Cap</th>
-                  <th className="px-6 py-4">DNA Score</th>
-                  <th className="px-6 py-4">Sector</th>
+                  <th className="px-6 py-4">티커</th>
+                  <th className="px-6 py-4">격</th>
+                  <th className="px-6 py-4">변동</th>
+                  <th className="px-6 py-4">거래량</th>
+                  <th className="px-6 py-4">시가총액</th>
+                  <th className="px-6 py-4">DNA 점수</th>
+                  <th className="px-6 py-4">섹터</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">

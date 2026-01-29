@@ -69,22 +69,35 @@ export function sendStockNotification(
 }
 
 /**
- * Send daily picks notification
+ * Internal helper to send notifications
  */
-export function sendDailyPicksNotification(pickCount: number, topTicker?: string): void {
+function sendNotification(title: string, options: NotificationOptions): void {
   if (getNotificationPermission() !== 'granted') return;
-
-  const title = `📊 Daily Picks Ready`;
-  const body = topTicker
-    ? `${pickCount} stock${pickCount !== 1 ? 's' : ''} recommended today. Top pick: ${topTicker}`
-    : `${pickCount} stock${pickCount !== 1 ? 's' : ''} recommended for today.`;
-
+  
   new Notification(title, {
-    body,
     icon: '/vite.svg',
-    tag: 'daily-picks',
+    ...options
   });
 }
+
+/**
+ * Send daily picks notification
+ */
+export const sendDailyPicksNotification = (count: number, topTicker?: string) => {
+  const title = '오늘의 추천 종목 도착';
+  const body = topTicker
+    ? `오늘 ${count}개의 새로운 추천 종목이 있습니다. ${topTicker}를 확인해 보세요!`
+    : `오늘 ${count}개의 새로운 추천 종목이 발견되었습니다.`;
+
+  sendNotification(title, { body, tag: 'daily-picks' });
+};
+
+export const sendBuySignalNotification = (ticker: string, dnaScore: number) => {
+  sendNotification('강력한 매수 신호 포착', {
+    body: `${ticker} 종목의 DNA 점수가 ${dnaScore}점을 기록했습니다. 지금 차트를 확인하세요!`,
+    tag: `buy-${ticker}`
+  });
+};
 
 /**
  * Notification settings stored in localStorage
