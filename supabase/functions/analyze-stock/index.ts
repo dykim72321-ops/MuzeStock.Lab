@@ -64,20 +64,26 @@ serve(async (req) => {
     [DYNAMIC BENCHMARK]
     Compare this stock against ${benchmark}. Focus on ${benchmarkFocus}.
     
-    [SCAM FILTER / PUMP & DUMP DETECTOR]
-    Identify risks like Share Dilution, Offering, and Insider Selling. If detected, penalize the DNA Score heavily.
+    [SECTOR AWARENESS]
+    - If Bio/Pharma: Focus ONLY on clinical trials, FDA results, and pipeline. DO NOT mention production or manufacturing.
+    - If EV/Auto/Energy: Focus ONLY on production, orders, and scaling. DO NOT mention clinical data.
+    - If Fintech: Focus on transaction volume, user growth, and regulatory environment.
+
+    [RISK ASSESSMENT]
+    - Penny stocks are HIGH RISK. If Cash Runway < 6 months, set survivalRate to "Critical" and dnaScore < 30.
+    - Penalize heavily for "Offering", "Dilution", or "Reverse Split" history.
     
     [INSTRUCTIONS]
     Analyze the provided stock data. Generate a JSON response with the following fields:
     - matchReasoning (string): 1-2 sentence pattern recognition note. Mention the benchmark (${benchmark}).
     - bullCase (string[]): 3 concise bullet points.
     - bearCase (string[]): 3 concise bullet points.
-    - dnaScore (number): 0-100 (be EXTREMELY critical of penny stocks).
+    - dnaScore (number): 0-100 (Be EXTREMELY critical. Below 50 is common for penny stocks).
     - riskLevel (string): "Low", "Medium", "High", "CRITICAL".
-    - riskReason (string): Why this risk level? (e.g., "High Dilution Risk").
+    - riskReason (string): Why this risk level? (e.g., "Cash Runway < 6 months", "High Dilution").
     - survivalRate (string): "Healthy", "Warning", "Critical" based on Cash Runway.
     
-    Response must be purely valid JSON. Language: Korean.`;
+    Response must be purely valid JSON. Language: Korean. Ensure sector-appropriate terminology.`;
 
     const userPrompt = `Analyze this stock:
     Ticker: ${ticker} | Sector: ${sector}
@@ -116,12 +122,22 @@ serve(async (req) => {
     const analysis = JSON.parse(content);
 
     return new Response(JSON.stringify(analysis), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+      },
       status: 200,
     });
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+      },
       status: 400,
     });
   }

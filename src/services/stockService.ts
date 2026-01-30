@@ -182,29 +182,86 @@ function calculateDnaScore(price: number, change: number, volume: number): numbe
   return Math.min(100, Math.max(0, score));
 }
 
-function getCompanyName(ticker: string): string {
+// Updated Helper Functions with Fallbacks
+export function getCompanyName(ticker: string): string {
   const names: Record<string, string> = {
     SNDL: 'Sundial Growers',
     CLOV: 'Clover Health',
     SOFI: 'SoFi Technologies',
     PLTR: 'Palantir Technologies',
     BB: 'BlackBerry Limited',
+    MULN: 'Mullen Automotive',
+    IDEX: 'Ideanomics',
+    ZOM: 'Zomedica',
+    FCEL: 'FuelCell Energy',
+    OCGN: 'Ocugen',
+    BNGO: 'Bionano Genomics',
+    CTXR: 'Citius Pharmaceuticals',
+    AMC: 'AMC Entertainment',
+    GME: 'GameStop',
+    NKLA: 'Nikola Corporation',
+    OPEN: 'Opendoor Technologies',
+    LCID: 'Lucid Group',
+    PLUG: 'Plug Power',
+    FUBO: 'FuboTV',
+    DKNG: 'DraftKings',
+    MARA: 'Marathon Digital',
+    RIOT: 'Riot Platforms',
+    HUT: 'Hut 8 Mining',
+    BITF: 'Bitfarms',
+    NIO: 'NIO Inc.',
+    XPEV: 'XPeng Inc.',
+    GRAB: 'Grab Holdings',
+    CPNG: 'Coupang'
   };
-  return names[ticker] || ticker;
+  return names[ticker] || ticker; // Return ticker if name not found
 }
 
-function getSector(ticker: string): string {
-  const sectors: Record<string, string> = {
+export function getSector(ticker: string | any): string {
+    // If an object is passed, try to extract sector from it
+    if (typeof ticker === 'object' && ticker !== null) {
+        return ticker.finnhubIndustry || 
+               ticker.Sector || 
+               ticker.sector || 
+               'Tech/Growth';
+    }
+    
+    // If a string ticker is passed, look it up in the static map
+    const sectors: Record<string, string> = {
     SNDL: 'Cannabis',
     CLOV: 'Healthcare',
     SOFI: 'Fintech',
     PLTR: 'Software',
     BB: 'Cybersecurity',
+    MULN: 'EV / Automotive',
+    IDEX: 'EV / Fintech',
+    ZOM: 'Veterinary Health',
+    FCEL: 'Clean Energy',
+    OCGN: 'Biotech',
+    BNGO: 'Genomics',
+    CTXR: 'Pharma',
+    AMC: 'Entertainment',
+    GME: 'Retail',
+    NKLA: 'EV / Trucking',
+    OPEN: 'Real Estate Tech',
+    LCID: 'EV / Automotive',
+    PLUG: 'Hydrogen Energy',
+    FUBO: 'Streaming',
+    DKNG: 'Online Gambling',
+    MARA: 'Crypto Mining',
+    RIOT: 'Crypto Mining',
+    HUT: 'Crypto Mining',
+    BITF: 'Crypto Mining',
+    NIO: 'EV / Automotive',
+    XPEV: 'EV / Automotive',
+    GRAB: 'Superapp',
+    CPNG: 'E-commerce'
   };
-  return sectors[ticker] || 'Technology';
+  return sectors[ticker] || 'Tech/Growth'; // Default fallback
 }
 
 function getDescription(ticker: string): string {
+  // Can be expanded with more descriptions or fetched from an API
   const descriptions: Record<string, string> = {
     SNDL: 'Canadian cannabis company focused on cultivation and retail.',
     CLOV: 'Medicare Advantage insurer using AI-driven healthcare platform.',
@@ -212,5 +269,5 @@ function getDescription(ticker: string): string {
     PLTR: 'Big data analytics company serving government and enterprise.',
     BB: 'Enterprise software and IoT security solutions provider.',
   };
-  return descriptions[ticker] || 'Technology company';
+  return descriptions[ticker] || 'High-growth potential stock monitored by AI analytics.';
 }

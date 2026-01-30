@@ -10,7 +10,7 @@ export const Sidebar = () => {
   ];
 
   return (
-    <div className="h-screen w-72 bg-slate-905 border-r border-slate-800 flex flex-col">
+    <div className="hidden lg:flex h-screen w-72 bg-slate-905 border-r border-slate-800 flex-col">
       {/* 로고 영역 */}
       <div className="p-8 flex items-center gap-3">
         <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-2.5 rounded-xl shadow-lg shadow-indigo-500/20">

@@ -107,7 +107,7 @@ export const WatchlistView = () => {
       ) : (
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full text-left min-w-[800px]">
               <thead>
                 <tr className="bg-slate-800/50 border-b border-slate-700">
                   <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Ticker / Name</th>

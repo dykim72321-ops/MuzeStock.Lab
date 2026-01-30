@@ -88,7 +88,7 @@ export const StockScreener = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm min-w-[800px]">
               <thead className="bg-slate-800/50 text-slate-400 uppercase font-medium">
                 <tr>
                   <th className="px-6 py-4">티커</th>

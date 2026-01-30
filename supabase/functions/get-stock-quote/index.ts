@@ -27,7 +27,11 @@ serve(async (req) => {
     if (!ticker) {
       return new Response(JSON.stringify({ error: "Ticker is required" }), {
         status: 400,
-        headers: { "Content-Type": "application/json" }
+        headers: { 
+          "Content-Type": "application/json",
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        }
       })
     }
 
@@ -131,6 +135,7 @@ serve(async (req) => {
       headers: { 
         "Content-Type": "application/json",
         'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
       }
     })
   }
