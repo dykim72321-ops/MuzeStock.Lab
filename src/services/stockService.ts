@@ -2,7 +2,15 @@ import { supabase } from '../lib/supabase';
 import type { Stock } from '../types';
 
 // Penny stock tickers to scan
-export const PENNY_STOCK_TICKERS = ['SNDL', 'CLOV', 'SOFI', 'PLTR', 'BB'];
+// Expanded stock list for scanner (30+ stocks)
+export const WATCHLIST_TICKERS = [
+  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'META', 'NFLX', // Big Tech
+  'AMD', 'INTC', 'QCOM', 'MU', // Semis
+  'PLTR', 'SOFI', 'U', 'RBLX', 'COIN', // Growth
+  'IONQ', 'JOBY', 'ACHR', // Future Tech
+  'SNDL', 'CLOV', 'BB', 'GME', 'AMC', // Meme/Retail
+  'DIS', 'KO', 'PEP', 'MCD', 'SBUX' // Consumer
+];
 
 // Cache for storing fetched data
 const cache = new Map<string, { data: Stock; timestamp: number }>();
@@ -88,9 +96,38 @@ export async function fetchMultipleStocks(tickers: string[]): Promise<Stock[]> {
 }
 
 export async function getTopStocks(): Promise<Stock[]> {
-  const stocks = await fetchMultipleStocks(PENNY_STOCK_TICKERS);
-  // Sort by DNA score descending
-  return stocks.sort((a, b) => b.dnaScore - a.dnaScore);
+  try {
+    // Use the new scanner Edge Function (Finnhub)
+    const { data, error } = await supabase.functions.invoke('get-market-scanner', {
+      body: { tickers: WATCHLIST_TICKERS }
+    });
+
+    if (error) throw error;
+    if (!data) return [];
+
+    // Map Finnhub data to Stock interface
+    const stocks: Stock[] = data.map((item: any) => ({
+      id: item.ticker,
+      ticker: item.ticker,
+      name: getCompanyName(item.ticker),
+      price: item.price,
+      changePercent: item.changePercent,
+      volume: item.rawVolume || 0,
+      marketCap: 'N/A',
+      dnaScore: calculateDnaScore(item.price, item.changePercent, item.rawVolume || 0),
+      sector: getSector(item.ticker),
+      description: getDescription(item.ticker),
+      relevantMetrics: {} // Brief data only for scanner
+    }));
+
+    // Sort by DNA score descending
+    return stocks.sort((a, b) => b.dnaScore - a.dnaScore);
+
+  } catch (err) {
+    console.warn('Scanner failed, falling back to mock:', err);
+    // Fallback if scanner fails
+    return fetchMultipleStocks(WATCHLIST_TICKERS.slice(0, 5));
+  }
 }
 
 // Helper functions
