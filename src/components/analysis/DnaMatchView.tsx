@@ -1,360 +1,237 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Brain, Download, CheckCircle2, AlertCircle, Loader2, Star, RefreshCw, AlertTriangle } from 'lucide-react';
-import { Card } from '../ui/Card';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, BrainCircuit, Share2 } from 'lucide-react';
+import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, Legend } from 'recharts';
 import { Badge } from '../ui/Badge';
-import { ComparisonChart } from './ComparisonChart';
-import { MOCK_BENCHMARK, getStockHistory } from '../../data/mockData';
-import { fetchStockQuote } from '../../services/stockService';
-import type { Stock } from '../../types';
+import { Card } from '../ui/Card';
 import clsx from 'clsx';
-import { addToWatchlist, isInWatchlist, removeFromWatchlist } from '../../services/watchlistService';
 
-import { fetchStockAnalysis, type AIAnalysis } from '../../services/analysisService';
-
+// 차트 데이터 타입 정의
 export const DnaMatchView = () => {
-  const { id } = useParams(); // Now id is the ticker symbol
-  const [stock, setStock] = useState<Stock | null>(null);
-  const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [analysisLoading, setAnalysisLoading] = useState(true);
-  const [inWatchlist, setInWatchlist] = useState(false);
-  const [watchlistLoading, setWatchlistLoading] = useState(false);
-
-  const benchmark = MOCK_BENCHMARK;
-
-  const loadAIAnalysis = async (stockData: Stock) => {
-    setAnalysisLoading(true);
-    setAnalysis(null);
-    try {
-      const aiResult = await fetchStockAnalysis(stockData);
-      if (aiResult) {
-        setAnalysis(aiResult);
-        setStock(prev => prev ? { ...prev, dnaScore: aiResult.dnaScore } : null);
-      }
-    } catch (err) {
-      console.error('AI Analysis failed:', err);
-    } finally {
-      setAnalysisLoading(false);
-    }
+  
+  // 실제 데이터 연동 전까지 사용할 Mock Data
+  // 나중에 Supabase에서 fetch 해오는 로직으로 대체됩니다.
+  const mockAnalysis = {
+    score: 87,
+    verdict: "STRONG BUY",
+    ticker: id || "UNKNOWN",
+    price: 0.854,
+    change: 12.4,
+    sector: "AI Infrastructure",
+    radarData: [
+      { subject: 'R&D Focus', A: 90, B: 85, fullMark: 100 },
+      { subject: 'Revenue Growth', A: 80, B: 90, fullMark: 100 },
+      { subject: 'Market Size', A: 95, B: 60, fullMark: 100 },
+      { subject: 'Cash Flow', A: 50, B: 40, fullMark: 100 },
+      { subject: 'Volatility', A: 70, B: 90, fullMark: 100 },
+    ],
+    reason: "이 기업은 초기 엔비디아와 놀라울 정도로 유사한 R&D 투자 패턴을 보이고 있습니다. 특히 매출 대비 연구비 지출이 40%를 상회하며, 이는 기술적 해자(Moat)를 구축 중이라는 강력한 신호입니다.",
+    bullPoints: [
+      "경영진이 과거 Google DeepMind 출신으로 기술적 비전이 명확함",
+      "최근 3일간 거래량이 유통주식의 200%를 회전하며 손바뀜 발생",
+      "부채 비율이 동종 업계 대비 30% 낮아 유상증자 리스크 적음"
+    ],
+    bearPoints: [
+      "아직 영업이익이 적자 상태로, 현금 고갈 속도(Burn Rate) 주의 필요",
+      "단기 급등에 따른 차익 실현 매물 출회 가능성"
+    ]
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!id) return;
-      
-      setLoading(true);
-      try {
-        const [stockData, favoriteStatus] = await Promise.all([
-          fetchStockQuote(id.toUpperCase()),
-          isInWatchlist(id.toUpperCase())
-        ]);
-        setStock(stockData);
-        setInWatchlist(favoriteStatus);
-
-        // Fetch AI Analysis separately to not block main UI
-        if (stockData) {
-          loadAIAnalysis(stockData);
-        }
-      } catch (err) {
-        console.error('Failed to fetch stock:', err);
-        setAnalysisLoading(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [id]);
-
-  const handleToggleWatchlist = async () => {
-    if (!stock) return;
-    setWatchlistLoading(true);
-    try {
-      if (inWatchlist) {
-        await removeFromWatchlist(stock.ticker);
-        setInWatchlist(false);
-      } else {
-        await addToWatchlist(stock.ticker);
-        setInWatchlist(true);
-      }
-    } catch (err) {
-      console.error('Failed to toggle watchlist:', err);
-    } finally {
-      setWatchlistLoading(false);
-    }
-  };
+    // 로딩 시뮬레이션 (AI가 분석하는 느낌)
+    const timer = setTimeout(() => setLoading(false), 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-40">
-        <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+      <div className="flex flex-col items-center justify-center h-[80vh]">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <BrainCircuit className="w-6 h-6 text-indigo-400 animate-pulse" />
+          </div>
+        </div>
+        <h2 className="mt-6 text-xl font-bold text-white tracking-tight">AI Agent Analyzing...</h2>
+        <p className="text-slate-400 font-mono text-sm mt-2">Comparing DNA with 'NVIDIA 1999'...</p>
       </div>
     );
   }
-
-  if (!stock) {
-    return (
-      <div className="text-center py-20">
-        <p className="text-slate-400">주식을 찾을 수 없습니다: {id}</p>
-        <Link to="/" className="text-indigo-400 hover:underline mt-4 inline-block">
-          대시보드로 돌아가기
-        </Link>
-      </div>
-    );
-  }
-
-  const history = getStockHistory(stock.ticker);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4 mb-2">
-        <Link to="/" className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
+    <div className="space-y-6 animate-fade-in pb-10">
+      {/* 1. Top Navigation & Header */}
+      <button 
+        onClick={() => navigate(-1)}
+        className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-2 group"
+      >
+        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+        <span className="text-sm font-medium">Back to List</span>
+      </button>
+
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-6">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-             <span className="px-2 py-0.5 rounded text-xs font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-               STEP 3: DEEP DIVE
-             </span>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-5xl font-black text-white tracking-tighter font-mono">{mockAnalysis.ticker}</h1>
+            <Badge variant="neutral" className="text-xs">{mockAnalysis.sector}</Badge>
           </div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            {stock.name} <span className="text-slate-500 font-normal">({stock.ticker})</span>
-          </h1>
-          <div className="flex items-center gap-2 mt-1">
-             <Badge variant={stock.relevantMetrics.sentimentScore && stock.relevantMetrics.sentimentScore > 0 ? 'success' : 'neutral'}>
-                Social Pulse: {stock.relevantMetrics.sentimentLabel || 'Neutral'}
-             </Badge>
-             <Badge variant="neutral">
-                🐳 기관 보유: {stock.relevantMetrics.institutionalOwnership ? `${stock.relevantMetrics.institutionalOwnership}%` : 'N/A'}
-             </Badge>
+          <div className="flex items-center gap-4">
+            <span className="text-3xl font-mono text-slate-200">${mockAnalysis.price.toFixed(3)}</span>
+            <span className={clsx("flex items-center gap-1 font-mono font-bold px-2 py-1 rounded text-sm", 
+              mockAnalysis.change > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
+              {mockAnalysis.change > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              {Math.abs(mockAnalysis.change)}%
+            </span>
           </div>
         </div>
-        <div className="ml-auto flex gap-2">
-          <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
-            <Download className="w-4 h-4" /> 리포트 내보내기
+
+        <div className="flex gap-3">
+          <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-colors flex items-center gap-2 text-sm font-medium">
+            <Share2 className="w-4 h-4" /> Share Analysis
           </button>
-          <button 
-            onClick={handleToggleWatchlist}
-            disabled={watchlistLoading}
-            className={clsx(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2",
-              inWatchlist 
-                ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/20" 
-                : "bg-indigo-600 hover:bg-indigo-500 text-white"
-            )}
-          >
-            {watchlistLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Star className={clsx("w-4 h-4", inWatchlist && "fill-current")} />}
-            {inWatchlist ? '모니터링 중' : '관심 종목 추가'}
+          <button className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg shadow-lg shadow-indigo-500/20 font-bold transition-all flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4" /> Add to Portfolio
           </button>
         </div>
       </div>
 
+      {/* 2. Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Col: Match Score & Chart */}
+        
+        {/* Left Column: AI Verdict & Reasoning (2/3 width) */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-semibold text-white">성장 DNA 매치</h2>
-                <p className="text-sm text-slate-400">가격 변동 및 펀더멘털 비교</p>
-              </div>
-              <div className="flex items-center gap-3">
-                 <div className="text-right">
-                    <div className="text-xs text-slate-500 uppercase font-bold">매치 점수</div>
-                    <div className="text-3xl font-bold text-emerald-400">{stock.dnaScore}%</div>
-                 </div>
-                 <div className="h-12 w-12 rounded-full border-4 border-emerald-500/30 flex items-center justify-center">
-                    <Brain className="w-6 h-6 text-emerald-400" />
-                 </div>
-              </div>
-            </div>
-
-            <ComparisonChart 
-               currentData={history}
-               benchmarkData={benchmark.historicalData}
-               currentName={stock.ticker}
-               benchmarkName={benchmark.name}
-            />
+          
+          {/* AI Verdict Card */}
+          <Card className="bg-gradient-to-br from-slate-900 to-slate-800 border-indigo-500/30 shadow-2xl shadow-indigo-900/20 overflow-hidden relative">
+            <div className="absolute top-0 right-0 p-32 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none"></div>
             
-            <div className="mt-4 flex justify-center gap-6 text-sm">
-               <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 bg-emerald-500 rounded-full"></span>
-                  <span className="text-slate-300">{stock.ticker} (현재)</span>
-               </div>
-               <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 bg-indigo-500 rounded-full opacity-50"></span>
-                  <span className="text-slate-300">{benchmark.name} (과거)</span>
-               </div>
+            <div className="p-8">
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <BrainCircuit className="w-5 h-5 text-indigo-400" />
+                    <span className="text-xs font-bold text-indigo-400 tracking-widest uppercase">AI Growth DNA Analysis</span>
+                  </div>
+                  <h2 className="text-3xl font-bold text-white mb-1">
+                    Verdict: <span className="text-emerald-400">{mockAnalysis.verdict}</span>
+                  </h2>
+                </div>
+                <div className="text-right">
+                  <div className="text-6xl font-black text-white font-mono tracking-tighter">{mockAnalysis.score}</div>
+                  <div className="text-xs text-slate-400 font-mono mt-1">/ 100 SCORE</div>
+                </div>
+              </div>
+
+              <div className="bg-slate-950/50 rounded-xl p-6 border border-indigo-500/20 mb-8">
+                <p className="text-lg text-slate-200 leading-relaxed font-medium">
+                  "{mockAnalysis.reason}"
+                </p>
+              </div>
+
+              {/* Bull vs Bear Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-emerald-950/30 border border-emerald-500/20 rounded-xl p-5">
+                  <h3 className="text-emerald-400 font-bold mb-3 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4" /> Bull Case (Why it could fly)
+                  </h3>
+                  <ul className="space-y-2">
+                    {mockAnalysis.bullPoints.map((point, i) => (
+                      <li key={i} className="text-slate-300 text-sm flex items-start gap-2">
+                        <span className="text-emerald-500 mt-1">•</span>
+                        {point}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="bg-rose-950/30 border border-rose-500/20 rounded-xl p-5">
+                  <h3 className="text-rose-400 font-bold mb-3 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" /> Bear Case (Risks)
+                  </h3>
+                  <ul className="space-y-2">
+                    {mockAnalysis.bearPoints.map((point, i) => (
+                      <li key={i} className="text-slate-300 text-sm flex items-start gap-2">
+                        <span className="text-rose-500 mt-1">•</span>
+                        {point}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             </div>
           </Card>
+        </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-             <Card className="p-4 bg-slate-900/50 border-slate-800">
-                <div className="text-xs text-slate-500 uppercase mb-1">PER (주가수익비율)</div>
-                <div className="text-lg font-bold text-white">{stock.relevantMetrics.peRatio ? stock.relevantMetrics.peRatio.toFixed(2) : '-'}</div>
-                <div className="text-xs text-slate-400 mt-1">valuation</div>
-             </Card>
-             <Card className="p-4 bg-slate-900/50 border-slate-800">
-                <div className="text-xs text-slate-500 uppercase mb-1">EPS (주당순이익)</div>
-                <div className="text-lg font-bold text-white">${stock.relevantMetrics.eps ? stock.relevantMetrics.eps.toFixed(2) : '-'}</div>
-                <div className="text-xs text-slate-400 mt-1">earnings</div>
-             </Card>
-             <Card className="p-4 bg-slate-900/50 border-slate-800">
-                <div className="text-xs text-slate-500 uppercase mb-1">영업 이익률</div>
-                <div className="text-lg font-bold text-white">{stock.relevantMetrics.operatingMargin ? `${(stock.relevantMetrics.operatingMargin * 100).toFixed(1)}%` : '-'}</div>
-                <div className="text-xs text-slate-400 mt-1">efficiency</div>
-             </Card>
-             <Card className="p-4 bg-slate-900/50 border-slate-800">
-                <div className="text-xs text-slate-500 uppercase mb-1">연간 매출 (TTM)</div>
-                <div className="text-lg font-bold text-white">{stock.relevantMetrics.revenue ? `$${(stock.relevantMetrics.revenue / 1000000000).toFixed(1)}B` : '-'}</div>
-                <div className="text-xs text-slate-400 mt-1">revenue</div>
-             </Card>
-          </div>
-
-        
-        {/* Additional Stats Row */}
-          <div className="grid grid-cols-3 gap-4">
-              <Card className="p-4 bg-slate-900/50 border-slate-800">
-                 <div className="text-xs text-slate-500 uppercase mb-1">R&D 비율</div>
-                 <div className="text-xl font-bold text-white">{stock.relevantMetrics.rndRatio}%</div>
-                 <div className="text-xs text-emerald-400 mt-1">벤치마크 대비 +5%</div>
-              </Card>
-              <Card className="p-4 bg-slate-900/50 border-slate-800">
-                 <div className="text-xs text-slate-500 uppercase mb-1">부채 비율</div>
-                 <div className="text-xl font-bold text-white">{stock.relevantMetrics.debtToEquity}</div>
-                 <div className="text-xs text-indigo-400 mt-1">최적 범위</div>
-              </Card>
-              <Card className="p-4 bg-slate-900/50 border-slate-800">
-                 <div className="text-xs text-slate-500 uppercase mb-1">매출 성장률</div>
-                 <div className="text-xl font-bold text-white">{stock.relevantMetrics.revenueGrowth ? stock.relevantMetrics.revenueGrowth.toFixed(1) : '-'}%</div>
-                 <div className="text-xs text-emerald-400 mt-1">가속화 중</div>
-              </Card>
-           </div>
-
-           {/* Market Signals Dashboard */}
-           <div className="grid grid-cols-2 gap-4 mt-4">
-              {/* Sentiment Meter */}
-              <Card className="p-5 bg-gradient-to-br from-slate-900 to-slate-800 border-indigo-500/30">
-                 <div className="flex items-center justify-between mb-3">
-                    <div className="text-sm font-semibold text-indigo-300">📊 시장 심리 지수</div>
-                    <Badge variant={stock.relevantMetrics.sentimentScore && stock.relevantMetrics.sentimentScore > 0 ? 'success' : stock.relevantMetrics.sentimentScore && stock.relevantMetrics.sentimentScore < 0 ? 'warning' : 'neutral'}>
-                       {stock.relevantMetrics.sentimentLabel || 'Neutral'}
-                    </Badge>
-                 </div>
-                 <div className="relative h-4 bg-slate-700 rounded-full overflow-hidden">
-                    <div 
-                       className={clsx(
-                          "absolute h-full rounded-full transition-all duration-500",
-                          stock.relevantMetrics.sentimentScore && stock.relevantMetrics.sentimentScore > 0.2 ? 'bg-emerald-500' : 
-                          stock.relevantMetrics.sentimentScore && stock.relevantMetrics.sentimentScore < -0.2 ? 'bg-rose-500' : 'bg-amber-500'
-                       )}
-                       style={{ width: `${Math.min(100, Math.max(0, ((stock.relevantMetrics.sentimentScore || 0) + 1) * 50))}%` }}
-                    />
-                 </div>
-                 <div className="flex justify-between text-xs text-slate-500 mt-2">
-                    <span>매우 부정</span>
-                    <span>중립</span>
-                    <span>매우 긍정</span>
-                 </div>
-              </Card>
-
-              {/* Whale Tracker Widget */}
-              <Card className="p-5 bg-gradient-to-br from-slate-900 to-slate-800 border-cyan-500/30">
-                 <div className="flex items-center justify-between mb-3">
-                    <div className="text-sm font-semibold text-cyan-300">🐳 고래 수급 현황</div>
-                 </div>
-                 <div className="flex items-center gap-4">
-                    <div className="text-4xl font-bold text-white">
-                       {stock.relevantMetrics.institutionalOwnership ? `${stock.relevantMetrics.institutionalOwnership}%` : 'N/A'}
-                    </div>
-                    <div className="flex-1">
-                       <div className="text-xs text-slate-400">기관 보유 비율</div>
-                       <div className="text-sm text-cyan-400 mt-1 truncate">
-                          Top: {stock.relevantMetrics.topInstitution || 'N/A'}
-                       </div>
-                    </div>
-                 </div>
-                 <div className="mt-3 text-xs text-slate-500">
-                    기관 투자자의 매집은 장기적 신뢰도의 지표입니다.
-                 </div>
-              </Card>
-           </div>
-         </div>
-
-        {/* Right Col: AI Analysis */}
+        {/* Right Column: Visuals & Metrics (1/3 width) */}
         <div className="space-y-6">
-           <Card className="p-6 h-full flex flex-col bg-slate-900 border-indigo-500/20 shadow-[0_0_20px_-10px_rgba(99,102,241,0.3)]">
-              <div className="flex items-center justify-between mb-6 border-b border-indigo-500/20 pb-4">
-                 <div className="flex items-center gap-2">
-                   <Brain className="w-5 h-5 text-indigo-400" />
-                   <h2 className="font-semibold text-indigo-100">AI 분석 노트</h2>
-                 </div>
-                 {analysisLoading && <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />}
-              </div>
-              
-              <div className={clsx("flex-1", analysisLoading && "opacity-50 animate-pulse")}>
-                 {analysis ? (
-                   <>
-                     <div className="bg-slate-800/50 p-4 rounded-lg mb-6 border border-slate-700 relative">
-                        <div className="absolute -top-3 left-4 px-2 bg-slate-900 text-xs text-indigo-300 border border-indigo-500/30 rounded">
-                            패턴 인식
-                        </div>
-                        <p className="text-slate-300 leading-relaxed italic">
-                           "{analysis.matchReasoning}"
-                        </p>
-                     </div>
+          
+          {/* Radar Chart Card */}
+          <Card className="p-6 flex flex-col items-center justify-center min-h-[400px]">
+            <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4 w-full text-center">
+              DNA Pattern Matching
+            </h3>
+            <div className="w-full" style={{ height: 300, minHeight: 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={mockAnalysis.radarData}>
+                  <PolarGrid stroke="#334155" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                  <PolarAngleAxis />
+                  <Radar
+                    name="Benchmark (NVDA)"
+                    dataKey="A"
+                    stroke="#64748b"
+                    strokeDasharray="4 4"
+                    fill="#64748b"
+                    fillOpacity={0.1}
+                  />
+                  <Radar
+                    name="Target Stock"
+                    dataKey="B"
+                    stroke="#8b5cf6"
+                    strokeWidth={3}
+                    fill="#8b5cf6"
+                    fillOpacity={0.4}
+                  />
+                  <Legend 
+                    wrapperStyle={{ fontSize: '11px', paddingTop: '20px' }} 
+                    iconType="circle"
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="text-xs text-center text-slate-500 mt-4">
+              <span className="text-indigo-400 font-bold">Purple Area</span> indicates current stock potential.
+              <br/>Matches 87% with Early NVIDIA pattern.
+            </p>
+          </Card>
 
-                     <div className="space-y-4">
-                        <div>
-                           <h3 className="text-emerald-400 font-medium flex items-center gap-2 mb-2">
-                              <CheckCircle2 className="w-4 h-4" /> 낙관적 전망 (Bull Case)
-                           </h3>
-                           <ul className="space-y-2">
-                              {analysis.bullCase.map((item, i) => (
-                                 <li key={i} className="text-slate-400 pl-4 border-l-2 border-emerald-500/20 text-xs">
-                                    {item}
-                                 </li>
-                              ))}
-                           </ul>
-                        </div>
-
-                        <div>
-                           <h3 className="text-rose-400 font-medium flex items-center gap-2 mb-2">
-                              <AlertCircle className="w-4 h-4" /> 비관적 전망 (Bear Case)
-                           </h3>
-                           <ul className="space-y-2">
-                              {analysis.bearCase.map((item, i) => (
-                                 <li key={i} className="text-slate-400 pl-4 border-l-2 border-rose-500/20 text-xs">
-                                    {item}
-                                 </li>
-                              ))}
-                           </ul>
-                        </div>
-                     </div>
-                   </>
-                 ) : !analysisLoading && (
-                   <div className="flex flex-col items-center justify-center py-10 text-center h-full">
-                     <AlertTriangle className="w-10 h-10 text-amber-500 mb-3 opacity-80" />
-                     <h3 className="text-slate-300 font-medium mb-1">AI 분석을 불러올 수 없습니다</h3>
-                     <p className="text-slate-500 text-xs mb-4 max-w-[200px]">
-                       일시적인 오류이거나 API 한도를 초과했을 수 있습니다.
-                     </p>
-                     <button 
-                       onClick={() => stock && loadAIAnalysis(stock)}
-                       className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-indigo-400 text-sm rounded-lg transition-colors flex items-center gap-2"
-                     >
-                       <RefreshCw className="w-3 h-3" /> 다시 시도
-                     </button>
-                   </div>
-                 )}
+          {/* Quick Stats */}
+          <Card className="p-5">
+            <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">
+              Key Fundamentals
+            </h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+                <span className="text-sm text-slate-500">Market Cap</span>
+                <span className="text-sm font-mono text-white">$45.2M</span>
               </div>
-
-              <div className="mt-6 pt-4 border-t border-slate-800 flex justify-between items-center text-xs text-slate-500">
-                 <span>모델: {analysisLoading ? '분석 중...' : 'GPT-4o-mini'}</span>
-                 <span>신뢰도: {analysisLoading ? '-' : '높음'}</span>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+                <span className="text-sm text-slate-500">P/E Ratio</span>
+                <span className="text-sm font-mono text-white">-</span>
               </div>
-           </Card>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+                <span className="text-sm text-slate-500">Volume (24h)</span>
+                <span className="text-sm font-mono text-emerald-400">12.5M 🔥</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-500">52W High</span>
+                <span className="text-sm font-mono text-white">$1.20</span>
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
     </div>

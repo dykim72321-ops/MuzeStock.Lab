@@ -18,7 +18,7 @@ npx supabase functions deploy --project-ref $PROJECT_REF get-market-scanner
 
 # 3. Apply DB Migrations
 echo "💾 Pushing database changes..."
-npx supabase db push
+npx supabase db push --project-ref $PROJECT_REF
 
 # 4. (Optional) Run Initial Hunter Bot
 # echo "🎯 Running initial Finviz Hunter Bot..."
