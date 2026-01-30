@@ -19,6 +19,10 @@ export interface Stock {
     revenue?: number; // Latest Annual Revenue
     grossProfit?: number; // Latest Annual Gross Profit
     operatingMargin?: number;
+    sentimentScore?: number; // -1 to 1 (Bearish to Bullish)
+    sentimentLabel?: string;
+    institutionalOwnership?: number; // Percentage held by institutions
+    topInstitution?: string; // Name of top institutional holder
   };
 }
 

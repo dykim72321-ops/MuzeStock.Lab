@@ -19,6 +19,10 @@ export async function fetchStockAnalysis(stock: Stock): Promise<AIAnalysis | nul
         peRatio: stock.relevantMetrics.peRatio,
         revenueGrowth: stock.relevantMetrics.revenueGrowth,
         operatingMargin: stock.relevantMetrics.operatingMargin,
+        sentimentScore: stock.relevantMetrics.sentimentScore,
+        sentimentLabel: stock.relevantMetrics.sentimentLabel,
+        institutionalOwnership: stock.relevantMetrics.institutionalOwnership,
+        topInstitution: stock.relevantMetrics.topInstitution,
       },
     });
 

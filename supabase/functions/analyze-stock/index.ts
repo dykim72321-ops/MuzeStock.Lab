@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { ticker, price, change, volume, peRatio, revenueGrowth, operatingMargin } = await req.json();
+    const { ticker, price, change, volume, peRatio, revenueGrowth, operatingMargin, sentimentScore, sentimentLabel, institutionalOwnership, topInstitution } = await req.json();
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
@@ -63,7 +63,10 @@ serve(async (req) => {
     Volume: ${volume}
     PE Ratio: ${peRatio || 'N/A'}
     Revenue Growth: ${revenueGrowth || 'N/A'}%
-    Operating Margin: ${operatingMargin || 'N/A'}%`;
+    Operating Margin: ${operatingMargin || 'N/A'}%
+    Current Market Sentiment: ${sentimentLabel || 'Neutral'} (Score: ${sentimentScore || 0})
+    Institutional Ownership: ${institutionalOwnership || 'N/A'}%
+    Top Institutional Holder: ${topInstitution || 'N/A'}`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

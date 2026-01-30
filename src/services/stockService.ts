@@ -29,7 +29,7 @@ export async function fetchStockQuote(ticker: string): Promise<Stock | null> {
       return null;
     }
     
-    const { quote: quoteData, overview: overviewData } = data;
+    const { quote: quoteData, overview: overviewData, sentiment: sentimentData, institutional: institutionalData } = data;
     
     if (!quoteData || !quoteData['Global Quote'] || !quoteData['Global Quote']['05. price']) {
       console.warn(`No data for ${ticker}`);
@@ -65,6 +65,10 @@ export async function fetchStockQuote(ticker: string): Promise<Stock | null> {
         revenue: parseInt(overview['RevenueTTM'] || '0', 10),
         grossProfit: parseInt(overview['GrossProfitTTM'] || '0', 10),
         operatingMargin: parseFloat(overview['OperatingMarginTTM'] || '0'),
+        sentimentScore: sentimentData?.feed?.[0]?.overall_sentiment_score || 0,
+        sentimentLabel: sentimentData?.feed?.[0]?.overall_sentiment_label || 'Neutral',
+        institutionalOwnership: institutionalData?.data?.[0]?.ownership || 0,
+        topInstitution: institutionalData?.data?.[0]?.investorName || 'N/A',
       },
     };
 

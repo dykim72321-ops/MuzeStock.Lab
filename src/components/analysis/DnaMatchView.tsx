@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Brain, Download, CheckCircle2, AlertCircle, Loader2, Star, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Card } from '../ui/Card';
+import { Badge } from '../ui/Badge';
 import { ComparisonChart } from './ComparisonChart';
 import { MOCK_BENCHMARK, getStockHistory } from '../../data/mockData';
 import { fetchStockQuote } from '../../services/stockService';
@@ -115,6 +116,14 @@ export const DnaMatchView = () => {
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
             {stock.name} <span className="text-slate-500 font-normal">({stock.ticker})</span>
           </h1>
+          <div className="flex items-center gap-2 mt-1">
+             <Badge variant={stock.relevantMetrics.sentimentScore && stock.relevantMetrics.sentimentScore > 0 ? 'success' : 'neutral'}>
+                Social Pulse: {stock.relevantMetrics.sentimentLabel || 'Neutral'}
+             </Badge>
+             <Badge variant="neutral">
+                🐳 기관 보유: {stock.relevantMetrics.institutionalOwnership ? `${stock.relevantMetrics.institutionalOwnership}%` : 'N/A'}
+             </Badge>
+          </div>
         </div>
         <div className="ml-auto flex gap-2">
           <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
@@ -216,8 +225,57 @@ export const DnaMatchView = () => {
                  <div className="text-xl font-bold text-white">{stock.relevantMetrics.revenueGrowth ? stock.relevantMetrics.revenueGrowth.toFixed(1) : '-'}%</div>
                  <div className="text-xs text-emerald-400 mt-1">가속화 중</div>
               </Card>
-          </div>
-        </div>
+           </div>
+
+           {/* Market Signals Dashboard */}
+           <div className="grid grid-cols-2 gap-4 mt-4">
+              {/* Sentiment Meter */}
+              <Card className="p-5 bg-gradient-to-br from-slate-900 to-slate-800 border-indigo-500/30">
+                 <div className="flex items-center justify-between mb-3">
+                    <div className="text-sm font-semibold text-indigo-300">📊 시장 심리 지수</div>
+                    <Badge variant={stock.relevantMetrics.sentimentScore && stock.relevantMetrics.sentimentScore > 0 ? 'success' : stock.relevantMetrics.sentimentScore && stock.relevantMetrics.sentimentScore < 0 ? 'warning' : 'neutral'}>
+                       {stock.relevantMetrics.sentimentLabel || 'Neutral'}
+                    </Badge>
+                 </div>
+                 <div className="relative h-4 bg-slate-700 rounded-full overflow-hidden">
+                    <div 
+                       className={clsx(
+                          "absolute h-full rounded-full transition-all duration-500",
+                          stock.relevantMetrics.sentimentScore && stock.relevantMetrics.sentimentScore > 0.2 ? 'bg-emerald-500' : 
+                          stock.relevantMetrics.sentimentScore && stock.relevantMetrics.sentimentScore < -0.2 ? 'bg-rose-500' : 'bg-amber-500'
+                       )}
+                       style={{ width: `${Math.min(100, Math.max(0, ((stock.relevantMetrics.sentimentScore || 0) + 1) * 50))}%` }}
+                    />
+                 </div>
+                 <div className="flex justify-between text-xs text-slate-500 mt-2">
+                    <span>매우 부정</span>
+                    <span>중립</span>
+                    <span>매우 긍정</span>
+                 </div>
+              </Card>
+
+              {/* Whale Tracker Widget */}
+              <Card className="p-5 bg-gradient-to-br from-slate-900 to-slate-800 border-cyan-500/30">
+                 <div className="flex items-center justify-between mb-3">
+                    <div className="text-sm font-semibold text-cyan-300">🐳 고래 수급 현황</div>
+                 </div>
+                 <div className="flex items-center gap-4">
+                    <div className="text-4xl font-bold text-white">
+                       {stock.relevantMetrics.institutionalOwnership ? `${stock.relevantMetrics.institutionalOwnership}%` : 'N/A'}
+                    </div>
+                    <div className="flex-1">
+                       <div className="text-xs text-slate-400">기관 보유 비율</div>
+                       <div className="text-sm text-cyan-400 mt-1 truncate">
+                          Top: {stock.relevantMetrics.topInstitution || 'N/A'}
+                       </div>
+                    </div>
+                 </div>
+                 <div className="mt-3 text-xs text-slate-500">
+                    기관 투자자의 매집은 장기적 신뢰도의 지표입니다.
+                 </div>
+              </Card>
+           </div>
+         </div>
 
         {/* Right Col: AI Analysis */}
         <div className="space-y-6">

@@ -26,18 +26,26 @@ serve(async (req) => {
 
     const quoteUrl = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
     const overviewUrl = `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
+    const sentimentUrl = `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=${ticker}&limit=5&apikey=${ALPHA_VANTAGE_API_KEY}`
+    const institutionalUrl = `https://www.alphavantage.co/query?function=INSTITUTIONAL_OWNERSHIP&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
     
-    const [quoteRes, overviewRes] = await Promise.all([
+    const [quoteRes, overviewRes, sentimentRes, institutionalRes] = await Promise.all([
       fetch(quoteUrl),
-      fetch(overviewUrl)
+      fetch(overviewUrl),
+      fetch(sentimentUrl),
+      fetch(institutionalUrl)
     ])
 
     const quoteData = await quoteRes.json()
     const overviewData = await overviewRes.json()
+    const sentimentData = await sentimentRes.json()
+    const institutionalData = await institutionalRes.json()
 
     return new Response(JSON.stringify({ 
       quote: quoteData, 
-      overview: overviewData 
+      overview: overviewData,
+      sentiment: sentimentData,
+      institutional: institutionalData
     }), {
       headers: { 
         "Content-Type": "application/json",
