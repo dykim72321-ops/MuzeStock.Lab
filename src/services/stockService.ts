@@ -3,13 +3,13 @@ import type { Stock } from '../types';
 
 // Penny stock tickers to scan
 // Expanded stock list for scanner (30+ stocks)
+// Focused Penny Stock Watchlist (Targeting $1-$5 range with high volume)
 export const WATCHLIST_TICKERS = [
-  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'META', 'NFLX', // Big Tech
-  'AMD', 'INTC', 'QCOM', 'MU', // Semis
-  'PLTR', 'SOFI', 'U', 'RBLX', 'COIN', // Growth
-  'IONQ', 'JOBY', 'ACHR', // Future Tech
-  'SNDL', 'CLOV', 'BB', 'GME', 'AMC', // Meme/Retail
-  'DIS', 'KO', 'PEP', 'MCD', 'SBUX' // Consumer
+  'SNDL', 'MULN', 'IDEX', 'ZOM', 'FCEL', 'OCGN', 'BNGO', 'CTXR', // Sub $1-$2
+  'CLOV', 'BB', 'AMC', 'GME', 'NKLA', 'OPEN', 'LCID', // Volatile Small/Mid Caps
+  'SOFI', 'PLTR', 'PLUG', 'FUBO', 'DKNG', // Popular Retail Favorites
+  'MARA', 'RIOT', 'HUT', 'BITF', // Crypto Miners (High Volatility)
+  'NIO', 'XPEV', 'GRAB', 'CPNG' // International Growth
 ];
 
 // Cache for storing fetched data
@@ -97,7 +97,37 @@ export async function fetchMultipleStocks(tickers: string[]): Promise<Stock[]> {
 
 export async function getTopStocks(): Promise<Stock[]> {
   try {
-    // Use the new scanner Edge Function (Finnhub)
+    // 1차 시도: daily_discovery 테이블에서 동적 발굴 데이터 조회 (Finviz Hunter Bot)
+    const { data: discoveryData, error: discoveryError } = await supabase
+      .from('daily_discovery')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(30);
+
+    if (!discoveryError && discoveryData && discoveryData.length > 0) {
+      console.log('🎯 Using Finviz discovery data');
+      const stocks: Stock[] = discoveryData.map((item: any) => ({
+        id: item.ticker,
+        ticker: item.ticker,
+        name: item.ticker,
+        price: parseFloat(item.price) || 0,
+        changePercent: parseFloat(item.change?.replace('%', '')) || 0,
+        volume: parseVolumeString(item.volume),
+        marketCap: 'N/A',
+        dnaScore: calculateDnaScore(
+          parseFloat(item.price) || 0,
+          parseFloat(item.change?.replace('%', '')) || 0,
+          parseVolumeString(item.volume)
+        ),
+        sector: item.sector || 'Unknown',
+        description: `${item.sector || 'Technology'} company`,
+        relevantMetrics: { debtToEquity: 0, rndRatio: 0 }
+      }));
+      return stocks.sort((a, b) => b.dnaScore - a.dnaScore);
+    }
+
+    // 2차 폴백: Finnhub Scanner (고정 리스트)
+    console.log('📡 Falling back to Finnhub scanner');
     const { data, error } = await supabase.functions.invoke('get-market-scanner', {
       body: { tickers: WATCHLIST_TICKERS }
     });
@@ -105,7 +135,6 @@ export async function getTopStocks(): Promise<Stock[]> {
     if (error) throw error;
     if (!data) return [];
 
-    // Map Finnhub data to Stock interface
     const stocks: Stock[] = data.map((item: any) => ({
       id: item.ticker,
       ticker: item.ticker,
@@ -117,36 +146,49 @@ export async function getTopStocks(): Promise<Stock[]> {
       dnaScore: calculateDnaScore(item.price, item.changePercent, item.rawVolume || 0),
       sector: getSector(item.ticker),
       description: getDescription(item.ticker),
-      relevantMetrics: {} // Brief data only for scanner
+      relevantMetrics: {}
     }));
 
-    // Sort by DNA score descending
     return stocks.sort((a, b) => b.dnaScore - a.dnaScore);
 
   } catch (err) {
     console.warn('Scanner failed, falling back to mock:', err);
-    // Fallback if scanner fails
     return fetchMultipleStocks(WATCHLIST_TICKERS.slice(0, 5));
   }
+}
+
+// Helper: Parse volume strings like "1.2M", "500K"
+function parseVolumeString(vol: string | number): number {
+  if (typeof vol === 'number') return vol;
+  if (!vol) return 0;
+  const clean = vol.toUpperCase().replace(/,/g, '');
+  if (clean.includes('M')) return parseFloat(clean) * 1000000;
+  if (clean.includes('K')) return parseFloat(clean) * 1000;
+  if (clean.includes('B')) return parseFloat(clean) * 1000000000;
+  return parseInt(clean, 10) || 0;
 }
 
 // Helper functions
 function calculateDnaScore(price: number, change: number, volume: number): number {
   // Simplified DNA score calculation
   // In production, this would use ML models comparing to historical patterns
-  let score = 50; // Base score
+  // Penny Stock DNA Score (Explosive Potential Focus)
+  let score = 50; 
   
-  // Price under $5 (penny stock territory) gets bonus
-  if (price < 1) score += 20;
-  else if (price < 5) score += 10;
+  // 1. Price Factor: Lower is Better (The "Golden Zone" is $0.50 - $2.00)
+  if (price < 1.0) score += 30;       // Jackpot zone
+  else if (price < 3.0) score += 20;  // Sweet spot
+  else if (price < 5.0) score += 10;  // Acceptable
+  else if (price > 20.0) score -= 20; // Too expensive for this strategy
   
-  // Positive momentum
-  if (change > 5) score += 15;
-  else if (change > 0) score += 5;
+  // 2. Momentum Factor: We want EXPLOSIVE moves
+  if (change > 15) score += 20;       // Ripping
+  else if (change > 5) score += 10;   // Moving
+  else if (change < -5) score -= 5;   // Dumping (catch falling knife risky)
   
-  // High volume indicates interest
-  if (volume > 10000000) score += 15;
-  else if (volume > 1000000) score += 10;
+  // 3. Volume Factor: Liquidity is King
+  if (volume > 50000000) score += 20; // Mega volume
+  else if (volume > 10000000) score += 10;
   
   return Math.min(100, Math.max(0, score));
 }
