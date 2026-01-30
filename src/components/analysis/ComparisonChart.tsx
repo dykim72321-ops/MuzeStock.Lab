@@ -21,7 +21,7 @@ export const ComparisonChart = ({ currentData, benchmarkData, currentName, bench
 
   return (
     <Card className="p-6 bg-slate-900 border-slate-800">
-      <div className="h-[400px] w-full">
+      <div style={{ width: '100%', height: 400, minHeight: 400 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={mergedData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
