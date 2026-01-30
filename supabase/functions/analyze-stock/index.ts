@@ -12,14 +12,29 @@ serve(async (req) => {
   }
 
   try {
-    const { ticker, price, change, volume, peRatio, revenueGrowth, operatingMargin, sentimentScore, sentimentLabel, institutionalOwnership, topInstitution } = await req.json();
+    const { 
+      ticker, price, change, volume, peRatio, revenueGrowth, operatingMargin, 
+      sentimentScore, sentimentLabel, institutionalOwnership, topInstitution,
+      sector, cashRunway, netIncome, totalCash
+    } = await req.json();
+    
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!OPENAI_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error('Missing environment variables');
+    }
+
+    // Determine Dynamic Benchmark based on Sector
+    let benchmark = "NVIDIA (1999)";
+    let benchmarkFocus = "R&D and Exponential Computing Growth";
+    if (sector?.toLowerCase().includes('bio') || sector?.toLowerCase().includes('health')) {
+      benchmark = "Moderna (Early Stage)";
+      benchmarkFocus = "Clinical Pipeline and FDA Approval Milestones";
+    } else if (sector?.toLowerCase().includes('auto') || sector?.toLowerCase().includes('energy')) {
+      benchmark = "Tesla (Initial Scaling)";
+      benchmarkFocus = "Production Capacity and Order Backlog";
     }
 
     // 1. Fetch Global Market Context
@@ -41,32 +56,39 @@ serve(async (req) => {
        console.warn("Failed to fetch market context, using default.", err);
     }
 
-    const systemPrompt = `You are a professional stock analyst for MuzeStock.Lab. 
+    const systemPrompt = `You are a professional stock analyst for MuzeStock.Lab specializing in Penny Stocks ($1-$5).
     
     [GLOBAL MARKET CONTEXT]
     ${globalContext}
     
+    [DYNAMIC BENCHMARK]
+    Compare this stock against ${benchmark}. Focus on ${benchmarkFocus}.
+    
+    [SCAM FILTER / PUMP & DUMP DETECTOR]
+    Identify risks like Share Dilution, Offering, and Insider Selling. If detected, penalize the DNA Score heavily.
+    
     [INSTRUCTIONS]
-    Analyze the provided stock data in the context of the global market situation above.
-    Generate a JSON response with the following fields:
-    - matchReasoning (string): A brief, insightful pattern recognition note (1-2 sentences). Mention if the global context affects this stock.
-    - bullCase (string[]): 3 concise bullet points for optimistic scenarios.
-    - bearCase (string[]): 3 concise bullet points for pessimistic scenarios.
-    - dnaScore (number): A score from 0-100 based on the data provided (be critical).
+    Analyze the provided stock data. Generate a JSON response with the following fields:
+    - matchReasoning (string): 1-2 sentence pattern recognition note. Mention the benchmark (${benchmark}).
+    - bullCase (string[]): 3 concise bullet points.
+    - bearCase (string[]): 3 concise bullet points.
+    - dnaScore (number): 0-100 (be EXTREMELY critical of penny stocks).
+    - riskLevel (string): "Low", "Medium", "High", "CRITICAL".
+    - riskReason (string): Why this risk level? (e.g., "High Dilution Risk").
+    - survivalRate (string): "Healthy", "Warning", "Critical" based on Cash Runway.
     
     Response must be purely valid JSON. Language: Korean.`;
 
     const userPrompt = `Analyze this stock:
-    Ticker: ${ticker}
-    Price: ${price}
-    Change: ${change}%
-    Volume: ${volume}
-    PE Ratio: ${peRatio || 'N/A'}
-    Revenue Growth: ${revenueGrowth || 'N/A'}%
-    Operating Margin: ${operatingMargin || 'N/A'}%
-    Current Market Sentiment: ${sentimentLabel || 'Neutral'} (Score: ${sentimentScore || 0})
-    Institutional Ownership: ${institutionalOwnership || 'N/A'}%
-    Top Institutional Holder: ${topInstitution || 'N/A'}`;
+    Ticker: ${ticker} | Sector: ${sector}
+    Price: ${price} | Change: ${change}% | Volume: ${volume}
+    Fundamentals: PE: ${peRatio || 'N/A'} | Rev Growth: ${revenueGrowth || 'N/A'}% | Margin: ${operatingMargin || 'N/A'}%
+    Sentiment: ${sentimentLabel || 'Neutral'} (Score: ${sentimentScore || 0})
+    Ownership: Institutional: ${institutionalOwnership || '0'}% | Top: ${topInstitution || 'N/A'}
+    Financial Health: 
+    - Cash Runway: ${cashRunway || 'Unknown'} months
+    - Net Income (Latest): ${netIncome || 'N/A'}
+    - Total Cash: ${totalCash || 'N/A'}`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

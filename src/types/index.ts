@@ -23,6 +23,10 @@ export interface Stock {
     sentimentLabel?: string;
     institutionalOwnership?: number; // Percentage held by institutions
     topInstitution?: string; // Name of top institutional holder
+    // Financial Health (v2)
+    cashRunway?: number; // Months of runway
+    netIncome?: string; // Formatted net income
+    totalCash?: string; // Formatted total cash
   };
 }
 

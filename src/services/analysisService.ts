@@ -6,6 +6,9 @@ export interface AIAnalysis {
   bullCase: string[];
   bearCase: string[];
   dnaScore: number;
+  riskLevel: 'Low' | 'Medium' | 'High' | 'CRITICAL';
+  riskReason: string;
+  survivalRate: 'Healthy' | 'Warning' | 'Critical';
 }
 
 export async function fetchStockAnalysis(stock: Stock): Promise<AIAnalysis | null> {
@@ -23,6 +26,10 @@ export async function fetchStockAnalysis(stock: Stock): Promise<AIAnalysis | nul
         sentimentLabel: stock.relevantMetrics.sentimentLabel,
         institutionalOwnership: stock.relevantMetrics.institutionalOwnership,
         topInstitution: stock.relevantMetrics.topInstitution,
+        sector: stock.sector,
+        cashRunway: stock.relevantMetrics.cashRunway,
+        netIncome: stock.relevantMetrics.netIncome,
+        totalCash: stock.relevantMetrics.totalCash,
       },
     });
 

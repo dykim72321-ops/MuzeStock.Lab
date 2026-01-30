@@ -43,8 +43,11 @@ serve(async (req) => {
     const now = new Date()
     let quoteData = null
     let overviewData = null
+    let cashFlowData = null
+    let balanceSheetData = null
     let needsQuoteRefresh = true
     let needsOverviewRefresh = true
+    let needsFinancialsRefresh = true
 
     if (cached) {
       const cacheTime = new Date(cached.updated_at)
@@ -61,6 +64,13 @@ serve(async (req) => {
         overviewData = cached.overview_data
         needsOverviewRefresh = false
       }
+
+      // Financials are also on a 24-hour cycle
+      if (!needsOverviewRefresh && cached.cash_flow_data && cached.balance_sheet_data) {
+        cashFlowData = cached.cash_flow_data
+        balanceSheetData = cached.balance_sheet_data
+        needsFinancialsRefresh = false
+      }
     }
 
     // 2. Fetch fresh data if needed
@@ -76,14 +86,26 @@ serve(async (req) => {
       overviewData = await overviewRes.json()
     }
 
+    if (needsFinancialsRefresh) {
+      console.log(`💰 Fetching financials for ${ticker}...`)
+      const cfUrl = `https://www.alphavantage.co/query?function=CASH_FLOW&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
+      const bsUrl = `https://www.alphavantage.co/query?function=BALANCE_SHEET&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
+      
+      const [cfRes, bsRes] = await Promise.all([fetch(cfUrl), fetch(bsUrl)])
+      cashFlowData = await cfRes.json()
+      balanceSheetData = await bsRes.json()
+    }
+
     // 3. Update cache if we fetched fresh data
-    if (needsQuoteRefresh || needsOverviewRefresh) {
+    if (needsQuoteRefresh || needsOverviewRefresh || needsFinancialsRefresh) {
       await supabase
         .from('stock_cache')
         .upsert({
           ticker: ticker.toUpperCase(),
           quote_data: quoteData,
           overview_data: overviewData,
+          cash_flow_data: cashFlowData,
+          balance_sheet_data: balanceSheetData,
           updated_at: now.toISOString()
         }, { onConflict: 'ticker' })
     }
@@ -91,6 +113,8 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       quote: quoteData, 
       overview: overviewData,
+      cashFlow: cashFlowData,
+      balanceSheet: balanceSheetData,
       sentiment: cached?.sentiment_data || null,
       institutional: cached?.institutional_data || null,
       fromCache: !needsQuoteRefresh

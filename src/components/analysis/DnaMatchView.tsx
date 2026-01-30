@@ -118,6 +118,12 @@ export const DnaMatchView = () => {
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-5xl font-black text-white tracking-tighter font-mono">{stock.ticker}</h1>
             <Badge variant="neutral" className="text-xs">{stock.sector}</Badge>
+            {analysis?.riskLevel && (analysis.riskLevel === 'High' || analysis.riskLevel === 'CRITICAL') && (
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-rose-500/10 border border-rose-500/20 rounded text-rose-400 animate-pulse">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-black uppercase tracking-widest font-mono">Risk Alert</span>
+              </div>
+            )}
             <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-widest bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase font-mono">
                Step 3: Deep Dive
              </span>
@@ -186,6 +192,14 @@ export const DnaMatchView = () => {
                 <p className="text-lg text-slate-200 leading-relaxed font-medium">
                   "{analysis?.matchReasoning || "Loading reasoning..."}"
                 </p>
+                {analysis?.riskReason && (
+                   <div className="mt-4 flex gap-2 items-start text-sm text-slate-400 border-t border-slate-800 pt-4">
+                     <AlertTriangle className={clsx("w-4 h-4 mt-1", 
+                       (analysis.riskLevel === 'High' || analysis.riskLevel === 'CRITICAL') ? "text-rose-400" : "text-amber-400"
+                     )} />
+                     <p><span className="font-bold text-slate-300">Risk Assessment:</span> {analysis.riskReason}</p>
+                   </div>
+                )}
               </div>
 
               {/* Bull vs Bear Grid */}
@@ -277,8 +291,18 @@ export const DnaMatchView = () => {
                 <span className="text-sm font-mono text-white">{stock.marketCap}</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-slate-800">
-                <span className="text-sm text-slate-500">P/E Ratio</span>
-                <span className="text-sm font-mono text-white">{stock.relevantMetrics.peRatio || '-'}</span>
+                <span className="text-sm text-slate-500">Total Cash</span>
+                <span className="text-sm font-mono text-white">{stock.relevantMetrics.totalCash || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+                <span className="text-sm text-slate-500">Cash Runway</span>
+                <span className={clsx(
+                  "text-sm font-mono font-bold",
+                  (stock.relevantMetrics.cashRunway || 0) < 6 ? "text-rose-400" : "text-emerald-400"
+                )}>
+                  {stock.relevantMetrics.cashRunway === 99 ? 'Profitable' : `${stock.relevantMetrics.cashRunway} Months`}
+                  {analysis?.survivalRate === 'Critical' && ' ⚠️'}
+                </span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-slate-800">
                 <span className="text-sm text-slate-500">Volume (24h)</span>
