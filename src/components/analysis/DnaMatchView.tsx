@@ -1,50 +1,81 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, BrainCircuit, Share2 } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, BrainCircuit, Share2, Loader2, Plus } from 'lucide-react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, Legend } from 'recharts';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
+import { fetchStockQuote } from '../../services/stockService';
+import { fetchStockAnalysis, type AIAnalysis } from '../../services/analysisService';
+import { addToWatchlist, removeFromWatchlist, isInWatchlist } from '../../services/watchlistService';
+import type { Stock } from '../../types';
 import clsx from 'clsx';
 
-// 차트 데이터 타입 정의
 export const DnaMatchView = () => {
-  const { id } = useParams();
+  const { id: ticker } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   
-  // 실제 데이터 연동 전까지 사용할 Mock Data
-  // 나중에 Supabase에서 fetch 해오는 로직으로 대체됩니다.
-  const mockAnalysis = {
-    score: 87,
-    verdict: "STRONG BUY",
-    ticker: id || "UNKNOWN",
-    price: 0.854,
-    change: 12.4,
-    sector: "AI Infrastructure",
-    radarData: [
-      { subject: 'R&D Focus', A: 90, B: 85, fullMark: 100 },
-      { subject: 'Revenue Growth', A: 80, B: 90, fullMark: 100 },
-      { subject: 'Market Size', A: 95, B: 60, fullMark: 100 },
-      { subject: 'Cash Flow', A: 50, B: 40, fullMark: 100 },
-      { subject: 'Volatility', A: 70, B: 90, fullMark: 100 },
-    ],
-    reason: "이 기업은 초기 엔비디아와 놀라울 정도로 유사한 R&D 투자 패턴을 보이고 있습니다. 특히 매출 대비 연구비 지출이 40%를 상회하며, 이는 기술적 해자(Moat)를 구축 중이라는 강력한 신호입니다.",
-    bullPoints: [
-      "경영진이 과거 Google DeepMind 출신으로 기술적 비전이 명확함",
-      "최근 3일간 거래량이 유통주식의 200%를 회전하며 손바뀜 발생",
-      "부채 비율이 동종 업계 대비 30% 낮아 유상증자 리스크 적음"
-    ],
-    bearPoints: [
-      "아직 영업이익이 적자 상태로, 현금 고갈 속도(Burn Rate) 주의 필요",
-      "단기 급등에 따른 차익 실현 매물 출회 가능성"
-    ]
-  };
+  const [loading, setLoading] = useState(true);
+  const [stock, setStock] = useState<Stock | null>(null);
+  const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
+  const [inWatchlist, setInWatchlist] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    // 로딩 시뮬레이션 (AI가 분석하는 느낌)
-    const timer = setTimeout(() => setLoading(false), 1500);
-    return () => clearTimeout(timer);
-  }, []);
+    const loadData = async () => {
+      if (!ticker) return;
+      setLoading(true);
+      try {
+        // 1. Fetch real-time stock quote
+        const stockData = await fetchStockQuote(ticker);
+        setStock(stockData);
+
+        // 2. Fetch AI analysis
+        if (stockData) {
+          const aiData = await fetchStockAnalysis(stockData);
+          setAnalysis(aiData);
+        }
+
+        // 3. Check watchlist status
+        const saved = await isInWatchlist(ticker);
+        setInWatchlist(saved);
+      } catch (err) {
+        console.error('Failed to load analysis:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [ticker]);
+
+  const handlePortfolioToggle = async () => {
+    if (!ticker) return;
+    setActionLoading(true);
+    try {
+      if (inWatchlist) {
+        await removeFromWatchlist(ticker);
+        setInWatchlist(false);
+      } else {
+        await addToWatchlist(ticker);
+        setInWatchlist(true);
+      }
+    } catch (err) {
+      console.error('Failed to update portfolio:', err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const radarData = useMemo(() => {
+    if (!analysis) return [];
+    return [
+      { subject: 'Volatility', A: 70, B: stock?.changePercent ? Math.min(100, Math.abs(stock.changePercent) * 5) : 50 },
+      { subject: 'Momentum', A: 80, B: analysis.dnaScore },
+      { subject: 'Growth', A: 90, B: stock?.relevantMetrics.revenueGrowth || 60 },
+      { subject: 'Sentiment', A: 60, B: (stock?.relevantMetrics.sentimentScore || 0) * 100 + 50 },
+      { subject: 'Inst. Support', A: 50, B: (stock?.relevantMetrics.institutionalOwnership || 0) * 100 },
+    ];
+  }, [analysis, stock]);
 
   if (loading) {
     return (
@@ -55,8 +86,18 @@ export const DnaMatchView = () => {
             <BrainCircuit className="w-6 h-6 text-indigo-400 animate-pulse" />
           </div>
         </div>
-        <h2 className="mt-6 text-xl font-bold text-white tracking-tight">AI Agent Analyzing...</h2>
-        <p className="text-slate-400 font-mono text-sm mt-2">Comparing DNA with 'NVIDIA 1999'...</p>
+        <h2 className="mt-6 text-xl font-bold text-white tracking-tight">AI Agent Analyzing {ticker}...</h2>
+        <p className="text-slate-400 font-mono text-sm mt-2">Deep-scanning fundamentals & pattern matching...</p>
+      </div>
+    );
+  }
+
+  if (!stock) {
+    return (
+      <div className="p-8 text-center bg-slate-900 rounded-xl border border-slate-800">
+        <h2 className="text-xl font-bold text-white mb-2">Analysis Unavailable</h2>
+        <p className="text-slate-400 mb-4">Could not retrieve real-time data for {ticker}. Please try again later.</p>
+        <button onClick={() => navigate(-1)} className="text-indigo-400 hover:text-indigo-300 font-bold">Return to Discovery</button>
       </div>
     );
   }
@@ -69,21 +110,24 @@ export const DnaMatchView = () => {
         className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-2 group"
       >
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-        <span className="text-sm font-medium">Back to List</span>
+        <span className="text-sm font-medium">Back to Discovery</span>
       </button>
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-6">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-5xl font-black text-white tracking-tighter font-mono">{mockAnalysis.ticker}</h1>
-            <Badge variant="neutral" className="text-xs">{mockAnalysis.sector}</Badge>
+            <h1 className="text-5xl font-black text-white tracking-tighter font-mono">{stock.ticker}</h1>
+            <Badge variant="neutral" className="text-xs">{stock.sector}</Badge>
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-widest bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase font-mono">
+               Step 3: Deep Dive
+             </span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-3xl font-mono text-slate-200">${mockAnalysis.price.toFixed(3)}</span>
+            <span className="text-3xl font-mono text-slate-200">${stock.price.toFixed(3)}</span>
             <span className={clsx("flex items-center gap-1 font-mono font-bold px-2 py-1 rounded text-sm", 
-              mockAnalysis.change > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
-              {mockAnalysis.change > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-              {Math.abs(mockAnalysis.change)}%
+              stock.changePercent > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
+              {stock.changePercent > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              {Math.abs(stock.changePercent).toFixed(2)}%
             </span>
           </div>
         </div>
@@ -92,8 +136,19 @@ export const DnaMatchView = () => {
           <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-colors flex items-center gap-2 text-sm font-medium">
             <Share2 className="w-4 h-4" /> Share Analysis
           </button>
-          <button className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg shadow-lg shadow-indigo-500/20 font-bold transition-all flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4" /> Add to Portfolio
+          <button 
+            onClick={handlePortfolioToggle}
+            disabled={actionLoading}
+            className={clsx(
+              "px-6 py-2 rounded-lg shadow-lg font-bold transition-all flex items-center gap-2 disabled:opacity-50",
+              inWatchlist 
+                ? "bg-slate-800 border border-emerald-500/30 text-emerald-400" 
+                : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20"
+            )}
+          >
+            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 
+             inWatchlist ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            {inWatchlist ? "In Portfolio" : "Add to Portfolio"}
           </button>
         </div>
       </div>
@@ -116,18 +171,20 @@ export const DnaMatchView = () => {
                     <span className="text-xs font-bold text-indigo-400 tracking-widest uppercase">AI Growth DNA Analysis</span>
                   </div>
                   <h2 className="text-3xl font-bold text-white mb-1">
-                    Verdict: <span className="text-emerald-400">{mockAnalysis.verdict}</span>
+                    Verdict: <span className={clsx(
+                      (analysis?.dnaScore || 0) > 70 ? "text-emerald-400" : "text-amber-400"
+                    )}>{(analysis?.dnaScore || 0) > 70 ? "STRONG BUY" : "SPECULATIVE"}</span>
                   </h2>
                 </div>
                 <div className="text-right">
-                  <div className="text-6xl font-black text-white font-mono tracking-tighter">{mockAnalysis.score}</div>
+                  <div className="text-6xl font-black text-white font-mono tracking-tighter">{analysis?.dnaScore || stock.dnaScore}</div>
                   <div className="text-xs text-slate-400 font-mono mt-1">/ 100 SCORE</div>
                 </div>
               </div>
 
               <div className="bg-slate-950/50 rounded-xl p-6 border border-indigo-500/20 mb-8">
                 <p className="text-lg text-slate-200 leading-relaxed font-medium">
-                  "{mockAnalysis.reason}"
+                  "{analysis?.matchReasoning || "Loading reasoning..."}"
                 </p>
               </div>
 
@@ -138,12 +195,13 @@ export const DnaMatchView = () => {
                     <TrendingUp className="w-4 h-4" /> Bull Case (Why it could fly)
                   </h3>
                   <ul className="space-y-2">
-                    {mockAnalysis.bullPoints.map((point, i) => (
+                    {analysis?.bullCase.map((point, i) => (
                       <li key={i} className="text-slate-300 text-sm flex items-start gap-2">
                         <span className="text-emerald-500 mt-1">•</span>
                         {point}
                       </li>
                     ))}
+                    {!analysis && <li className="text-slate-600 animate-pulse text-sm">Identifying bull signals...</li>}
                   </ul>
                 </div>
 
@@ -152,12 +210,13 @@ export const DnaMatchView = () => {
                     <AlertTriangle className="w-4 h-4" /> Bear Case (Risks)
                   </h3>
                   <ul className="space-y-2">
-                    {mockAnalysis.bearPoints.map((point, i) => (
+                    {analysis?.bearCase.map((point, i) => (
                       <li key={i} className="text-slate-300 text-sm flex items-start gap-2">
                         <span className="text-rose-500 mt-1">•</span>
                         {point}
                       </li>
                     ))}
+                    {!analysis && <li className="text-slate-600 animate-pulse text-sm">Evaluating risk factors...</li>}
                   </ul>
                 </div>
               </div>
@@ -175,10 +234,9 @@ export const DnaMatchView = () => {
             </h3>
             <div className="w-full" style={{ height: 300, minHeight: 300 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={mockAnalysis.radarData}>
+                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
                   <PolarGrid stroke="#334155" />
                   <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10 }} />
-                  <PolarAngleAxis />
                   <Radar
                     name="Benchmark (NVDA)"
                     dataKey="A"
@@ -204,7 +262,7 @@ export const DnaMatchView = () => {
             </div>
             <p className="text-xs text-center text-slate-500 mt-4">
               <span className="text-indigo-400 font-bold">Purple Area</span> indicates current stock potential.
-              <br/>Matches 87% with Early NVIDIA pattern.
+              <br/>Matches {analysis?.dnaScore || stock.dnaScore}% with Growth DNA pattern.
             </p>
           </Card>
 
@@ -216,19 +274,29 @@ export const DnaMatchView = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-center pb-2 border-b border-slate-800">
                 <span className="text-sm text-slate-500">Market Cap</span>
-                <span className="text-sm font-mono text-white">$45.2M</span>
+                <span className="text-sm font-mono text-white">{stock.marketCap}</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-slate-800">
                 <span className="text-sm text-slate-500">P/E Ratio</span>
-                <span className="text-sm font-mono text-white">-</span>
+                <span className="text-sm font-mono text-white">{stock.relevantMetrics.peRatio || '-'}</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-slate-800">
                 <span className="text-sm text-slate-500">Volume (24h)</span>
-                <span className="text-sm font-mono text-emerald-400">12.5M 🔥</span>
+                <span className="text-sm font-mono text-emerald-400">
+                  {stock.volume > 1000000 
+                    ? `${(stock.volume / 1000000).toFixed(1)}M` 
+                    : `${(stock.volume / 1000).toFixed(0)}k`} 
+                  {stock.volume > 10000000 ? ' 🔥' : ''}
+                </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-500">52W High</span>
-                <span className="text-sm font-mono text-white">$1.20</span>
+                <span className="text-sm text-slate-500">Sentiment</span>
+                <span className={clsx(
+                  "text-sm font-mono font-bold",
+                  (stock.relevantMetrics.sentimentScore || 0) > 0 ? "text-emerald-400" : "text-slate-400"
+                )}>
+                  {stock.relevantMetrics.sentimentLabel || 'Neutral'}
+                </span>
               </div>
             </div>
           </Card>
