@@ -97,75 +97,64 @@ export async function fetchMultipleStocks(tickers: string[]): Promise<Stock[]> {
 
 export async function getTopStocks(): Promise<Stock[]> {
   try {
-    // 1차 시도: daily_discovery 테이블에서 동적 발굴 데이터 조회 (Finviz Hunter Bot)
+    // 1. Fetch discovered tickers from Finviz Hunter Bot (daily_discovery table)
     const { data: discoveryData, error: discoveryError } = await supabase
       .from('daily_discovery')
       .select('*')
       .order('updated_at', { ascending: false })
       .limit(30);
 
-    if (!discoveryError && discoveryData && discoveryData.length > 0) {
-      console.log('🎯 Using Finviz discovery data');
-      const stocks: Stock[] = discoveryData.map((item: any) => ({
-        id: item.ticker,
-        ticker: item.ticker,
-        name: item.ticker,
-        price: parseFloat(item.price) || 0,
-        changePercent: parseFloat(item.change?.replace('%', '')) || 0,
-        volume: parseVolumeString(item.volume),
-        marketCap: 'N/A',
-        dnaScore: calculateDnaScore(
-          parseFloat(item.price) || 0,
-          parseFloat(item.change?.replace('%', '')) || 0,
-          parseVolumeString(item.volume)
-        ),
-        sector: item.sector || 'Unknown',
-        description: `${item.sector || 'Technology'} company`,
-        relevantMetrics: { debtToEquity: 0, rndRatio: 0 }
-      }));
-      return stocks.sort((a, b) => b.dnaScore - a.dnaScore);
-    }
+    if (discoveryError) throw discoveryError;
 
-    // 2차 폴백: Finnhub Scanner (고정 리스트)
-    console.log('📡 Falling back to Finnhub scanner');
-    const { data, error } = await supabase.functions.invoke('get-market-scanner', {
-      body: { tickers: WATCHLIST_TICKERS }
+    // Use discovered tickers or fallback to static watchlist
+    const tickersToSync = (discoveryData && discoveryData.length > 0) 
+      ? discoveryData.map((item: any) => item.ticker)
+      : WATCHLIST_TICKERS;
+
+    console.log(`📡 Syncing ${tickersToSync.length} stocks with real-time data...`);
+
+    // 2. Fetch real-time market data for these tickers via Edge Function
+    const { data: realTimeData, error: syncError } = await supabase.functions.invoke('get-market-scanner', {
+      body: { tickers: tickersToSync }
     });
 
-    if (error) throw error;
-    if (!data) return [];
+    if (syncError) throw syncError;
+    if (!realTimeData) return [];
 
-    const stocks: Stock[] = data.map((item: any) => ({
-      id: item.ticker,
-      ticker: item.ticker,
-      name: getCompanyName(item.ticker),
-      price: item.price,
-      changePercent: item.changePercent,
-      volume: item.rawVolume || 0,
-      marketCap: 'N/A',
-      dnaScore: calculateDnaScore(item.price, item.changePercent, item.rawVolume || 0),
-      sector: getSector(item.ticker),
-      description: getDescription(item.ticker),
-      relevantMetrics: {}
-    }));
+    // 3. Map discovery metadata (like sector) with real-time prices
+    const stocks: Stock[] = realTimeData.map((rtItem: any) => {
+      // Find discovery metadata if available
+      const discoveryInfo = discoveryData?.find(d => d.ticker === rtItem.ticker);
+      
+      const price = rtItem.price || 0;
+      const changePercent = rtItem.changePercent || 0;
+      const volume = rtItem.rawVolume || 0;
 
+      return {
+        id: rtItem.ticker,
+        ticker: rtItem.ticker,
+        name: discoveryInfo?.name || getCompanyName(rtItem.ticker),
+        price,
+        changePercent,
+        volume,
+        marketCap: discoveryInfo?.market_cap || 'N/A',
+        dnaScore: calculateDnaScore(price, changePercent, volume),
+        sector: discoveryInfo?.sector || getSector(rtItem.ticker),
+        description: discoveryInfo?.description || getDescription(rtItem.ticker),
+        relevantMetrics: {
+          sentimentScore: discoveryInfo?.sentiment_score || 0,
+          institutionalOwnership: discoveryInfo?.institutional_ownership || 0,
+        }
+      };
+    });
+
+    // 4. Return sorted by DNA Score (Higher score = Better opportunity)
     return stocks.sort((a, b) => b.dnaScore - a.dnaScore);
 
   } catch (err) {
-    console.warn('Scanner failed, falling back to mock:', err);
+    console.warn('Real-time sync failed, falling back to cached fetchMultipleStocks:', err);
     return fetchMultipleStocks(WATCHLIST_TICKERS.slice(0, 5));
   }
-}
-
-// Helper: Parse volume strings like "1.2M", "500K"
-function parseVolumeString(vol: string | number): number {
-  if (typeof vol === 'number') return vol;
-  if (!vol) return 0;
-  const clean = vol.toUpperCase().replace(/,/g, '');
-  if (clean.includes('M')) return parseFloat(clean) * 1000000;
-  if (clean.includes('K')) return parseFloat(clean) * 1000;
-  if (clean.includes('B')) return parseFloat(clean) * 1000000000;
-  return parseInt(clean, 10) || 0;
 }
 
 // Helper functions
