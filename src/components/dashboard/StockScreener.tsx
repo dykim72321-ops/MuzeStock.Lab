@@ -45,8 +45,19 @@ export const StockScreener = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">주식 스캐너</h1>
-          <p className="text-slate-400 mt-2">MuzeStock.Lab 파라미터를 기반으로 주식을 필터링하고 정렬합니다.</p>
+          <div className="flex items-center gap-2 mb-1">
+             <span className="px-2 py-0.5 rounded text-xs font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+               STEP 1: DISCOVERY
+             </span>
+             <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+               UPDATED 08:00 AM (KST)
+             </span>
+          </div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Finviz Hunter Bot 결과</h1>
+          <p className="text-slate-400 mt-2">
+            봇이 오늘 아침 발굴한 <span className="text-emerald-400 font-bold">$1 미만 급등 후보군</span>입니다. 
+            관심 종목을 클릭하여 <span className="text-indigo-400 font-bold">AI 심층 분석(Step 3)</span>을 진행하세요.
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <button
