@@ -20,31 +20,51 @@ serve(async (req) => {
       throw new Error('Tickers array is required')
     }
 
-    // Finnhub allows 60 calls/min. We can fetch concurrently.
-    // For 30 stocks, we can fire 30 requests. It's fast.
-    const promises = tickers.map(async (ticker) => {
-      try {
-        const url = `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_API_KEY}`
-        const res = await fetch(url)
-        const data = await res.json()
-        
-        // Finnhub response: { c: current price, d: change, dp: percent change, ... }
-        return {
-          ticker,
-          price: data.c,
-          changePercent: data.dp,
-          volume: 0, // Finnhub Quote API doesn't always return volume, or it's limited. We'll use 0 or verify.
-          // Finnhub quote has 'v' for volume sometimes, but often 0 for delayed data.
-          // Let's check 'v' field.
-          rawVolume: data.v
-        }
-      } catch (e) {
-        console.error(`Failed to fetch ${ticker}`, e)
-        return null
-      }
-    })
+    // Batch processing to avoid rate limits and timeouts
+    // Finnhub limit is ~60/min, but burst limit exists.
+    // Process in chunks of 5 with small delay.
+    const CHUNK_SIZE = 5;
+    const results = [];
+    
+    for (let i = 0; i < tickers.length; i += CHUNK_SIZE) {
+      const chunk = tickers.slice(i, i + CHUNK_SIZE);
+      
+      const chunkPromises = chunk.map(async (ticker) => {
+        try {
+          const url = `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_API_KEY}`
+          const res = await fetch(url)
+          
+          if (!res.ok) {
+             console.warn(`Error fetching ${ticker}: ${res.statusText}`)
+             return null
+          }
+          
+          const data = await res.json()
+          
+          // Finnhub returns 0s if ticker invalid or no data
+          if (data.c === 0 && data.dp === 0) return null;
 
-    const results = await Promise.all(promises)
+          return {
+            ticker,
+            price: data.c,
+            changePercent: data.dp,
+            volume: data.v || 0,
+            rawVolume: data.v || 0
+          }
+        } catch (e) {
+          console.error(`Failed to fetch ${ticker}`, e)
+          return null
+        }
+      })
+
+      const chunkResults = await Promise.all(chunkPromises);
+      results.push(...chunkResults);
+
+      // Add small delay between chunks (approx 200ms)
+      if (i + CHUNK_SIZE < tickers.length) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    }
     const validResults = results.filter(r => r !== null && r.price > 0)
 
     return new Response(JSON.stringify(validResults), {
