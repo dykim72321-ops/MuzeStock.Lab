@@ -1,4 +1,4 @@
-import { Stock } from '../types';
+import type { Stock } from '../types';
 
 /**
  * Standardizes stock data from various potential sources (Alpha Vantage, Finnhub, Yahoo, etc.)

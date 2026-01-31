@@ -122,9 +122,9 @@ serve(async (req) => {
     *IF* relevant, compare the current situation to these historical events in your analysis.
     
     Format JSON Fields exactly as follows (Language: Korean):
-    - matchReasoning: 5W1H report as bullet points ([누가], [언제], [어디서], [무엇을], [왜], [어떻게]).
-    - financialHealthAudit: Detailed analysis of Revenue (${revenueGrowth}%), Net Income (${netIncome}), and Total Cash (${totalCash}). Focus on runway and sustainability.
-    - marketTrendAnalysis: Analysis of Market Context (${globalContext}) and Sentiment (${sentimentLabel}, Score: ${sentimentScore}).
+    - matchReasoning: Single formatted string with 5W1H bullet points (e.g., "[누가] ...\n[언제] ...\n[어디서] ..."). NOT a JSON object.
+    - financialHealthAudit: Single string with detailed Revenue, Net Income, and Cash analysis.
+    - marketTrendAnalysis: Single string analyzing Market Context and Sentiment.
     - bullCase (string[]): 3 concise facts.
     - bearCase (string[]): 3 concise facts.
     - dnaScore (number): 0-100.

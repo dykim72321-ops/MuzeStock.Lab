@@ -39,6 +39,22 @@ interface RealTimeData {
   cashRunway?: number;
 }
 
+// Helper function to safely render AI analysis content (string or object)
+const renderContent = (content: any): string => {
+  if (!content) return "";
+  if (typeof content === 'string') return content;
+  
+  // If it's an object (e.g., 5W1H structure), convert to formatted string
+  if (typeof content === 'object') {
+    return Object.entries(content)
+      .map(([key, value]) => `[${key}] ${value}`)
+      .join('\n');
+  }
+  
+  return String(content);
+};
+
+
 export const DnaMatchView = () => {
   const { id } = useParams(); // id = ticker
   const navigate = useNavigate();
@@ -284,7 +300,7 @@ export const DnaMatchView = () => {
               {/* Reasoning */}
               <div className="bg-slate-950/50 rounded-xl p-6 border border-indigo-500/20 mb-8 overflow-hidden">
                 <div className="text-slate-200 leading-relaxed font-medium whitespace-pre-wrap text-sm">
-                  {analysis?.reason}
+                  {renderContent(analysis?.reason)}
                 </div>
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -332,7 +348,7 @@ export const DnaMatchView = () => {
                     <Banknote className="w-4 h-4 text-emerald-400" /> Revenue & Financial Health
                   </h3>
                   <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
-                    {analysis?.financialHealthAudit || "재무 지표 분석 중..."}
+                    {renderContent(analysis?.financialHealthAudit) || "재무 지표 분석 중..."}
                   </p>
                 </div>
                 <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-5">
@@ -340,7 +356,7 @@ export const DnaMatchView = () => {
                     <Globe className="w-4 h-4 text-indigo-400" /> Market Dynamics & Trend
                   </h3>
                   <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
-                    {analysis?.marketTrendAnalysis || "시장 동향 분석 중..."}
+                    {renderContent(analysis?.marketTrendAnalysis) || "시장 동향 분석 중..."}
                   </p>
                 </div>
               </div>
