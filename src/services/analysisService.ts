@@ -9,6 +9,8 @@ export interface AIAnalysis {
   riskLevel: 'Low' | 'Medium' | 'High' | 'CRITICAL';
   riskReason: string;
   survivalRate: 'Healthy' | 'Warning' | 'Critical';
+  financialHealthAudit?: string;
+  marketTrendAnalysis?: string;
 }
 
 export async function fetchStockAnalysis(stock: Stock): Promise<AIAnalysis | null> {

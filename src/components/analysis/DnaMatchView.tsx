@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, BrainCircuit, Share2, Plus, Minus, ShieldAlert, ExternalLink, Database } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, BrainCircuit, Share2, Plus, Minus, ShieldAlert, ExternalLink, Database, Banknote, Globe } from 'lucide-react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, Legend } from 'recharts';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
@@ -22,6 +22,8 @@ interface AnalysisData {
   bearPoints: string[];
   riskScore: number;
   radarData: any[];
+  financialHealthAudit?: string;
+  marketTrendAnalysis?: string;
 }
 
 interface RealTimeData {
@@ -95,7 +97,9 @@ export const DnaMatchView = () => {
             riskScore: analysisData.riskLevel === 'CRITICAL' ? 95 : 
                        analysisData.riskLevel === 'High' ? 80 :
                        analysisData.riskLevel === 'Medium' ? 50 : 20,
-            radarData: generateDefaultRadar(analysisData.dnaScore)
+            radarData: generateDefaultRadar(analysisData.dnaScore),
+            financialHealthAudit: analysisData.financialHealthAudit,
+            marketTrendAnalysis: analysisData.marketTrendAnalysis
           });
         }
 
@@ -299,6 +303,26 @@ export const DnaMatchView = () => {
                       </li>
                     )) : <li className="text-slate-500 text-sm">데이터 분석 중...</li>}
                   </ul>
+                </div>
+              </div>
+
+              {/* Strategic Audit Section */}
+              <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-5">
+                  <h3 className="text-slate-200 font-bold mb-3 flex items-center gap-2">
+                    <Banknote className="w-4 h-4 text-emerald-400" /> Revenue & Financial Health
+                  </h3>
+                  <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
+                    {analysis?.financialHealthAudit || "재무 지표 분석 중..."}
+                  </p>
+                </div>
+                <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-5">
+                  <h3 className="text-slate-200 font-bold mb-3 flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-indigo-400" /> Market Dynamics & Trend
+                  </h3>
+                  <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
+                    {analysis?.marketTrendAnalysis || "시장 동향 분석 중..."}
+                  </p>
                 </div>
               </div>
             </div>

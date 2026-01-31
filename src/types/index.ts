@@ -50,4 +50,6 @@ export interface AnalysisReport {
   bearCase: string[];
   matchReasoning: string;
   dnaScore: number;
+  financialHealthAudit?: string;
+  marketTrendAnalysis?: string;
 }

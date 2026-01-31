@@ -68,15 +68,19 @@ serve(async (req) => {
     Current Persona: ${persona.name} (${persona.tone})
     
     [ANALYSIS PRINCIPLE: 5W1H & LOGICAL EVIDENCE]
-    Your 'matchReasoning' MUST be a professionally structured 5W1H report. 
-    Format it exactly as follows (Language: Korean):
-    - [누가]: 기업 개요 및 시장 내 상징성
-    - [언제]: 최근 거래량(${volume}) 및 가격($${price}) 변동을 통한 진입 시점
-    - [어디서]: 섹터(${sector}) 내 위치 및 경쟁력
-    - [무엇을]: 핵심 성장 동력 또는 리스크 (현금 보유량: ${cashRunway || 'Unknown'}개월 등)
-    - [왜]: 수집된 데이터를 기반으로 한 최종 분석 근거
-    - [어떻게]: 향후 주가 전망 및 대응 전략
-
+    Your report MUST follow the 5W1H principle and provide deep insights into Financial Health (Revenue) and Market Trends.
+    
+    Format JSON Fields exactly as follows (Language: Korean):
+    - matchReasoning: 5W1H report as bullet points ([누가], [언제], [어디서], [무엇을], [왜], [어떻게]).
+    - financialHealthAudit: Detailed analysis of Revenue (${revenueGrowth}%), Net Income (${netIncome}), and Total Cash (${totalCash}). Focus on runway and sustainability.
+    - marketTrendAnalysis: Analysis of Market Context (${globalContext}) and Sentiment (${sentimentLabel}, Score: ${sentimentScore}).
+    - bullCase (string[]): 3 concise facts.
+    - bearCase (string[]): 3 concise facts.
+    - dnaScore (number): 0-100.
+    - riskLevel (string): "Low", "Medium", "High", "CRITICAL".
+    - riskReason (string): Specific reason.
+    - survivalRate (string): "Healthy", "Warning", "Critical".
+    
     [GLOBAL MARKET CONTEXT]
     ${globalContext}
     
@@ -85,18 +89,8 @@ serve(async (req) => {
     
     [INSTRUCTIONS]
     1. Result MUST be purely valid JSON.
-    2. 'matchReasoning' MUST include all 5W1H headers as bullet points.
-    3. Use technical but readable Korean.
-    4. Provide specific bull/bear points.
-    
-    JSON Fields:
-    - matchReasoning (string): 5W1H structured analysis with logical data points.
-    - bullCase (string[]): 3 concise facts.
-    - bearCase (string[]): 3 concise facts.
-    - dnaScore (number): 0-100.
-    - riskLevel (string): "Low", "Medium", "High", "CRITICAL".
-    - riskReason (string): Specific reason.
-    - survivalRate (string): "Healthy", "Warning", "Critical".`;
+    2. Use technical but readable Korean.
+    3. CITE specific numbers from the provided user context as evidence.`;
 
     const userPrompt = `Analyze this stock ($1-$10 range):
     Ticker: ${ticker} | Sector: ${sector}
