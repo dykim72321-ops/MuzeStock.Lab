@@ -64,9 +64,50 @@ export function sendStockNotification(
   notification.onclick = () => {
     window.focus();
     window.location.href = `/stock/${ticker}`;
-    notification.close();
   };
 }
+
+// === 강화된 알림 기능 ===
+
+/**
+ * 목표가 도달 알림
+ */
+export const sendPriceAlert = (ticker: string, targetPrice: number, currentPrice: number) => {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  new Notification(`🎯 ${ticker} 목표가 도달!`, {
+    body: `목표: $${targetPrice.toFixed(2)} → 현재: $${currentPrice.toFixed(2)}`,
+    icon: '/logo.png',
+    tag: `price-alert-${ticker}`,
+  });
+};
+
+/**
+ * DNA 점수 급등 알림
+ */
+export const sendDnaScoreSurge = (ticker: string, oldScore: number, newScore: number) => {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  const increase = newScore - oldScore;
+  new Notification(`🚀 ${ticker} DNA 점수 급등!`, {
+    body: `${oldScore} → ${newScore} (+${increase.toFixed(0)}점)`,
+    icon: '/logo.png',
+    tag: `dna-surge-${ticker}`,
+  });
+};
+
+/**
+ * AI 분석 완료 알림
+ */
+export const sendAnalysisComplete = (ticker: string, verdict: string, score: number) => {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  new Notification(`🤖 ${ticker} AI 분석 완료`, {
+    body: `판정: ${verdict} | DNA 점수: ${score}`,
+    icon: '/logo.png',
+    tag: `analysis-${ticker}`,
+  });
+};
 
 /**
  * Internal helper to send notifications

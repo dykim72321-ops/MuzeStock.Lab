@@ -1,73 +1,108 @@
-# React + TypeScript + Vite
+# 🚀 MuzeStock.Lab
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+AI 기반 페니 스탁(Penny Stock) 분석 플랫폼
 
-Currently, two official plugins are available:
+## 주요 기능
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 🔍 **자동 종목 발굴**: Finviz 스크래핑으로 매일 아침 $1 미만 종목 발굴
+- 🤖 **AI 심층 분석**: GPT-4o-mini + RAG로 역사적 패턴 기반 분석
+- 📊 **DNA 스코어링**: 알고리즘 + AI 하이브리드 평가 시스템
+- 📈 **백테스팅**: AI 예측 정확도 자동 검증
 
-## React Compiler
+## 기술 스택
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend**: React + TypeScript + Vite + TailwindCSS
+- **Backend**: Supabase Edge Functions (Deno)
+- **Database**: PostgreSQL + pgvector
+- **AI**: OpenAI GPT-4o-mini, text-embedding-3-small
+- **APIs**: Alpha Vantage, Finnhub
 
-## Expanding the ESLint configuration
+## 시작하기
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 1. 환경 설정
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cp .env.example .env.local
+# .env.local 파일에 API 키 입력
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 2. 설치 및 실행
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
+
+### 3. Supabase 설정
+
+```bash
+# Supabase CLI 설치
+npm install -g supabase
+
+# 프로젝트 연결
+npx supabase link --project-ref drnxydtrsjumjksqmdgi
+```
+
+## 배포
+
+```bash
+./deploy.sh
+```
+
+## 워크플로우
+
+1. **Discovery**: Finviz Hunter Bot이 발굴한 종목 확인
+2. **Watchlist**: 관심 종목 추가 및 모니터링
+3. **Analysis**: AI 심층 분석 및 투자 판단
+
+## 프로젝트 구조
+
+```
+MuzeStock.Lab/
+├── src/
+│   ├── components/       # React 컴포넌트
+│   │   ├── analysis/     # AI 분석 관련
+│   │   ├── dashboard/    # 대시보드 뷰
+│   │   ├── layout/       # 레이아웃 컴포넌트
+│   │   └── ui/           # 재사용 UI 컴포넌트
+│   ├── hooks/            # Custom React hooks
+│   ├── services/         # API 서비스 레이어
+│   ├── utils/            # 유틸리티 함수
+│   └── types/            # TypeScript 타입 정의
+├── supabase/
+│   ├── functions/        # Edge Functions
+│   │   ├── analyze-stock/
+│   │   ├── get-stock-quote/
+│   │   └── get-market-scanner/
+│   └── migrations/       # 데이터베이스 마이그레이션
+└── scripts/              # 자동화 스크립트
+    └── finviz-hunter.ts  # 종목 발굴 봇
+```
+
+## 개발
+
+### 로컬 개발 서버
+
+```bash
+npm run dev
+```
+
+### Edge Functions 로컬 테스트
+
+```bash
+npx supabase functions serve
+```
+
+### Finviz Hunter 수동 실행
+
+```bash
+SUPABASE_URL=xxx SUPABASE_SERVICE_ROLE_KEY=xxx npx ts-node scripts/finviz-hunter.ts
+```
+
+## 환경 변수
+
+필수 환경 변수는 `.env.example` 파일을 참고하세요.
+
+## 라이선스
+
+MIT
