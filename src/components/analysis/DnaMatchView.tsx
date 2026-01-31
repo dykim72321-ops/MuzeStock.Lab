@@ -12,6 +12,7 @@ import { fetchStockQuote } from '../../services/stockService';
 // (analysisService.ts에 구현되어 있다고 가정, 없으면 아래에서 직접 Supabase 호출로 대체 가능)
 import { fetchStockAnalysis } from '../../services/analysisService'; 
 import { addToWatchlist, removeFromWatchlist, isInWatchlist } from '../../services/watchlistService';
+import { useLiveTicker } from '../../hooks/useLiveTicker';
 
 // --- Types ---
 interface AnalysisData {
@@ -49,6 +50,16 @@ export const DnaMatchView = () => {
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
   const [inPortfolio, setInPortfolio] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // --- Live Ticker Hook ---
+  const { currentPrice, lastUpdate, isConnected } = useLiveTicker(ticker);
+
+  // --- Live Price Override Effect ---
+  useEffect(() => {
+    if (currentPrice && realTimeData) {
+      setRealTimeData(prev => prev ? { ...prev, price: currentPrice } : null);
+    }
+  }, [currentPrice]);
 
   // --- Data Fetching Effect ---
   useEffect(() => {
@@ -202,7 +213,15 @@ export const DnaMatchView = () => {
             )}
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-3xl font-mono text-slate-200">${realTimeData.price.toFixed(3)}</span>
+            <div className="relative">
+              <span className="text-3xl font-mono text-slate-200">${realTimeData.price.toFixed(3)}</span>
+              {isConnected && (
+                <span className="absolute -top-1 -right-2 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              )}
+            </div>
             <span className={clsx("flex items-center gap-1 font-mono font-bold px-2 py-1 rounded text-sm", 
               realTimeData.changePercent >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
               {realTimeData.changePercent >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}

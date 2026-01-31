@@ -32,10 +32,28 @@ async function scrapeFinviz() {
   const supabase = createClient(supabaseUrl, supabaseKey);
   let browser;
 
+  // 🛡️ Proxy Rotation Logic
+  const PROXY_POOL = [
+    // Add your proxy servers here in format: 'http://username:password@ip:port'
+    // Currently using direct connection placeholder, but ready for rotation.
+  ];
+
+  const getRandomProxy = () => {
+    if (PROXY_POOL.length === 0) return undefined;
+    const proxy = PROXY_POOL[Math.floor(Math.random() * PROXY_POOL.length)];
+    console.log(`🛡️ Rotating Proxy: ${proxy.replace(/:[^:]*@/, ':****@')}`); // Log sanitized
+    return { server: proxy };
+  };
+
   try {
-    browser = await chromium.launch({ headless: true }); 
+    const launchOptions = { 
+      headless: true,
+      proxy: getRandomProxy() // Rotate IP per run
+    };
+
+    browser = await chromium.launch(launchOptions); 
     const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
     });
     const page = await context.newPage();
 

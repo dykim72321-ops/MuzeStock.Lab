@@ -13,6 +13,7 @@ const OVERVIEW_CACHE_HOURS = 24
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30', // Edge Cache: 1 min, background revalidate
 }
 
 serve(async (req) => {

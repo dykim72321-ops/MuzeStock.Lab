@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=600', // Cache AI analysis for 1 hour
 };
 
 const BENCHMARK_POOL = [
@@ -33,6 +34,12 @@ serve(async (req) => {
       sentimentScore, sentimentLabel, institutionalOwnership, topInstitution,
       sector, cashRunway, netIncome, totalCash
     } = await req.json();
+
+    // 🚨 Anomaly Detection (Sanity Check)
+    if (!ticker || typeof price !== 'number' || price <= 0) {
+      console.error(`Anomaly detected for input: ${ticker}, Price: ${price}`);
+      throw new Error("Input validation failed: Invalid Ticker or Price anomaly detected.");
+    }
     
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
@@ -64,11 +71,55 @@ serve(async (req) => {
        console.warn("Failed to fetch market context, using default.", err);
     }
 
+    // --- RAG: Vector Search for Historical Patterns ---
+    let historicalContext = "No specific historical pattern matched.";
+    try {
+      // 1. Generate Embedding for current context
+      const queryText = `Stock: ${ticker}, Sector: ${sector}, Price Action: ${change}%, Volume: ${volume}, Sentiment: ${sentimentLabel}`;
+      const embedRes = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'text-embedding-3-small',
+          input: queryText
+        })
+      });
+      const embedData = await embedRes.json();
+      
+      if (embedData.data && embedData.data[0]) {
+        const embedding = embedData.data[0].embedding;
+        
+        // 2. Search Supabase
+        const { data: similarPatterns, error: rpcError } = await supabase.rpc('match_market_patterns', {
+          query_embedding: embedding,
+          match_threshold: 0.7, // 70% similarity
+          match_count: 2
+        });
+
+        if (!rpcError && similarPatterns && similarPatterns.length > 0) {
+          historicalContext = similarPatterns.map((p: any) => 
+            `- Event: ${p.event_name} (Similarity: ${(p.similarity * 100).toFixed(1)}%)\n  Context: ${p.description}`
+          ).join('\n');
+          console.log(`🔍 Found ${similarPatterns.length} similar historical patterns for ${ticker}`);
+        }
+      }
+    } catch (err) {
+      console.warn("Vector search failed (RAG skipped):", err);
+    }
+
     const systemPrompt = `You are a professional stock analyst for MuzeStock.Lab.
     Current Persona: ${persona.name} (${persona.tone})
     
     [ANALYSIS PRINCIPLE: 5W1H & LOGICAL EVIDENCE]
     Your report MUST follow the 5W1H principle and provide deep insights into Financial Health (Revenue) and Market Trends.
+
+    [HISTORICAL PATTERN MATCHING (RAG)]
+    The following historical events match the current chart pattern of ${ticker}:
+    ${historicalContext}
+    *IF* relevant, compare the current situation to these historical events in your analysis.
     
     Format JSON Fields exactly as follows (Language: Korean):
     - matchReasoning: 5W1H report as bullet points ([누가], [언제], [어디서], [무엇을], [왜], [어떻게]).
@@ -124,6 +175,19 @@ serve(async (req) => {
 
     const content = data.choices[0].message.content;
     const analysis = JSON.parse(content);
+
+    // --- 4. Return Result & Save to Backtesting Log ---
+    
+    // Save prediction asynchronously (don't block response)
+    const { error: logError } = await supabase.from('ai_predictions').insert({
+      ticker: ticker,
+      persona_used: persona.name,
+      dna_score: analysis.dnaScore,
+      predicted_direction: analysis.dnaScore >= 50 ? 'BULLISH' : 'BEARISH',
+      start_price: price
+    });
+    
+    if (logError) console.warn("Failed to log prediction for backtesting:", logError);
 
     return new Response(JSON.stringify(analysis), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

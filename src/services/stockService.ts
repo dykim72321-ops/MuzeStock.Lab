@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase';
 import type { Stock } from '../types';
+import { apiCircuitBreaker } from '../utils/circuitBreaker';
+import { validateStockData } from '../utils/normalizer';
 
 // Focused Penny Stock Watchlist
 export const WATCHLIST_TICKERS = [
@@ -19,107 +21,120 @@ export async function fetchStockQuote(ticker: string): Promise<Stock | null> {
     return cached.data;
   }
 
-  try {
-    const { data, error } = await supabase.functions.invoke('get-stock-quote', {
-      body: { ticker }
-    });
-    
-    if (error) throw error;
-    
-    if (!data || !data.quote) {
-      console.warn(`No price data for ${ticker}`);
-      return null;
-    }
-    
-    const { 
-      quote: quoteData, 
-      overview: overviewData, 
-      cashFlow: cashFlowData,
-      balanceSheet: balanceSheetData,
-      sentiment: sentimentData, 
-      institutional: institutionalData 
-    } = data;
-    
-    const quote = quoteData['Global Quote'];
-    if (!quote || !quote['05. price']) return null;
-
-    // --- Financial Health Calculations (Resilient) ---
-    const overview = overviewData || {};
-    const cashFlow = cashFlowData || {};
-    const balanceSheet = balanceSheetData || {};
-
-    let totalCashValue = 0;
-    let netIncomeValue = 0;
-    let runwayMonths = undefined;
-
-    try {
-      if (balanceSheet.quarterlyReports && balanceSheet.quarterlyReports.length > 0) {
-        const latestBS = balanceSheet.quarterlyReports[0];
-        totalCashValue = parseFloat(latestBS.cashAndCashEquivalentsAtCarryingValue || '0') + 
-                         parseFloat(latestBS.shortTermInvestments || '0');
+// Fallback helper to return partial data from cache or minimal object
+    const getFallback = async (): Promise<Stock | null> => {
+      if (cached) {
+        console.warn(`[CircuitBreaker] Circuit Open or Error. Serving cached data for ${ticker}`);
+        return cached.data;
       }
-
-      if (cashFlow.quarterlyReports && cashFlow.quarterlyReports.length > 0) {
-        const reports = cashFlow.quarterlyReports;
-        netIncomeValue = reports.slice(0, 4).reduce((sum: number, r: any) => sum + parseFloat(r.netIncome || '0'), 0);
-        const quarterlyOCFs = reports.slice(0, 4).map((r: any) => parseFloat(r.operatingCashflow || '0'));
-        const negativeOCFs = quarterlyOCFs.filter((v: number) => v < 0);
-        
-        if (negativeOCFs.length > 0 && totalCashValue > 0) {
-          const avgBurn = Math.abs(negativeOCFs.reduce((a: number, b: number) => a + b, 0) / negativeOCFs.length);
-          if (avgBurn > 0) runwayMonths = Math.round((totalCashValue / avgBurn) * 3);
-        } else if (quarterlyOCFs.length > 0 && totalCashValue > 0) {
-          runwayMonths = 99; 
-        }
-      }
-    } catch (calcErr) {
-      console.error("Financial calculation error:", calcErr);
-    }
-
-    const formatCurrency = (val: number) => {
-      if (val === 0) return 'N/A';
-      if (Math.abs(val) >= 1e9) return `$${(val / 1e9).toFixed(1)}B`;
-      if (Math.abs(val) >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
-      return `$${val.toLocaleString()}`;
+      return null; // Or return a "Service Unavailable" placeholder object if desired
     };
 
-    const price = parseFloat(quote['05. price']);
-    const changePercent = parseFloat(quote['10. change percent'].replace('%', ''));
-    const volume = parseInt(quote['06. volume'], 10);
+    return await apiCircuitBreaker.execute(async () => {
+      const { data, error } = await supabase.functions.invoke('get-stock-quote', {
+        body: { ticker }
+      });
+      
+      if (error) throw error;
+      
+      if (!data || !data.quote) {
+        console.warn(`No price data for ${ticker}`);
+        throw new Error(`Data missing for ${ticker}`); // Trip Circuit Breaker
+      }
+      
+      const { 
+        quote: quoteData, 
+        overview: overviewData, 
+        cashFlow: cashFlowData,
+        balanceSheet: balanceSheetData,
+        sentiment: sentimentData, 
+        institutional: institutionalData 
+      } = data;
+      
+      const quote = quoteData['Global Quote'];
+      if (!quote || !quote['05. price']) {
+         throw new Error(`Invalid quote data for ${ticker}`);
+      }
+
+      // --- Financial Health Calculations (Resilient) ---
+      const overview = overviewData || {};
+      const cashFlow = cashFlowData || {};
+      const balanceSheet = balanceSheetData || {};
+
+      let totalCashValue = 0;
+      let netIncomeValue = 0;
+      let runwayMonths = undefined;
+
+      try {
+        if (balanceSheet.quarterlyReports && balanceSheet.quarterlyReports.length > 0) {
+          const latestBS = balanceSheet.quarterlyReports[0];
+          totalCashValue = parseFloat(latestBS.cashAndCashEquivalentsAtCarryingValue || '0') + 
+                           parseFloat(latestBS.shortTermInvestments || '0');
+        }
+
+        if (cashFlow.quarterlyReports && cashFlow.quarterlyReports.length > 0) {
+          const reports = cashFlow.quarterlyReports;
+          netIncomeValue = reports.slice(0, 4).reduce((sum: number, r: any) => sum + parseFloat(r.netIncome || '0'), 0);
+          const quarterlyOCFs = reports.slice(0, 4).map((r: any) => parseFloat(r.operatingCashflow || '0'));
+          const negativeOCFs = quarterlyOCFs.filter((v: number) => v < 0);
+          
+          if (negativeOCFs.length > 0 && totalCashValue > 0) {
+            const avgBurn = Math.abs(negativeOCFs.reduce((a: number, b: number) => a + b, 0) / negativeOCFs.length);
+            if (avgBurn > 0) runwayMonths = Math.round((totalCashValue / avgBurn) * 3);
+          } else if (quarterlyOCFs.length > 0 && totalCashValue > 0) {
+            runwayMonths = 99; 
+          }
+        }
+      } catch (calcErr) {
+        console.error("Financial calculation error:", calcErr);
+      }
+
+      const formatCurrency = (val: number) => {
+        if (val === 0) return 'N/A';
+        if (Math.abs(val) >= 1e9) return `$${(val / 1e9).toFixed(1)}B`;
+        if (Math.abs(val) >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
+        return `$${val.toLocaleString()}`;
+      };
+
+      const price = parseFloat(quote['05. price']);
+      const changePercent = parseFloat(quote['10. change percent'].replace('%', ''));
+      const volume = parseInt(quote['06. volume'], 10);
 
     const stock: Stock = {
-      id: ticker,
-      ticker: quote['01. symbol'],
-      name: getCompanyName(ticker),
-      price,
-      changePercent,
-      volume,
-      marketCap: 'N/A',
-      dnaScore: calculateDnaScore(price, changePercent, volume),
-      sector: getSector(ticker),
-      description: getDescription(ticker),
-      relevantMetrics: {
-        debtToEquity: parseFloat(overview['DebtToEquityTTL'] || '0'),
-        rndRatio: 15.0, // Default estimate
-        revenueGrowth: parseFloat(overview['QuarterlyRevenueGrowthYOY'] || '0') * 100,
-        peRatio: parseFloat(overview['PERatio'] || '0'),
-        operatingMargin: parseFloat(overview['OperatingMarginTTM'] || '0'),
-        sentimentScore: sentimentData?.feed?.[0]?.overall_sentiment_score || 0,
-        sentimentLabel: sentimentData?.feed?.[0]?.overall_sentiment_label || 'Neutral',
-        institutionalOwnership: institutionalData?.data?.[0]?.ownership || 0,
-        topInstitution: institutionalData?.data?.[0]?.investorName || 'N/A',
-        cashRunway: runwayMonths,
-        netIncome: formatCurrency(netIncomeValue),
-        totalCash: formatCurrency(totalCashValue),
-      },
-    };
+        id: ticker,
+        ticker: quote['01. symbol'],
+        name: getCompanyName(ticker),
+        price,
+        changePercent,
+        volume,
+        marketCap: 'N/A',
+        dnaScore: calculateDnaScore(price, changePercent, volume),
+        sector: getSector(ticker),
+        description: getDescription(ticker),
+        relevantMetrics: {
+          debtToEquity: parseFloat(overview['DebtToEquityTTL'] || '0'),
+          rndRatio: 15.0, // Default estimate
+          revenueGrowth: parseFloat(overview['QuarterlyRevenueGrowthYOY'] || '0') * 100,
+          peRatio: parseFloat(overview['PERatio'] || '0'),
+          operatingMargin: parseFloat(overview['OperatingMarginTTM'] || '0'),
+          sentimentScore: sentimentData?.feed?.[0]?.overall_sentiment_score || 0,
+          sentimentLabel: sentimentData?.feed?.[0]?.overall_sentiment_label || 'Neutral',
+          institutionalOwnership: institutionalData?.data?.[0]?.ownership || 0,
+          topInstitution: institutionalData?.data?.[0]?.investorName || 'N/A',
+          cashRunway: runwayMonths,
+          netIncome: formatCurrency(netIncomeValue),
+          totalCash: formatCurrency(totalCashValue),
+        },
+      };
 
-    cache.set(ticker, { data: stock, timestamp: Date.now() });
-    return stock;
-  } catch (error) {
-    console.error(`Failed to fetch ${ticker}:`, error);
-    return null;
-  }
+      if (!validateStockData(stock)) {
+         console.warn(`[DataQuality] Invalid stock data for ${ticker}, discarding.`);
+         return null;
+      }
+
+      cache.set(ticker, { data: stock, timestamp: Date.now() });
+      return stock;
+    }, getFallback);
 }
 
 export async function fetchMultipleStocks(tickers: string[]): Promise<Stock[]> {
