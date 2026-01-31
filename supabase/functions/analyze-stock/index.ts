@@ -6,7 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// --- Enhancement: Diversity Pools ---
 const BENCHMARK_POOL = [
   { name: "Apple (1997)", focus: "Bankruptcy threat to Market Dominance" },
   { name: "Amazon (2001)", focus: "Cash burn vs Infrastructure moat" },
@@ -43,12 +42,10 @@ serve(async (req) => {
       throw new Error('Missing environment variables');
     }
 
-    // --- Dynamic Selection ---
-    const randomSeed = ticker.length + (price || 1); // Simple deterministic randomness per ticker
+    const randomSeed = ticker.length + (price || 1);
     const benchmark = BENCHMARK_POOL[Math.floor(randomSeed % BENCHMARK_POOL.length)];
     const persona = PERSONA_POOL[Math.floor((randomSeed * 2) % PERSONA_POOL.length)];
 
-    // 1. Fetch Global Market Context
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     let globalContext = "General Market Context: Uncertain.";
     
@@ -70,34 +67,35 @@ serve(async (req) => {
     const systemPrompt = `You are a professional stock analyst for MuzeStock.Lab.
     Current Persona: ${persona.name} (${persona.tone})
     
+    [ANALYSIS PRINCIPLE: 5W1H & LOGICAL EVIDENCE]
+    Your analysis MUST follow the 5W1H principle and provide logical grounding using the provided data points.
+    - WHO: The company (${ticker}) and its market role.
+    - WHEN: Timing and catalysts based on Price ($${price}) and Volume (${volume}).
+    - WHERE: Sector context (${sector}).
+    - WHAT: Core opportunity or risk (e.g., Cash Runway of ${cashRunway || 'N/A'} months).
+    - WHY: Logical reasoning connecting data to the Verdict.
+    - HOW: The path forward (survival or scaling).
+
     [GLOBAL MARKET CONTEXT]
     ${globalContext}
     
     [DYNAMIC BENCHMARK]
-    Compare this stock against ${benchmark.name}. Focus on ${benchmark.focus}.
-    
-    [SECTOR AWARENESS]
-    - If Bio/Pharma: Focus ONLY on clinical trials, FDA results, and pipeline.
-    - If EV/Auto/Energy: Focus ONLY on production, orders, and scaling.
-    - If Fintech: Focus on transaction volume, user growth, and regulatory environment.
-
-    [RISK ASSESSMENT]
-    - Penny stocks are HIGH RISK. If Cash Runway < 6 months, set survivalRate to "Critical" and dnaScore < 30.
+    Compare against ${benchmark.name}. Focus on ${benchmark.focus}.
     
     [INSTRUCTIONS]
-    Analyze the provided stock data. 
-    1. Avoid generic advice (e.g., "high risk, high reward"). 
-    2. Be specific about the numbers provided (Cash Runway, Burn Rate).
-    3. Generate a JSON response with the following fields:
-    - matchReasoning (string): 1-2 sentence pattern recognition note. Mention ${benchmark.name} and how it relates to this stock's current situation.
-    - bullCase (string[]): 3 concise bullet points unique to this ticker.
-    - bearCase (string[]): 3 concise bullet points unique to this ticker.
-    - dnaScore (number): 0-100 (Be critical).
-    - riskLevel (string): "Low", "Medium", "High", "CRITICAL".
-    - riskReason (string): Why this risk level? 
-    - survivalRate (string): "Healthy", "Warning", "Critical" based on Cash Runway.
+    1. Result MUST be purely valid JSON.
+    2. Language: Korean.
+    3. 'matchReasoning' MUST be a structured 5W1H analysis (2-3 sentences).
+    4. Provide specific bull/bear points.
     
-    Response must be purely valid JSON. Language: Korean.`;
+    JSON Fields:
+    - matchReasoning (string): 5W1H structured analysis with logical data points.
+    - bullCase (string[]): 3 concise facts.
+    - bearCase (string[]): 3 concise facts.
+    - dnaScore (number): 0-100.
+    - riskLevel (string): "Low", "Medium", "High", "CRITICAL".
+    - riskReason (string): Specific reason.
+    - survivalRate (string): "Healthy", "Warning", "Critical".`;
 
     const userPrompt = `Analyze this stock ($1-$10 range):
     Ticker: ${ticker} | Sector: ${sector}
@@ -127,27 +125,18 @@ serve(async (req) => {
     });
 
     const data = await response.json();
-    
-    if (data.error) {
-      throw new Error(data.error.message);
-    }
+    if (data.error) throw new Error(data.error.message);
 
     const content = data.choices[0].message.content;
     const analysis = JSON.parse(content);
 
     return new Response(JSON.stringify(analysis), {
-      headers: { 
-        ...corsHeaders, 
-        'Content-Type': 'application/json',
-      },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
-      headers: { 
-        ...corsHeaders, 
-        'Content-Type': 'application/json',
-      },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
     });
   }
