@@ -3,116 +3,112 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const ALPHA_VANTAGE_API_KEY = Deno.env.get("ALPHA_VANTAGE_API_KEY")
+const FINNHUB_API_KEY = Deno.env.get("FINNHUB_API_KEY")
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
 
-// Cache duration: 15 minutes for quotes, 24 hours for overview
-const QUOTE_CACHE_MINUTES = 15
+const QUOTE_CACHE_MINUTES = 5 // Faster updates for prices
 const OVERVIEW_CACHE_HOURS = 24
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 serve(async (req) => {
-  // Handle CORS
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      }
-    })
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
     const { ticker } = await req.json()
-    if (!ticker) {
-      return new Response(JSON.stringify({ error: "Ticker is required" }), {
-        status: 400,
-        headers: { 
-          "Content-Type": "application/json",
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-        }
-      })
-    }
+    if (!ticker) throw new Error("Ticker is required")
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
-
-    // 1. Check cache first
+    const now = new Date()
+    
+    // 1. Check cache
     const { data: cached } = await supabase
       .from('stock_cache')
       .select('*')
       .eq('ticker', ticker.toUpperCase())
       .single()
 
-    const now = new Date()
-    let quoteData = null
-    let overviewData = null
-    let cashFlowData = null
-    let balanceSheetData = null
-    let needsQuoteRefresh = true
-    let needsOverviewRefresh = true
-    let needsFinancialsRefresh = true
+    let quoteData = cached?.quote_data
+    let overviewData = cached?.overview_data
+    let cashFlowData = cached?.cash_flow_data
+    let balanceSheetData = cached?.balance_sheet_data
+    
+    const cacheTime = cached ? new Date(cached.updated_at) : null
+    const minutesSinceUpdate = cacheTime ? (now.getTime() - cacheTime.getTime()) / (1000 * 60) : 999
+    
+    let needsPriceRefresh = minutesSinceUpdate > QUOTE_CACHE_MINUTES
+    let needsDeepAuditRefresh = minutesSinceUpdate > OVERVIEW_CACHE_HOURS * 60
 
-    if (cached) {
-      const cacheTime = new Date(cached.updated_at)
-      const minutesSinceUpdate = (now.getTime() - cacheTime.getTime()) / (1000 * 60)
-      
-      // Use cached quote if less than 15 minutes old
-      if (minutesSinceUpdate < QUOTE_CACHE_MINUTES && cached.quote_data) {
-        quoteData = cached.quote_data
-        needsQuoteRefresh = false
+    // 2. Fetch High-Reliability Price (Finnhub)
+    if (needsPriceRefresh && FINNHUB_API_KEY) {
+      console.log(`📡 Fetching real-time price for ${ticker} from Finnhub...`)
+      try {
+        const fhRes = await fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_API_KEY}`)
+        const fhData = await fhRes.json()
+        if (fhData.c > 0) {
+          // Map to Alpha Vantage style format for compatibility
+          quoteData = {
+            "Global Quote": {
+              "01. symbol": ticker.toUpperCase(),
+              "05. price": fhData.c.toString(),
+              "10. change percent": `${fhData.dp}%`,
+              "06. volume": fhData.v.toString()
+            }
+          }
+          needsPriceRefresh = false
+        }
+      } catch (err) {
+        console.warn(`Finnhub fetch failed for ${ticker}:`, err.message)
       }
-      
-      // Use cached overview if less than 24 hours old
-      if (minutesSinceUpdate < OVERVIEW_CACHE_HOURS * 60 && cached.overview_data) {
-        overviewData = cached.overview_data
-        needsOverviewRefresh = false
+    }
+
+    // 3. Fetch Deep Financials (Alpha Vantage) - ONLY IF NEEDED AND ASYNC RESILIENT
+    if (needsDeepAuditRefresh && ALPHA_VANTAGE_API_KEY) {
+      console.log(`💰 Fetching deep audit for ${ticker} from Alpha Vantage...`)
+      try {
+        // We fetch Overview first. If this fails due to rate limit, we skip the rest.
+        const ovUrl = `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
+        const ovRes = await fetch(ovUrl)
+        const ovRaw = await ovRes.json()
+        
+        if (ovRaw.Symbol) {
+          overviewData = ovRaw
+          
+          // Only fetch financials if overview succeeded (means no rate limit hit yet)
+          const cfUrl = `https://www.alphavantage.co/query?function=CASH_FLOW&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
+          const bsUrl = `https://www.alphavantage.co/query?function=BALANCE_SHEET&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
+          const [cfRes, bsRes] = await Promise.all([fetch(cfUrl), fetch(bsUrl)])
+          
+          const cfRaw = await cfRes.json()
+          const bsRaw = await bsRes.json()
+          
+          if (cfRaw.symbol) cashFlowData = cfRaw
+          if (bsRaw.symbol) balanceSheetData = bsRaw
+          
+          needsDeepAuditRefresh = false
+        } else {
+          console.warn(`Alpha Vantage Overview failed for ${ticker} (Rate limited?)`, ovRaw)
+        }
+      } catch (err) {
+        console.error(`Alpha Vantage error for ${ticker}:`, err.message)
       }
-
-      // Financials are also on a 24-hour cycle
-      if (!needsOverviewRefresh && cached.cash_flow_data && cached.balance_sheet_data) {
-        cashFlowData = cached.cash_flow_data
-        balanceSheetData = cached.balance_sheet_data
-        needsFinancialsRefresh = false
-      }
     }
 
-    // 2. Fetch fresh data if needed
-    if (needsQuoteRefresh) {
-      const quoteUrl = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
-      const quoteRes = await fetch(quoteUrl)
-      quoteData = await quoteRes.json()
-    }
-
-    if (needsOverviewRefresh) {
-      const overviewUrl = `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
-      const overviewRes = await fetch(overviewUrl)
-      overviewData = await overviewRes.json()
-    }
-
-    if (needsFinancialsRefresh) {
-      console.log(`💰 Fetching financials for ${ticker}...`)
-      const cfUrl = `https://www.alphavantage.co/query?function=CASH_FLOW&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
-      const bsUrl = `https://www.alphavantage.co/query?function=BALANCE_SHEET&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
-      
-      const [cfRes, bsRes] = await Promise.all([fetch(cfUrl), fetch(bsUrl)])
-      cashFlowData = await cfRes.json()
-      balanceSheetData = await bsRes.json()
-    }
-
-    // 3. Update cache if we fetched fresh data
-    if (needsQuoteRefresh || needsOverviewRefresh || needsFinancialsRefresh) {
-      await supabase
-        .from('stock_cache')
-        .upsert({
-          ticker: ticker.toUpperCase(),
-          quote_data: quoteData,
-          overview_data: overviewData,
-          cash_flow_data: cashFlowData,
-          balance_sheet_data: balanceSheetData,
-          updated_at: now.toISOString()
-        }, { onConflict: 'ticker' })
-    }
+    // 4. Update Cache (Partial updates allowed)
+    await supabase
+      .from('stock_cache')
+      .upsert({
+        ticker: ticker.toUpperCase(),
+        quote_data: quoteData,
+        overview_data: overviewData,
+        cash_flow_data: cashFlowData,
+        balance_sheet_data: balanceSheetData,
+        updated_at: now.toISOString()
+      }, { onConflict: 'ticker' })
 
     return new Response(JSON.stringify({ 
       quote: quoteData, 
@@ -121,22 +117,16 @@ serve(async (req) => {
       balanceSheet: balanceSheetData,
       sentiment: cached?.sentiment_data || null,
       institutional: cached?.institutional_data || null,
-      fromCache: !needsQuoteRefresh
+      isRateLimited: needsDeepAuditRefresh && ALPHA_VANTAGE_API_KEY // Inform frontend
     }), {
-      headers: { 
-        "Content-Type": "application/json",
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     })
+
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
-      headers: { 
-        "Content-Type": "application/json",
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      }
     })
   }
 })
