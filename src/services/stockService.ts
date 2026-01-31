@@ -99,6 +99,8 @@ export async function fetchStockQuote(ticker: string): Promise<Stock | null> {
       sector: getSector(ticker),
       description: getDescription(ticker),
       relevantMetrics: {
+        debtToEquity: parseFloat(overview['DebtToEquityTTL'] || '0'),
+        rndRatio: 15.0, // Default estimate
         revenueGrowth: parseFloat(overview['QuarterlyRevenueGrowthYOY'] || '0') * 100,
         peRatio: parseFloat(overview['PERatio'] || '0'),
         operatingMargin: parseFloat(overview['OperatingMarginTTM'] || '0'),
