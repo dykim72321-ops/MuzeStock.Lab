@@ -68,7 +68,7 @@ export const DnaMatchView = () => {
   const [error, setError] = useState<string | null>(null);
 
   // --- Live Ticker Hook ---
-  const { currentPrice, lastUpdate, isConnected } = useLiveTicker(ticker);
+  const { currentPrice, isConnected } = useLiveTicker(ticker);
 
   // --- Live Price Override Effect ---
   useEffect(() => {
