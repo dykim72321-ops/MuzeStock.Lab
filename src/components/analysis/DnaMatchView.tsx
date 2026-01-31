@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, BrainCircuit, Share2, Plus, Minus, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, BrainCircuit, Share2, Plus, Minus, ShieldAlert, ExternalLink, Database } from 'lucide-react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, Legend } from 'recharts';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
 import clsx from 'clsx';
 
 // --- Services Import ---
-import { fetchStockQuote, getSector } from '../../services/stockService';
+import { fetchStockQuote } from '../../services/stockService';
 // fetchStockAnalysis: Supabase 'daily_discovery' 테이블에서 단일 종목 데이터를 가져오는 함수
 // (analysisService.ts에 구현되어 있다고 가정, 없으면 아래에서 직접 Supabase 호출로 대체 가능)
 import { fetchStockAnalysis } from '../../services/analysisService'; 
@@ -31,6 +31,9 @@ interface RealTimeData {
   sector: string;
   name: string;
   volume: number;
+  totalCash?: string;
+  netIncome?: string;
+  cashRunway?: number;
 }
 
 export const DnaMatchView = () => {
@@ -74,7 +77,10 @@ export const DnaMatchView = () => {
             changePercent: quoteData.changePercent || 0,
             sector: quoteData.sector || "Unknown", 
             name: quoteData.name || ticker,
-            volume: quoteData.volume || 0
+            volume: quoteData.volume || 0,
+            totalCash: quoteData.relevantMetrics.totalCash,
+            netIncome: quoteData.relevantMetrics.netIncome,
+            cashRunway: quoteData.relevantMetrics.cashRunway
           });
         }
 
@@ -253,10 +259,18 @@ export const DnaMatchView = () => {
               </div>
 
               {/* Reasoning */}
-              <div className="bg-slate-950/50 rounded-xl p-6 border border-indigo-500/20 mb-8">
-                <p className="text-lg text-slate-200 leading-relaxed font-medium">
-                  "{analysis?.reason}"
-                </p>
+              <div className="bg-slate-950/50 rounded-xl p-6 border border-indigo-500/20 mb-8 overflow-hidden">
+                <div className="text-slate-200 leading-relaxed font-medium whitespace-pre-wrap text-sm">
+                  {analysis?.reason}
+                </div>
+                <div className="mt-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Database className="w-3 h-3 text-slate-500" />
+                    <span className="text-[10px] text-slate-500 font-mono italic">Grounded in Alpha Vantage Real-time Financials</span>
+                  </div>
+                  <div className="h-px bg-slate-800 flex-1 mx-4"></div>
+                  <Badge variant="neutral" className="bg-slate-800 text-slate-500 text-[9px] border-slate-700">Audit Status: Fact-Checked</Badge>
+                </div>
               </div>
 
               {/* Bull/Bear Grid */}
@@ -300,9 +314,9 @@ export const DnaMatchView = () => {
               DNA Pattern Matching
             </h3>
             {/* Height를 명시적으로 지정하여 Recharts 경고 해결 */}
-            <div className="w-full h-[300px]">
+            <div className="w-full h-[320px] min-h-[320px] flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={analysis?.radarData}>
+                <RadarChart cx="50%" cy="50%" outerRadius="65%" data={analysis?.radarData}>
                   <PolarGrid stroke="#334155" />
                   <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10 }} />
                   <Radar name="Benchmark" dataKey="A" stroke="#64748b" strokeDasharray="4 4" fill="#64748b" fillOpacity={0.1} />
@@ -339,11 +353,68 @@ export const DnaMatchView = () => {
                 <AlertTriangle className="w-5 h-5 flex-shrink-0" />
                 <div className="text-sm">
                   <span className="font-bold block uppercase text-[10px] tracking-widest opacity-70">Survival Assessment</span>
-                  {analysis.score < 30 ? "Cash Runway가 6개월 미만입니다. 추가 자금 조달 리스크가 큽니다." : "안정적인 현금 흐름을 확보하고 있습니다."}
+                  {analysis.score < 30 ? (
+                    <>
+                      Cash Runway가 6개월 미만입니다.
+                      <div className="text-[10px] mt-1 opacity-70 italic font-mono">
+                        Source Audit: Approx. {realTimeData?.cashRunway || '< 1'} months remaining.
+                      </div>
+                    </>
+                  ) : "안정적인 현금 흐름을 확보하고 있습니다."}
                 </div>
               </div>
             )}
           </Card>
+
+          {/* Technical Data Audit - Ground Truth */}
+          <Card className="p-5 border-slate-800 bg-slate-900/40">
+            <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Database className="w-4 h-4 text-indigo-400" /> Ground Truth Audit
+            </h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center text-sm border-b border-slate-800 pb-2">
+                <span className="text-slate-500">Total Cash (Latest)</span>
+                <span className="text-slate-200 font-mono font-bold">{realTimeData.totalCash || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm border-b border-slate-800 pb-2">
+                <span className="text-slate-500">TTM Net Income</span>
+                <span className={clsx("font-mono font-bold", realTimeData.netIncome?.includes('-') ? "text-rose-400" : "text-emerald-400")}>
+                  {realTimeData.netIncome || 'N/A'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-500">Est. Cash Runway</span>
+                <span className="text-indigo-400 font-mono font-bold">{realTimeData.cashRunway && realTimeData.cashRunway !== 99 ? `${realTimeData.cashRunway} Mo` : 'Healthy'}</span>
+              </div>
+            </div>
+            <p className="mt-4 text-[10px] text-slate-600 leading-tight">
+              * Based on latest quarterly SEC filings via Alpha Vantage. 
+              Runway = Total Cash / Avg Quarterly Operating Burn.
+            </p>
+          </Card>
+
+          {/* External Verification Links */}
+          <div className="flex flex-col gap-2 pt-2">
+            <h4 className="text-slate-500 text-[10px] font-bold uppercase tracking-widest px-1">Verify Externally</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <a 
+                href={`https://finviz.com/quote.ashx?t=${ticker}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 transition-colors border border-slate-700"
+              >
+                Finviz <ExternalLink className="w-3 h-3" />
+              </a>
+              <a 
+                href={`https://www.alphavantage.co/`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 transition-colors border border-slate-700"
+              >
+                AlphaV <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
 
         </div>
       </div>

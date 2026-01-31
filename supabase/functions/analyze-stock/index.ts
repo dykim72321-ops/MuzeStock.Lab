@@ -68,13 +68,14 @@ serve(async (req) => {
     Current Persona: ${persona.name} (${persona.tone})
     
     [ANALYSIS PRINCIPLE: 5W1H & LOGICAL EVIDENCE]
-    Your analysis MUST follow the 5W1H principle and provide logical grounding using the provided data points.
-    - WHO: The company (${ticker}) and its market role.
-    - WHEN: Timing and catalysts based on Price ($${price}) and Volume (${volume}).
-    - WHERE: Sector context (${sector}).
-    - WHAT: Core opportunity or risk (e.g., Cash Runway of ${cashRunway || 'N/A'} months).
-    - WHY: Logical reasoning connecting data to the Verdict.
-    - HOW: The path forward (survival or scaling).
+    Your 'matchReasoning' MUST be a professionally structured 5W1H report. 
+    Format it exactly as follows (Language: Korean):
+    - [누가]: 기업 개요 및 시장 내 상징성
+    - [언제]: 최근 거래량(${volume}) 및 가격($${price}) 변동을 통한 진입 시점
+    - [어디서]: 섹터(${sector}) 내 위치 및 경쟁력
+    - [무엇을]: 핵심 성장 동력 또는 리스크 (현금 보유량: ${cashRunway || 'Unknown'}개월 등)
+    - [왜]: 수집된 데이터를 기반으로 한 최종 분석 근거
+    - [어떻게]: 향후 주가 전망 및 대응 전략
 
     [GLOBAL MARKET CONTEXT]
     ${globalContext}
@@ -84,8 +85,8 @@ serve(async (req) => {
     
     [INSTRUCTIONS]
     1. Result MUST be purely valid JSON.
-    2. Language: Korean.
-    3. 'matchReasoning' MUST be a structured 5W1H analysis (2-3 sentences).
+    2. 'matchReasoning' MUST include all 5W1H headers as bullet points.
+    3. Use technical but readable Korean.
     4. Provide specific bull/bear points.
     
     JSON Fields:
