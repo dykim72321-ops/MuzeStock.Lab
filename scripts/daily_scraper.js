@@ -21,11 +21,15 @@ async function scrapeFinviz() {
   console.log(`🚀 헌터 봇 출격 모드: [${mode.name}]`);
   
   // 1. Supabase 연결 
+  // 1. Supabase 연결 
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   
+  if (!supabaseUrl) console.error('❌ Missing Env: VITE_SUPABASE_URL');
+  if (!supabaseKey) console.error('❌ Missing Env: SUPABASE_SERVICE_ROLE_KEY');
+
   if (!supabaseUrl || !supabaseKey) {
-    console.error('❌ 환경 변수가 설정되지 않았습니다.');
+    console.error('⚠️ 필수 환경 변수가 누락되어 스크립트를 종료합니다.');
     process.exit(1);
   }
 
@@ -35,29 +39,39 @@ async function scrapeFinviz() {
   // 🛡️ Proxy Rotation Logic
   const PROXY_POOL = [
     // Add your proxy servers here in format: 'http://username:password@ip:port'
-    // Currently using direct connection placeholder, but ready for rotation.
   ];
 
   const getRandomProxy = () => {
     if (PROXY_POOL.length === 0) return undefined;
     const proxy = PROXY_POOL[Math.floor(Math.random() * PROXY_POOL.length)];
-    console.log(`🛡️ Rotating Proxy: ${proxy.replace(/:[^:]*@/, ':****@')}`); // Log sanitized
+    console.log(`🛡️ Rotating Proxy: ${proxy.replace(/:[^:]*@/, ':****@')}`);
     return { server: proxy };
   };
 
   try {
     const launchOptions = { 
       headless: true,
-      proxy: getRandomProxy() // Rotate IP per run
+      proxy: getRandomProxy(),
+      args: ['--no-sandbox', '--disable-setuid-sandbox'] // Fix: Sandbox issues in Docker
     };
 
     browser = await chromium.launch(launchOptions); 
     const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      viewport: { width: 1920, height: 1080 }
     });
     const page = await context.newPage();
 
     console.log(`🌐 접속 중: ${mode.url}`);
+    
+    // Fix 3: Timeout Handling
+    try {
+      await page.goto(mode.url, { waitUntil: 'networkidle', timeout: 60000 }); // 60s timeout
+    } catch (e) {
+      console.warn(`⏳ 1차 접속 실패 (Timeout). 재시도 중... (${e.message})`);
+      await page.waitForTimeout(3000);
+      await page.goto(mode.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    }
     await page.goto(mode.url, { waitUntil: 'domcontentloaded' });
 
     // 데이터 긁어오기

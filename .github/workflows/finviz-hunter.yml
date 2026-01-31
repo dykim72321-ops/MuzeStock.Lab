@@ -24,8 +24,18 @@ jobs:
         run: |
           npm ci
           npx playwright install chromium
+          npx playwright install-deps # Fix 2: Install system dependencies for Linux
+
+      - name: Check Secrets (Debug)
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ]; then echo "❌ VITE_SUPABASE_URL is missing"; else echo "✅ VITE_SUPABASE_URL is set"; fi
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then echo "❌ SUPABASE_SERVICE_ROLE_KEY is missing"; else echo "✅ SUPABASE_SERVICE_ROLE_KEY is set"; fi
 
       - name: Run Finviz Hunter
+        id: run_scraper
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
