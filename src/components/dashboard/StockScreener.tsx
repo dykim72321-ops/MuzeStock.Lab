@@ -53,9 +53,9 @@ export const StockScreener = () => {
                UPDATED 08:00 AM (KST)
              </span>
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Finviz Hunter Bot 결과</h1>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Market Discovery</h1>
           <p className="text-slate-400 mt-2">
-            봇이 오늘 아침 발굴한 <span className="text-emerald-400 font-bold">$1 미만 급등 후보군</span>입니다. 
+            오늘 아침 발굴한 <span className="text-emerald-400 font-bold">$1 미만 급등 후보군</span>입니다. 
             관심 종목을 클릭하여 <span className="text-indigo-400 font-bold">AI 심층 분석(Step 3)</span>을 진행하세요.
           </p>
         </div>

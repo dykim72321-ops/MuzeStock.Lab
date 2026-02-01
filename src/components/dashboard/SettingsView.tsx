@@ -193,7 +193,6 @@ export const SettingsView = () => {
               <h3 className="text-lg font-bold text-white mb-6">Alert Configurations</h3>
               <div className="space-y-4">
                 {[
-                  { title: 'Hunter Bot Discovery', desc: 'Notify when new $1 stocks are scanned at 8 AM KST.', active: true },
                   { title: 'Whale Signal', desc: 'Notify when institutional ownership changes > 5%.', active: false },
                   { title: 'High DNA Match (>90%)', desc: 'Instant alert for high-confidence AI findings.', active: true },
                   { title: 'System Status', desc: 'Alert if engine goes offline or API limit reached.', active: true },

@@ -15,6 +15,36 @@ export interface AIAnalysis {
 
 export async function fetchStockAnalysis(stock: Stock): Promise<AIAnalysis | null> {
   try {
+    // 1. Try to fetch from "Zero-Cost" tables first
+    const { data: auditData } = await supabase
+      .from('risk_audits')
+      .select('*')
+      .eq('ticker', stock.ticker)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (auditData) {
+      console.log(`✅ Using Zero-Cost Risk Audit for ${stock.ticker}`);
+      
+      // Map Zero-Cost data to AIAnalysis interface
+      return {
+        matchReasoning: auditData.audit_reason,
+        bullCase: [], // Heuristically empty or could be derived
+        bearCase: [auditData.audit_reason],
+        dnaScore: Math.round(100 - auditData.risk_score), // Inverse of risk
+        riskLevel: auditData.risk_score > 80 ? 'CRITICAL' : 
+                   auditData.risk_score > 60 ? 'High' : 
+                   auditData.risk_score > 30 ? 'Medium' : 'Low',
+        riskReason: auditData.audit_reason,
+        survivalRate: auditData.cash_runway_months < 6 ? 'Critical' : 
+                      auditData.cash_runway_months < 12 ? 'Warning' : 'Healthy',
+        financialHealthAudit: `Cash Runway: ${auditData.cash_runway_months} months. Dilution Likely: ${auditData.is_dilution_likely}`,
+        marketTrendAnalysis: "Analyzed via Zero-Cost Collector."
+      };
+    }
+
+    // 2. Fallback to AI Edge Function
     const { data, error } = await supabase.functions.invoke('analyze-stock', {
       body: {
         ticker: stock.ticker,

@@ -282,6 +282,9 @@ export const DnaMatchView = () => {
                   <div className="flex items-center gap-2 mb-2">
                     <BrainCircuit className="w-5 h-5 text-indigo-400" />
                     <span className="text-xs font-bold text-indigo-400 tracking-widest uppercase">AI Growth DNA Analysis</span>
+                    {analysis?.marketTrendAnalysis?.includes("Zero-Cost") && (
+                      <Badge variant="success" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[9px] py-0">ZERO-COST AUDIT</Badge>
+                    )}
                   </div>
                   <h2 className="text-3xl font-bold text-white mb-1">
                     Verdict: <span className={analysis && analysis.score >= 80 ? "text-emerald-400" : "text-yellow-400"}>
@@ -305,7 +308,11 @@ export const DnaMatchView = () => {
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Database className="w-3 h-3 text-slate-500" />
-                    <span className="text-[10px] text-slate-500 font-mono italic">Grounded in Alpha Vantage Real-time Financials</span>
+                    <span className="text-[10px] text-slate-500 font-mono italic">
+                      {analysis?.marketTrendAnalysis?.includes("Zero-Cost") 
+                        ? "Grounded in Yahoo & RSS Free Analytics" 
+                        : "Grounded in Alpha Vantage Real-time Financials"}
+                    </span>
                   </div>
                   <div className="h-px bg-slate-800 flex-1 mx-4"></div>
                   <Badge variant="neutral" className="bg-slate-800 text-slate-500 text-[9px] border-slate-700">Audit Status: Fact-Checked</Badge>
