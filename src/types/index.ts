@@ -27,7 +27,14 @@ export interface Stock {
     cashRunway?: number; // Months of runway
     netIncome?: string; // Formatted net income
     totalCash?: string; // Formatted total cash
+    // Yahoo Finance Extended Data
+    targetPrice?: number; // Analyst target mean price
+    upsidePotential?: number; // % upside to target
+    fiftyTwoWeekPosition?: number; // 0-100 position in 52-week range
+    analystCount?: number; // Number of analyst opinions
+    recommendation?: string; // strongBuy, buy, hold, sell, strongSell
   };
+  news?: { title: string; url: string; time_published: string }[];
 }
 
 export interface HistoricalDataPoint {

@@ -37,8 +37,10 @@ CREATE TRIGGER stock_cache_update_trigger
 -- Enable RLS but allow public read (data is not sensitive)
 ALTER TABLE stock_cache ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow public read access" ON stock_cache;
 CREATE POLICY "Allow public read access" ON stock_cache
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Allow service role write access" ON stock_cache;
 CREATE POLICY "Allow service role write access" ON stock_cache
     FOR ALL USING (auth.role() = 'service_role');

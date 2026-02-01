@@ -11,20 +11,42 @@ export interface AIAnalysis {
   survivalRate: 'Healthy' | 'Warning' | 'Critical';
   financialHealthAudit?: string;
   marketTrendAnalysis?: string;
+  solvencyAnalysis?: {
+    survival_months: number;
+    financial_health_grade: 'A' | 'B' | 'C' | 'D' | 'F';
+    capital_raise_needed: boolean;
+    reason: string;
+  };
+  sentimentAudit?: {
+    score: number;
+    hype_score: number;
+    category: 'Organic' | 'Hype' | 'Negative';
+    key_event: string | null;
+    summary: string;
+  };
 }
 
 export async function fetchStockAnalysis(stock: Stock): Promise<AIAnalysis | null> {
   try {
     // 1. Try to fetch from "Zero-Cost" tables first
-    const { data: auditData } = await supabase
+    const { data: auditData, error: auditError } = await supabase
       .from('risk_audits')
       .select('*')
       .eq('ticker', stock.ticker)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (auditData) {
+    // 406 에러나 권한 문제는 경고만 표시하고 fallback
+    if (auditError) {
+      if (auditError.code === 'PGRST116') {
+        console.log(`ℹ️ No cached audit for ${stock.ticker}, using AI analysis`);
+      } else if (auditError.message?.includes('406') || auditError.message?.includes('Not Acceptable')) {
+        console.warn(`⚠️ RLS policy blocked access to risk_audits for ${stock.ticker}, using AI`);
+      } else {
+        console.error(`❌ Failed to fetch risk_audit for ${stock.ticker}:`, auditError);
+      }
+    } else if (auditData) {
       console.log(`✅ Using Zero-Cost Risk Audit for ${stock.ticker}`);
       
       // Map Zero-Cost data to AIAnalysis interface
@@ -62,6 +84,8 @@ export async function fetchStockAnalysis(stock: Stock): Promise<AIAnalysis | nul
         cashRunway: stock.relevantMetrics.cashRunway,
         netIncome: stock.relevantMetrics.netIncome,
         totalCash: stock.relevantMetrics.totalCash,
+        debtToEquity: stock.relevantMetrics.debtToEquity,
+        newsHeadlines: stock.news?.map(n => n.title) || [],
       },
     });
 

@@ -15,6 +15,138 @@ export const WATCHLIST_TICKERS = [
 const cache = new Map<string, { data: Stock; timestamp: number }>();
 const CACHE_DURATION = 15 * 60 * 1000;
 
+// Finnhub API Key
+const FINNHUB_API_KEY = import.meta.env.VITE_FINNHUB_API_KEY;
+
+// Finnhub API fallback for real-time quotes
+async function fetchFromFinnhub(ticker: string): Promise<Stock | null> {
+  if (!FINNHUB_API_KEY) {
+    console.warn('Finnhub API key not configured');
+    return null;
+  }
+  
+  try {
+    const response = await fetch(
+      `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_API_KEY}`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Finnhub API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Finnhub returns: c=current, d=change, dp=percent change, h=high, l=low, o=open, pc=previous close
+    if (!data || data.c === 0 || data.c === undefined) {
+      console.warn(`[Finnhub] No data for ${ticker}`);
+      return null;
+    }
+    
+    const stock: Stock = {
+      id: ticker,
+      ticker: ticker,
+      name: getCompanyName(ticker),
+      price: data.c,
+      changePercent: data.dp || 0,
+      volume: 0, // Finnhub quote doesn't include volume, would need separate call
+      marketCap: 'N/A',
+      dnaScore: calculateDnaScore(data.c, data.dp || 0, 0),
+      sector: getSector(ticker),
+      description: '',
+      relevantMetrics: {
+        debtToEquity: 0,
+        rndRatio: 0,
+        sentimentScore: 0,
+        institutionalOwnership: 0,
+      }
+    };
+    
+    console.log(`[Finnhub] Successfully fetched ${ticker}: $${data.c}`);
+    
+    // Cache the result
+    cache.set(ticker, { data: stock, timestamp: Date.now() });
+    
+    return stock;
+  } catch (err) {
+    console.error(`[Finnhub] Failed for ${ticker}:`, err);
+    return null;
+  }
+}
+
+// Yahoo Finance API fallback (via Edge Function) - provides richer data
+async function fetchFromYahoo(ticker: string): Promise<Stock | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke('get-yahoo-quote', {
+      body: { ticker }
+    });
+    
+    if (error || !data || data.error) {
+      console.warn(`[Yahoo] Failed for ${ticker}:`, error || data?.error);
+      return null;
+    }
+    
+    // Calculate enhanced DNA score using Yahoo data
+    let dnaScore = calculateDnaScore(data.price, data.changePercent, data.volume);
+    
+    // Boost score based on analyst recommendations
+    if (data.recommendationScore >= 4) dnaScore += 15; // Buy/Strong Buy
+    else if (data.recommendationScore === 3) dnaScore += 5; // Hold
+    
+    // Boost if near 52-week low (potential upside)
+    if (data.fiftyTwoWeekPosition < 30) dnaScore += 10;
+    
+    // Boost if significant upside potential
+    if (data.upsidePotential > 50) dnaScore += 10;
+    else if (data.upsidePotential > 20) dnaScore += 5;
+    
+    dnaScore = Math.min(100, Math.max(0, dnaScore));
+    
+    const stock: Stock = {
+      id: ticker,
+      ticker: ticker,
+      name: getCompanyName(ticker),
+      price: data.price,
+      changePercent: data.changePercent,
+      volume: data.volume,
+      marketCap: formatMarketCap(data.marketCap),
+      dnaScore: dnaScore,
+      sector: getSector(ticker),
+      description: '',
+      relevantMetrics: {
+        debtToEquity: 0,
+        rndRatio: 0,
+        sentimentScore: data.recommendationScore * 20, // Convert 0-5 to 0-100
+        institutionalOwnership: 0,
+        // Extended Yahoo data
+        targetPrice: data.targetMeanPrice,
+        upsidePotential: data.upsidePotential,
+        fiftyTwoWeekPosition: data.fiftyTwoWeekPosition,
+        analystCount: data.numberOfAnalystOpinions,
+        recommendation: data.recommendationKey,
+      }
+    };
+    
+    console.log(`[Yahoo] Successfully fetched ${ticker}: $${data.price} (Target: $${data.targetMeanPrice})`);
+    
+    // Cache the result
+    cache.set(ticker, { data: stock, timestamp: Date.now() });
+    
+    return stock;
+  } catch (err) {
+    console.error(`[Yahoo] Failed for ${ticker}:`, err);
+    return null;
+  }
+}
+
+// Helper to format market cap
+function formatMarketCap(value: number): string {
+  if (!value || value === 0) return 'N/A';
+  if (value >= 1e12) return `$${(value / 1e12).toFixed(1)}T`;
+  if (value >= 1e9) return `$${(value / 1e9).toFixed(1)}B`;
+  if (value >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
+  return `$${value.toLocaleString()}`;
+}
+
 export async function fetchStockQuote(ticker: string): Promise<Stock | null> {
   const cached = cache.get(ticker);
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -23,11 +155,61 @@ export async function fetchStockQuote(ticker: string): Promise<Stock | null> {
 
 // Fallback helper to return partial data from cache or minimal object
     const getFallback = async (): Promise<Stock | null> => {
+      // 1. 메모리 캐시 확인
       if (cached) {
-        console.warn(`[CircuitBreaker] Circuit Open or Error. Serving cached data for ${ticker}`);
+        console.warn(`[CircuitBreaker] Serving stale memory cache for ${ticker}`);
         return cached.data;
       }
-      return null; // Or return a "Service Unavailable" placeholder object if desired
+      
+      // 2. Yahoo Finance API 시도 (가장 풍부한 데이터)
+      const yahooData = await fetchFromYahoo(ticker);
+      if (yahooData && yahooData.price > 0) {
+        return yahooData;
+      }
+      
+      // 3. Finnhub API 시도 (실시간 데이터)
+      const finnhubData = await fetchFromFinnhub(ticker);
+      if (finnhubData && finnhubData.price > 0) {
+        return finnhubData;
+      }
+      
+      // 3. DB 캐시 확인 (오래된 데이터라도 반환)
+      try {
+        const { data: dbCache } = await supabase
+          .from('stock_cache')
+          .select('*')
+          .eq('ticker', ticker)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (dbCache) {
+          console.warn(`[CircuitBreaker] Serving stale DB cache for ${ticker}`);
+          // DB 데이터를 Stock 타입으로 매핑
+          return {
+            id: ticker,
+            ticker,
+            name: dbCache.name || ticker,
+            price: dbCache.price || 0,
+            changePercent: dbCache.change_percent || 0,
+            volume: dbCache.volume || 0,
+            marketCap: dbCache.market_cap || 'N/A',
+            dnaScore: dbCache.dna_score || 0,
+            sector: dbCache.sector || 'Unknown',
+            description: dbCache.description || '',
+            relevantMetrics: {
+              debtToEquity: 0,
+              rndRatio: 0,
+              sentimentScore: 0,
+              institutionalOwnership: 0,
+            }
+          };
+        }
+      } catch (err) {
+        console.error(`[CircuitBreaker] DB fallback failed for ${ticker}:`, err);
+      }
+      
+      return null;
     };
 
     return await apiCircuitBreaker.execute(async () => {
@@ -125,6 +307,11 @@ export async function fetchStockQuote(ticker: string): Promise<Stock | null> {
           netIncome: formatCurrency(netIncomeValue),
           totalCash: formatCurrency(totalCashValue),
         },
+        news: sentimentData?.feed?.map((f: any) => ({
+          title: f.title,
+          url: f.url,
+          time_published: f.time_published
+        })) || []
       };
 
       if (!validateStockData(stock)) {
@@ -144,11 +331,15 @@ export async function fetchMultipleStocks(tickers: string[]): Promise<Stock[]> {
 
 export async function getTopStocks(): Promise<Stock[]> {
   try {
+    // 1. 24시간 이내 데이터만 조회
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    
     const { data: discoveryData, error: discoveryError } = await supabase
       .from('daily_discovery')
       .select('*')
+      .gte('created_at', twentyFourHoursAgo) // 신선도 필터
       .order('updated_at', { ascending: false })
-      .limit(30);
+      .limit(20); // API 부담 감소: 50 → 20
 
     if (discoveryError) throw discoveryError;
 
@@ -187,7 +378,25 @@ export async function getTopStocks(): Promise<Stock[]> {
       };
     });
 
-    return stocks.sort((a, b) => b.dnaScore - a.dnaScore);
+    // 2. 섹터별 그룹화 및 다양성 적용
+    const bySector = stocks.reduce((acc, stock) => {
+      const sector = stock.sector || 'Unknown';
+      if (!acc[sector]) acc[sector] = [];
+      acc[sector].push(stock);
+      return acc;
+    }, {} as Record<string, Stock[]>);
+
+    // 3. 각 섹터에서 최대 3개씩 선택하여 다양성 확보
+    const diverseStocks = Object.values(bySector)
+      .flatMap(sectorStocks => 
+        sectorStocks
+          .sort((a, b) => b.dnaScore - a.dnaScore)
+          .slice(0, 3)
+      )
+      .sort((a, b) => b.dnaScore - a.dnaScore)
+      .slice(0, 30);
+
+    return diverseStocks;
   } catch (err) {
     console.warn('Real-time sync failed, falling back to cache:', err);
     return fetchMultipleStocks(WATCHLIST_TICKERS.slice(0, 5));

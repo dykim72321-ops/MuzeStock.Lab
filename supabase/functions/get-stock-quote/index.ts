@@ -37,6 +37,7 @@ serve(async (req) => {
     let overviewData = cached?.overview_data
     let cashFlowData = cached?.cash_flow_data
     let balanceSheetData = cached?.balance_sheet_data
+    let sentimentData = cached?.sentiment_data
     
     const cacheTime = cached ? new Date(cached.updated_at) : null
     const minutesSinceUpdate = cacheTime ? (now.getTime() - cacheTime.getTime()) / (1000 * 60) : 999
@@ -62,7 +63,7 @@ serve(async (req) => {
           }
           needsPriceRefresh = false
         }
-      } catch (err) {
+      } catch (err: any) {
         console.warn(`Finnhub fetch failed for ${ticker}:`, err.message)
       }
     }
@@ -90,11 +91,17 @@ serve(async (req) => {
           if (cfRaw.symbol) cashFlowData = cfRaw
           if (bsRaw.symbol) balanceSheetData = bsRaw
           
+          // 4. Fetch News Sentiment (Optional but highly priority for AI)
+          const newsUrl = `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
+          const newsRes = await fetch(newsUrl)
+          const newsRaw = await newsRes.json()
+          if (newsRaw.feed) sentimentData = newsRaw
+
           needsDeepAuditRefresh = false
         } else {
           console.warn(`Alpha Vantage Overview failed for ${ticker} (Rate limited?)`, ovRaw)
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(`Alpha Vantage error for ${ticker}:`, err.message)
       }
     }
@@ -108,6 +115,7 @@ serve(async (req) => {
         overview_data: overviewData,
         cash_flow_data: cashFlowData,
         balance_sheet_data: balanceSheetData,
+        sentiment_data: sentimentData,
         updated_at: now.toISOString()
       }, { onConflict: 'ticker' })
 
@@ -116,7 +124,7 @@ serve(async (req) => {
       overview: overviewData,
       cashFlow: cashFlowData,
       balanceSheet: balanceSheetData,
-      sentiment: cached?.sentiment_data || null,
+      sentiment: sentimentData,
       institutional: cached?.institutional_data || null,
       isRateLimited: needsDeepAuditRefresh && ALPHA_VANTAGE_API_KEY // Inform frontend
     }), {
@@ -124,7 +132,7 @@ serve(async (req) => {
       status: 200,
     })
 
-  } catch (error) {
+  } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

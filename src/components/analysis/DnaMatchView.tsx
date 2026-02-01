@@ -1,17 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, BrainCircuit, Share2, Plus, Minus, ShieldAlert, ExternalLink, Database, Banknote, Globe } from 'lucide-react';
-import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, Legend } from 'recharts';
+import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, BrainCircuit, Share2, ShieldAlert, ExternalLink, Database, Banknote, Globe, CheckCircle, ShieldCheck, Search, AlertOctagon } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
+import { GradeBadge } from '../ui/GradeBadge';
+import { AddToWatchlistBtn } from '../ui/AddToWatchlistBtn';
+import { DnaRadarChart } from './DnaRadarChart';
 import clsx from 'clsx';
 
-// --- Services Import ---
 import { fetchStockQuote } from '../../services/stockService';
-// fetchStockAnalysis: Supabase 'daily_discovery' 테이블에서 단일 종목 데이터를 가져오는 함수
-// (analysisService.ts에 구현되어 있다고 가정, 없으면 아래에서 직접 Supabase 호출로 대체 가능)
 import { fetchStockAnalysis } from '../../services/analysisService'; 
-import { addToWatchlist, removeFromWatchlist, isInWatchlist } from '../../services/watchlistService';
 import { useLiveTicker } from '../../hooks/useLiveTicker';
 
 // --- Types ---
@@ -25,6 +23,19 @@ interface AnalysisData {
   radarData: any[];
   financialHealthAudit?: string;
   marketTrendAnalysis?: string;
+  solvencyAnalysis?: {
+    survival_months: number;
+    financial_health_grade: 'A' | 'B' | 'C' | 'D' | 'F';
+    capital_raise_needed: boolean;
+    reason: string;
+  };
+  sentimentAudit?: {
+    score: number;
+    hype_score: number;
+    category: 'Organic' | 'Hype' | 'Negative';
+    key_event: string | null;
+    summary: string;
+  };
 }
 
 interface RealTimeData {
@@ -34,9 +45,16 @@ interface RealTimeData {
   sector: string;
   name: string;
   volume: number;
+  cashRunway?: number;
+  marketCap?: string;
   totalCash?: string;
   netIncome?: string;
-  cashRunway?: number;
+  // Yahoo Finance Data
+  targetPrice?: number;
+  upsidePotential?: number;
+  fiftyTwoWeekPosition?: number;
+  analystCount?: number;
+  recommendation?: string;
 }
 
 // Helper function to safely render AI analysis content (string or object)
@@ -64,7 +82,6 @@ export const DnaMatchView = () => {
   const [loading, setLoading] = useState(true);
   const [realTimeData, setRealTimeData] = useState<RealTimeData | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
-  const [inPortfolio, setInPortfolio] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // --- Live Ticker Hook ---
@@ -93,8 +110,6 @@ export const DnaMatchView = () => {
         if (quoteData) {
           analysisData = await fetchStockAnalysis(quoteData);
         }
-        
-        const watched = await isInWatchlist(ticker);
 
         if (!isMounted) return;
 
@@ -107,9 +122,16 @@ export const DnaMatchView = () => {
             sector: quoteData.sector || "Unknown", 
             name: quoteData.name || ticker,
             volume: quoteData.volume || 0,
+            marketCap: quoteData.marketCap || "N/A",
             totalCash: quoteData.relevantMetrics.totalCash,
             netIncome: quoteData.relevantMetrics.netIncome,
-            cashRunway: quoteData.relevantMetrics.cashRunway
+            cashRunway: quoteData.relevantMetrics.cashRunway,
+            // Yahoo Data
+            targetPrice: quoteData.relevantMetrics.targetPrice,
+            upsidePotential: quoteData.relevantMetrics.upsidePotential,
+            fiftyTwoWeekPosition: quoteData.relevantMetrics.fiftyTwoWeekPosition,
+            analystCount: quoteData.relevantMetrics.analystCount,
+            recommendation: quoteData.relevantMetrics.recommendation
           });
         }
 
@@ -126,12 +148,11 @@ export const DnaMatchView = () => {
                        analysisData.riskLevel === 'Medium' ? 50 : 20,
             radarData: generateDefaultRadar(analysisData.dnaScore),
             financialHealthAudit: analysisData.financialHealthAudit,
-            marketTrendAnalysis: analysisData.marketTrendAnalysis
+            marketTrendAnalysis: analysisData.marketTrendAnalysis,
+            solvencyAnalysis: analysisData.solvencyAnalysis,
+            sentimentAudit: analysisData.sentimentAudit
           });
         }
-
-        setInPortfolio(watched);
-
       } catch (err) {
         console.error("Data Load Error:", err);
         setError("데이터를 불러오는 데 실패했습니다.");
@@ -147,23 +168,7 @@ export const DnaMatchView = () => {
     return () => { isMounted = false; };
   }, [ticker]);
 
-  // --- Handlers ---
-  const handlePortfolioToggle = async () => {
-    try {
-      if (inPortfolio) {
-        if (confirm('포트폴리오에서 제거하시겠습니까?')) {
-          await removeFromWatchlist(ticker);
-          setInPortfolio(false);
-        }
-      } else {
-        await addToWatchlist(ticker);
-        setInPortfolio(true);
-      }
-    } catch (err) {
-      console.error("Portfolio Toggle Error:", err);
-      alert("포트폴리오 업데이트 실패");
-    }
-  };
+
 
   // --- Helpers ---
   const getVerdictLabel = (score: number) => {
@@ -247,27 +252,132 @@ export const DnaMatchView = () => {
         </div>
 
         <div className="flex gap-3">
+          <AddToWatchlistBtn ticker={ticker} />
           <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-colors flex items-center gap-2 text-sm font-medium">
             <Share2 className="w-4 h-4" /> Share
-          </button>
-          
-          {/* Portfolio Toggle Button */}
-          <button 
-            onClick={handlePortfolioToggle}
-            className={clsx(
-              "px-6 py-2 rounded-lg font-bold transition-all flex items-center gap-2 shadow-lg",
-              inPortfolio 
-                ? "bg-rose-600 hover:bg-rose-500 text-white shadow-rose-500/20" 
-                : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20"
-            )}
-          >
-            {inPortfolio ? <Minus className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            {inPortfolio ? "Remove from Portfolio" : "Add to Portfolio"}
           </button>
         </div>
       </div>
 
-      {/* 2. Main Content Grid */}
+      {/* Yahoo Finance Analyst Consensus */}
+      {realTimeData.targetPrice && realTimeData.targetPrice > 0 && (
+        <Card className="bg-slate-900/50 border-slate-700/50 overflow-hidden">
+          <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-800">
+            <div className="flex-1 p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Globe className="w-5 h-5 text-blue-400" />
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Market Consensus</h3>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Target Price</div>
+                  <div className="text-2xl font-black text-white font-mono">${realTimeData.targetPrice.toFixed(2)}</div>
+                  {realTimeData.upsidePotential !== undefined && (
+                    <div className={clsx(
+                      "text-xs font-bold mt-1",
+                      realTimeData.upsidePotential > 0 ? "text-emerald-400" : "text-rose-400"
+                    )}>
+                      {realTimeData.upsidePotential > 0 ? '↑' : '↓'} 
+                      {Math.abs(realTimeData.upsidePotential).toFixed(1)}% Potential
+                    </div>
+                  )}
+                </div>
+                
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Recommendation</div>
+                  <div className="text-2xl font-black text-indigo-400 uppercase tracking-tighter">
+                    {realTimeData.recommendation?.replace(/([A-Z])/g, ' $1')}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">Based on {realTimeData.analystCount} analysts</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 p-6 bg-slate-800/20">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[10px] text-slate-500 uppercase font-bold">52W Range</span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  {realTimeData.fiftyTwoWeekPosition?.toFixed(0)}% from low
+                </span>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="h-2 w-full bg-slate-800 rounded-full relative overflow-hidden">
+                  <div 
+                    className="absolute top-0 bottom-0 bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000"
+                    style={{ width: `${realTimeData.fiftyTwoWeekPosition}%` }}
+                  />
+                  <div 
+                    className="absolute top-0 bottom-0 w-1 bg-white shadow-[0_0_10px_white] z-10 transition-all duration-1000"
+                    style={{ left: `${realTimeData.fiftyTwoWeekPosition}%`, marginLeft: '-2px' }}
+                  />
+                </div>
+                <div className="flex justify-between text-[9px] font-mono text-slate-500 uppercase">
+                  <span>52W Low</span>
+                  <span>52W High</span>
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center gap-6">
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Market Cap</div>
+                  <div className="text-sm font-bold text-slate-200 font-mono">{realTimeData.marketCap}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Volume</div>
+                  <div className="text-sm font-bold text-slate-200 font-mono">
+                    {realTimeData.volume > 1e6 ? `${(realTimeData.volume / 1e6).toFixed(1)}M` : realTimeData.volume.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* 2. 추천 근거 섹션 (최상단) */}
+      {analysis && (
+        <Card className="bg-gradient-to-br from-indigo-950/50 to-purple-950/30 border-indigo-500/40">
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-indigo-300 mb-4 flex items-center gap-2">
+              <BrainCircuit className="w-7 h-7" />
+              왜 {ticker}를 추천하는가?
+            </h2>
+            
+            {/* AI 분석 근거 (5W1H) */}
+            <div className="bg-black/30 p-4 rounded-lg border border-indigo-500/30 mb-4">
+              <h3 className="text-sm font-bold text-slate-400 mb-3 flex items-center gap-1">
+                <Database className="w-4 h-4" />
+                AI 분석 근거
+              </h3>
+              <pre className="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed font-sans">
+                {renderContent(analysis.reason)}
+              </pre>
+            </div>
+
+            {/* Bull Case */}
+            {analysis.bullPoints && analysis.bullPoints.length > 0 && (
+              <div>
+                <h3 className="text-sm font-bold text-emerald-400 mb-3 flex items-center gap-1">
+                  <TrendingUp className="w-4 h-4" />
+                  주요 긍정 요인
+                </h3>
+                <ul className="space-y-2">
+                  {analysis.bullPoints.map((point, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-slate-300">{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* 3. Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left Column: AI Verdict (2/3 width) */}
@@ -366,32 +476,151 @@ export const DnaMatchView = () => {
                     {renderContent(analysis?.marketTrendAnalysis) || "시장 동향 분석 중..."}
                   </p>
                 </div>
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+
+            {/* Solvency Analysis (v3) */}
+          {analysis?.solvencyAnalysis && (
+            <Card className="bg-slate-900/50 border-indigo-500/20 shadow-xl overflow-hidden">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-indigo-500/10 rounded-lg">
+                      <ShieldAlert className="w-5 h-5 text-indigo-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white">Solvency & Cash Runway Audit</h3>
+                      <p className="text-xs text-slate-400 font-mono">Distressed Asset Analysis Persona</p>
+                    </div>
+                  </div>
+                  <GradeBadge grade={analysis.solvencyAnalysis.financial_health_grade} />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Survival Months</p>
+                    <p className="text-2xl font-mono font-bold text-white">
+                      {analysis.solvencyAnalysis.survival_months} <span className="text-sm font-normal text-slate-400">Mo</span>
+                    </p>
+                  </div>
+                  <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Burn Rate Status</p>
+                    <p className={clsx(
+                      "text-sm font-bold",
+                      analysis.solvencyAnalysis.survival_months < 6 ? "text-rose-400" :
+                      analysis.solvencyAnalysis.survival_months < 12 ? "text-yellow-400" : "text-emerald-400"
+                    )}>
+                      {analysis.solvencyAnalysis.survival_months < 6 ? "CRITICAL BURN" : 
+                       analysis.solvencyAnalysis.survival_months < 12 ? "MANAGEABLE" : "HEALTHY"}
+                    </p>
+                  </div>
+                  <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Capital Raise Needed</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      {analysis.solvencyAnalysis.capital_raise_needed ? (
+                        <>
+                          <AlertTriangle className="w-4 h-4 text-rose-500" />
+                          <span className="text-rose-400 font-bold text-sm underline decoration-rose-500/30">DILUTION LIKELY</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4 text-emerald-500" />
+                          <span className="text-emerald-400 font-bold text-sm">NO IMMEDIATE NEED</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-indigo-500/5 p-4 rounded-xl border border-indigo-500/10">
+                  <p className="text-slate-300 text-sm italic leading-relaxed">
+                    "{analysis?.solvencyAnalysis?.reason}"
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Sentiment & Hype Audit (v4) */}
+          {analysis?.sentimentAudit && (
+            <Card className={clsx(
+              "overflow-hidden border-l-4 shadow-xl",
+              analysis.sentimentAudit.category === 'Organic' ? "bg-emerald-950/10 border-emerald-500" :
+              analysis.sentimentAudit.category === 'Hype' ? "bg-amber-950/10 border-amber-500" : "bg-rose-950/10 border-rose-500"
+            )}>
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className={clsx(
+                      "p-2 rounded-lg",
+                      analysis.sentimentAudit.category === 'Organic' ? "bg-emerald-500/10" :
+                      analysis.sentimentAudit.category === 'Hype' ? "bg-amber-500/10" : "bg-rose-500/10"
+                    )}>
+                      {analysis.sentimentAudit.category === 'Organic' ? <ShieldCheck className="w-5 h-5 text-emerald-400" /> :
+                       analysis.sentimentAudit.category === 'Hype' ? <Search className="w-5 h-5 text-amber-400" /> : <AlertOctagon className="w-5 h-5 text-rose-400" />}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white">Sentiment & Hype Audit</h3>
+                      <p className="text-xs text-slate-400 font-mono">Market Manipulation Monitor AI</p>
+                    </div>
+                  </div>
+                  <div className="px-3 py-1 bg-slate-800 rounded-full text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+                    {analysis.sentimentAudit.category} Growth
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-800 flex flex-col items-center">
+                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-2">Hype Score</p>
+                    <div className="relative flex items-center justify-center">
+                      <svg className="w-16 h-16 transform -rotate-90">
+                        <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-slate-800" />
+                        <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="4" fill="transparent" 
+                          strokeDasharray={2 * Math.PI * 28}
+                          strokeDashoffset={2 * Math.PI * 28 * (1 - analysis.sentimentAudit.hype_score / 100)}
+                          className={clsx(
+                            analysis.sentimentAudit.hype_score > 70 ? "text-amber-500" :
+                            analysis.sentimentAudit.hype_score > 40 ? "text-indigo-500" : "text-emerald-500"
+                          )} />
+                      </svg>
+                      <span className="absolute text-lg font-black font-mono text-white">{analysis.sentimentAudit.hype_score}</span>
+                    </div>
+                  </div>
+                  <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center">
+                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-2">Sentiment Val.</p>
+                    <p className={clsx(
+                      "text-2xl font-black font-mono",
+                      analysis.sentimentAudit.score >= 0 ? "text-emerald-400" : "text-rose-400"
+                    )}>
+                      {analysis.sentimentAudit.score > 0 ? '+' : ''}{analysis.sentimentAudit.score}
+                    </p>
+                    <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">-100 to +100</p>
+                  </div>
+                </div>
+
+                {analysis.sentimentAudit.key_event && (
+                  <div className="mb-4 flex items-center gap-2 px-3 py-2 bg-rose-500/10 border border-rose-500/20 rounded-lg">
+                    <AlertTriangle className="w-4 h-4 text-rose-400" />
+                    <span className="text-xs font-bold text-rose-400 uppercase tracking-tight">Detect: {analysis.sentimentAudit.key_event}</span>
+                  </div>
+                )}
+
+                <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
+                  <p className="text-slate-300 text-sm leading-relaxed">
+                    {analysis.sentimentAudit.summary}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Right Column: Visuals & Metrics (1/3 width) */}
         <div className="space-y-6">
           
-          {/* Radar Chart Card (Fixed Height Issue Resolved) */}
-          <Card className="p-6 flex flex-col items-center justify-center">
-            <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4 w-full text-center">
-              DNA Pattern Matching
-            </h3>
-            {/* Height를 명시적으로 지정하여 Recharts 경고 해결 */}
-            <div className="w-full h-[320px] min-h-[320px] flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="65%" data={analysis?.radarData}>
-                  <PolarGrid stroke="#334155" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10 }} />
-                  <Radar name="Benchmark" dataKey="A" stroke="#64748b" strokeDasharray="4 4" fill="#64748b" fillOpacity={0.1} />
-                  <Radar name="Target" dataKey="B" stroke="#8b5cf6" strokeWidth={3} fill="#8b5cf6" fillOpacity={0.4} />
-                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '20px' }} iconType="circle" />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
+          {/* Radar Chart Component */}
+          <DnaRadarChart data={analysis?.radarData || []} />
 
           {/* Risk Shield */}
           <Card className="p-5 border-rose-500/30 bg-rose-950/10">
@@ -440,17 +669,17 @@ export const DnaMatchView = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center text-sm border-b border-slate-800 pb-2">
                 <span className="text-slate-500">Total Cash (Latest)</span>
-                <span className="text-slate-200 font-mono font-bold">{realTimeData.totalCash || 'N/A'}</span>
+                <span className="text-slate-200 font-mono font-bold">{realTimeData?.totalCash || 'N/A'}</span>
               </div>
               <div className="flex justify-between items-center text-sm border-b border-slate-800 pb-2">
                 <span className="text-slate-500">TTM Net Income</span>
-                <span className={clsx("font-mono font-bold", realTimeData.netIncome?.includes('-') ? "text-rose-400" : "text-emerald-400")}>
-                  {realTimeData.netIncome || 'N/A'}
+                <span className={clsx("font-mono font-bold", realTimeData?.netIncome?.includes('-') ? "text-rose-400" : "text-emerald-400")}>
+                  {realTimeData?.netIncome || 'N/A'}
                 </span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-slate-500">Est. Cash Runway</span>
-                <span className="text-indigo-400 font-mono font-bold">{realTimeData.cashRunway && realTimeData.cashRunway !== 99 ? `${realTimeData.cashRunway} Mo` : 'Healthy'}</span>
+                <span className="text-indigo-400 font-mono font-bold">{realTimeData?.cashRunway && realTimeData?.cashRunway !== 99 ? `${realTimeData?.cashRunway} Mo` : 'Healthy'}</span>
               </div>
             </div>
             <p className="mt-4 text-[10px] text-slate-600 leading-tight">

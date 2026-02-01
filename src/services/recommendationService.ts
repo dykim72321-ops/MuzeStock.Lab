@@ -7,6 +7,17 @@ export interface Recommendation {
   action: 'buy' | 'watch' | 'avoid';
 }
 
+/**
+ * Groups stocks by sector for diversity analysis
+ */
+function groupBySector(stocks: Stock[]): Record<string, Stock[]> {
+  return stocks.reduce((acc, stock) => {
+    const sector = stock.sector || 'Unknown';
+    if (!acc[sector]) acc[sector] = [];
+    acc[sector].push(stock);
+    return acc;
+  }, {} as Record<string, Stock[]>);
+}
 
 
 
@@ -47,9 +58,32 @@ export const analyzeStock = (stock: Stock): Recommendation => {
 
 /**
  * Gets top daily stock picks based on recommendation criteria
+ * @param stocks - Input stock list
+ * @param maxPicks - Maximum number of picks to return
+ * @param recentTickers - Recently recommended tickers to exclude (blacklist)
  */
-export function getDailyPicks(stocks: Stock[], maxPicks = 5): Recommendation[] {
-  const recommendations = stocks
+export function getDailyPicks(
+  stocks: Stock[], 
+  maxPicks = 5,
+  recentTickers: string[] = []
+): Recommendation[] {
+  // 1. 최근 추천 종목 제외
+  const freshStocks = stocks.filter(s => !recentTickers.includes(s.ticker));
+  
+  // 2. 섹터별 그룹화
+  const bySector = groupBySector(freshStocks);
+  
+  // 3. 각 섹터에서 최대 2개씩 선택하여 다양성 확보
+  const diverseStocks: Stock[] = [];
+  for (const sectorStocks of Object.values(bySector)) {
+    const topTwo = sectorStocks
+      .sort((a, b) => b.dnaScore - a.dnaScore)
+      .slice(0, 2);
+    diverseStocks.push(...topTwo);
+  }
+  
+  // 4. 추천 생성 및 정렬
+  const recommendations = diverseStocks
     .map(stock => analyzeStock(stock))
     .filter((rec): rec is Recommendation => rec !== null)
     .sort((a, b) => {
