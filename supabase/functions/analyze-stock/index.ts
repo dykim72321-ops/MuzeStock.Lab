@@ -34,7 +34,8 @@ serve(async (req) => {
     const { 
       ticker, price, change, volume, peRatio, revenueGrowth, operatingMargin, 
       sentimentScore, sentimentLabel, institutionalOwnership, topInstitution,
-      sector, cashRunway, netIncome, totalCash, debtToEquity, newsHeadlines
+      sector, cashRunway, netIncome, totalCash, debtToEquity, newsHeadlines,
+      relativeVolume, averageVolume10d // 🆕 Added momentum indicators
     } = await req.json();
 
     // 🚨 Anomaly Detection (Sanity Check)
@@ -102,11 +103,47 @@ serve(async (req) => {
        console.warn("Failed to fetch market context, using default.", err);
     }
 
-    // --- RAG: Vector Search for Historical Patterns ---
-    let historicalContext = "No specific historical pattern matched.";
+    // --- RAG: Vector Search for Historical Pattern Legends ---
+    let historicalContext = "No specific historical legend matched.";
+    let matchedLegend = { ticker: "None", similarity: 0 };
+    
     try {
+      // 🚨 Lazy Seeding: Check if legends need embeddings
+      const { data: legendsToEmbed } = await supabase
+        .from('stock_legends')
+        .select('id, description')
+        .is('embedding', null);
+
+      if (legendsToEmbed && legendsToEmbed.length > 0) {
+        console.log(`🚀 Seeding ${legendsToEmbed.length} legends with embeddings...`);
+        for (const legend of legendsToEmbed) {
+          try {
+            const embedRes = await fetch('https://api.openai.com/v1/embeddings', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                model: 'text-embedding-3-small',
+                input: legend.description
+              })
+            });
+            const embedData = await embedRes.json();
+            if (embedData.data?.[0]?.embedding) {
+              await supabase
+                .from('stock_legends')
+                .update({ embedding: embedData.data[0].embedding })
+                .eq('id', legend.id);
+            }
+          } catch (e) {
+            console.error(`Failed to embed legend ${legend.id}:`, e);
+          }
+        }
+      }
+
       // 1. Generate Embedding for current context
-      const queryText = `Stock: ${ticker}, Sector: ${sector}, Price Action: ${change}%, Volume: ${volume}, Sentiment: ${sentimentLabel}`;
+      const queryText = `Stock: ${ticker}, Sector: ${sector}, Price Action: ${change}%, Volume: ${volume}, RelVol: ${relativeVolume}x, Sentiment: ${sentimentLabel}`;
       const embedRes = await fetch('https://api.openai.com/v1/embeddings', {
         method: 'POST',
         headers: {
@@ -123,18 +160,22 @@ serve(async (req) => {
       if (embedData.data && embedData.data[0]) {
         const embedding = embedData.data[0].embedding;
         
-        // 2. Search Supabase
-        const { data: similarPatterns, error: rpcError } = await supabase.rpc('match_market_patterns', {
+        // 2. Search Supabase (using match_stock_patterns)
+        const { data: similarLegends, error: rpcError } = await supabase.rpc('match_stock_patterns', {
           query_embedding: embedding,
-          match_threshold: 0.7, // 70% similarity
+          match_threshold: 0.6, // Slightly lower for broader matching
           match_count: 2
         });
 
-        if (!rpcError && similarPatterns && similarPatterns.length > 0) {
-          historicalContext = similarPatterns.map((p: any) => 
-            `- Event: ${p.event_name} (Similarity: ${(p.similarity * 100).toFixed(1)}%)\n  Context: ${p.description}`
+        if (!rpcError && similarLegends && similarLegends.length > 0) {
+          historicalContext = similarLegends.map((p: any) => 
+            `- Legend: ${p.ticker} (${p.period}) (Similarity: ${(p.similarity * 100).toFixed(1)}%)\n  Context: ${p.description}`
           ).join('\n');
-          console.log(`🔍 Found ${similarPatterns.length} similar historical patterns for ${ticker}`);
+          matchedLegend = { 
+            ticker: similarLegends[0].ticker, 
+            similarity: Math.round(similarLegends[0].similarity * 100) 
+          };
+          console.log(`🔍 Found ${similarLegends.length} similar momentum legends for ${ticker}`);
         }
       }
     } catch (err) {
@@ -152,60 +193,51 @@ ${newsHeadlines.map((h: string, i: number) => `${i+1}. ${h}`).join('\n')}
 경고: 지난 7일간 뉴스 감정 데이터가 없어 분석이 과거 지표에 의존할 수 있습니다. 기술적 지표와 과거 패턴에 더 많이 의존하세요.`;
 
 
-    const systemPrompt = `You are a professional stock analyst for MuzeStock.Lab.
+    const systemPrompt = `You are the Master Brain of MuzeStock.Lab, a sophisticated AI trading terminal specializing in high-momentum stocks ($1-$10 range).
+    
     Current Persona: ${persona.name} (${persona.tone})
     
     ${newsSection}
     
     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    [MASTER FUSION ALGORITHM: 4-SOURCE ANALYSIS]
     
-    [ANALYSIS PRINCIPLE: 5W1H & LOGICAL EVIDENCE]
-    Your report MUST follow the 5W1H principle and provide deep insights into Financial Health (Revenue) and Market Trends.
-
-    [HISTORICAL PATTERN MATCHING (RAG)]
-    The following historical events match the current chart pattern of ${ticker}:
+    1. 🛑 BRAKE (Financials): Check for dilution, bankruptcy, or toxic debt. (Cash Runway: ${cashRunway}mo)
+    2. 🚀 ACCELERATOR (Momentum): Analyze Relative Volume (${relativeVolume}x), Price Action, and Volatility.
+    3. 🧭 NAVIGATION (News): Interpret recent headlines for "why" (catalyst analysis).
+    4. 🗺️ MAP (Pattern Match): Compare current chart/context to historical momentum legends.
+    
+    [HISTORICAL LEGEND MATCH]
     ${historicalContext}
-    *IF* relevant, compare the current situation to these historical events in your analysis.
     
+    [ANALYSIS PRINCIPLE: 5W1H & MOMENTUM SURVIVAL]
+    Your report MUST follow the 5W1H principle. For momentum stocks, focus on "Can this survive long enough to pop?" vs "Is the volume expansion sustainable?".
+
     Format JSON Fields exactly as follows (Language: Korean):
-    - matchReasoning: Single formatted string with 5W1H bullet points (e.g., "[누가] ...\n[언제] ...\n[어디서] ..."). NOT a JSON object.
-    - financialHealthAudit: Single string with detailed Revenue, Net Income, and Cash analysis.
-    - marketTrendAnalysis: Single string analyzing Market Context and Sentiment.
+    - matchReasoning: 5W1H bullet points (e.g., "[누가] ...\n[언제] ...").
+    - matchedLegend: { "ticker": string, "similarity": number } // From Pattern Match data
+    - popProbability: number // 0-100, Predicted chance of a massive pop in next 1-5 days.
+    - financialHealthAudit: detailed analysis of Balance Sheet/Cash.
+    - marketTrendAnalysis: analysis of Market Sentiment/Vol.
     - bullCase (string[]): 3 concise facts.
     - bearCase (string[]): 3 concise facts.
     - dnaScore (number): 0-100.
     - riskLevel (string): "Low", "Medium", "High", "CRITICAL".
     - riskReason (string): Specific reason.
     - survivalRate (string): "Healthy", "Warning", "Critical".
-    - solvencyAnalysis: {
-        "survival_months": number,
-        "financial_health_grade": "A" | "B" | "C" | "D" | "F",
-        "capital_raise_needed": boolean,
-        "reason": "String in Korean"
-      },
-    - sentimentAudit: {
-        "score": number, // -100 to 100
-        "hype_score": number, // 0 to 100
-        "category": "Organic" | "Hype" | "Negative",
-        "key_event": string | null,
-        "summary": "String in Korean"
-      }
+    - solvencyAnalysis: { "survival_months": number, "financial_health_grade": "A"|"F", "reason": "string" }
+    - sentimentAudit: { "score": number, "hype_score": number, "category": "Organic"|"Hype", "summary": "string" }
     
     [GLOBAL MARKET CONTEXT]
     ${globalContext}
     
     [DYNAMIC BENCHMARK]
-    Compare against ${benchmark.name}. Focus on ${benchmark.focus}.
-    
-    [INSTRUCTIONS]
-    1. Result MUST be purely valid JSON.
-    2. Use technical but readable Korean.
-    3. CITE specific numbers from the provided user context as evidence.`;
+    Compare against ${benchmark.name}. Focus on ${benchmark.focus}.`;
 
 
     const userPrompt = `Analyze this stock ($1-$10 range):
     Ticker: ${ticker} | Sector: ${sector}
-    Price: ${price} | Change: ${change}% | Volume: ${volume}
+    Price: ${price} | Change: ${change}% | Volume: ${volume} | RelVol: ${relativeVolume}x (Avg: ${averageVolume10d})
     Fundamentals: PE: ${peRatio || 'N/A'} | Rev Growth: ${revenueGrowth || 'N/A'}% | Margin: ${operatingMargin || 'N/A'}%
     Sentiment: ${sentimentLabel || 'Neutral'} (Score: ${sentimentScore || 0})
     Ownership: Institutional: ${institutionalOwnership || '0'}% | Top: ${topInstitution || 'N/A'}

@@ -34,6 +34,12 @@ interface AnalysisData {
     key_event: string | null;
     summary: string;
   };
+  // 🆕 Momentum Master Algorithm Fields
+  popProbability?: number;
+  matchedLegend?: {
+    ticker: string;
+    similarity: number;
+  };
 }
 
 interface RealTimeData {
@@ -148,13 +154,16 @@ export const DnaMatchView = () => {
             bullPoints: analysisData.bullCase || [],
             bearPoints: analysisData.bearCase || [],
             riskScore: analysisData.riskLevel === 'CRITICAL' ? 95 : 
-                       analysisData.riskLevel === 'High' ? 80 :
-                       analysisData.riskLevel === 'Medium' ? 50 : 20,
-            radarData: generateDefaultRadar(analysisData.dnaScore),
+                       analysisData.riskLevel === 'High' ? 75 : 
+                       analysisData.riskLevel === 'Medium' ? 45 : 15,
+            radarData: [],
             financialHealthAudit: analysisData.financialHealthAudit,
             marketTrendAnalysis: analysisData.marketTrendAnalysis,
             solvencyAnalysis: analysisData.solvencyAnalysis,
-            sentimentAudit: analysisData.sentimentAudit
+            sentimentAudit: analysisData.sentimentAudit,
+            // 🆕 Master Algorithm Mapping
+            popProbability: analysisData.popProbability,
+            matchedLegend: analysisData.matchedLegend,
           });
         }
       } catch (err) {
@@ -182,13 +191,7 @@ export const DnaMatchView = () => {
     return "SELL";
   };
 
-  const generateDefaultRadar = (score: number) => [
-    { subject: 'Growth', A: 90, B: score, fullMark: 100 },
-    { subject: 'R&D', A: 85, B: Math.max(score - 10, 40), fullMark: 100 },
-    { subject: 'Cash', A: 60, B: Math.min(score + 10, 90), fullMark: 100 },
-    { subject: 'Volume', A: 80, B: score, fullMark: 100 },
-    { subject: 'Risk', A: 40, B: 100 - score, fullMark: 100 },
-  ];
+
 
   // --- Render Loading ---
   if (loading) {
@@ -273,9 +276,44 @@ export const DnaMatchView = () => {
             "{analysis.bullPoints?.[0] || "AI 분석 결과를 기반으로 투자 의견을 제공합니다."}"
           </p>
           <footer className="mt-3 text-sm text-slate-500 font-mono">
-            — MuzeStock.Lab AI Analysis • {new Date().toLocaleDateString('ko-KR')}
+            — MuzeStock.Lab Master AI • {new Date().toLocaleDateString('ko-KR')}
           </footer>
         </blockquote>
+      )}
+
+      {/* 🆕 MOMENTUM PATTERN MATCH - Hero Section */}
+      {analysis?.matchedLegend && analysis.matchedLegend.ticker !== "None" && (
+        <section className="mb-10 bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-indigo-500/5">
+          <div className="flex items-center gap-5">
+            <div className="p-3 bg-indigo-500/10 rounded-full">
+              <BrainCircuit className="w-8 h-8 text-indigo-400" />
+            </div>
+            <div>
+              <p className="text-xs text-indigo-400 font-bold uppercase tracking-widest mb-1">Historical Pattern Match</p>
+              <h3 className="text-2xl font-black text-white">
+                "{analysis.matchedLegend.ticker}" <span className="text-indigo-500/60 font-serif lowercase italic">Breakout Logic</span>
+              </h3>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-8">
+            <div className="text-right">
+              <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">Similarity</p>
+              <p className="text-3xl font-black text-indigo-400 font-mono">{analysis.matchedLegend.similarity}%</p>
+            </div>
+            <div className="h-12 w-px bg-slate-800 hidden md:block" />
+            <div className="text-right">
+              <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">Pop Probability</p>
+              <p className={clsx(
+                "text-3xl font-black font-mono",
+                (analysis.popProbability || 0) >= 80 ? "text-emerald-400 animate-pulse" : 
+                (analysis.popProbability || 0) >= 50 ? "text-amber-400" : "text-slate-400"
+              )}>
+                {analysis.popProbability ? `${analysis.popProbability}%` : 'N/A'}
+              </p>
+            </div>
+          </div>
+        </section>
       )}
 
       {/* KEY METRICS - Horizontal Row */}

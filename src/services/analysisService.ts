@@ -24,6 +24,12 @@ export interface AIAnalysis {
     key_event: string | null;
     summary: string;
   };
+  // 🆕 Master Algorithm Fields
+  popProbability?: number;
+  matchedLegend?: {
+    ticker: string;
+    similarity: number;
+  };
 }
 
 export async function fetchStockAnalysis(stock: Stock): Promise<AIAnalysis | null> {
@@ -85,7 +91,10 @@ export async function fetchStockAnalysis(stock: Stock): Promise<AIAnalysis | nul
         netIncome: stock.relevantMetrics.netIncome,
         totalCash: stock.relevantMetrics.totalCash,
         debtToEquity: stock.relevantMetrics.debtToEquity,
-        newsHeadlines: stock.news?.map(n => n.title) || [],
+        newsHeadlines: stock.newsHeadlines || [],
+        // 🆕 Momentum Indicators
+        relativeVolume: stock.relevantMetrics.relativeVolume,
+        averageVolume10d: stock.relevantMetrics.averageVolume10d,
       },
     });
 
