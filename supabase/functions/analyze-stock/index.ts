@@ -103,6 +103,29 @@ serve(async (req) => {
        console.warn("Failed to fetch market context, using default.", err);
     }
 
+    // --- 🚀 NEW: Cache Lookup (Improvement 1) ---
+    try {
+      const CACHE_HOURS = 6;
+      const { data: cachedData } = await supabase
+        .from('stock_analysis_cache')
+        .select('analysis, created_at')
+        .eq('ticker', ticker)
+        .gt('created_at', new Date(Date.now() - CACHE_HOURS * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cachedData) {
+        console.log(`⚡ [Cache Hit] Using cached analysis for ${ticker} from ${cachedData.created_at}`);
+        return new Response(JSON.stringify(cachedData.analysis), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Cache': 'HIT' },
+          status: 200,
+        });
+      }
+    } catch (err) {
+      console.warn("Cache lookup failed, proceeding to AI:", err);
+    }
+
     // --- RAG: Vector Search for Historical Pattern Legends ---
     let historicalContext = "No specific historical legend matched.";
     let matchedLegend = { ticker: "None", similarity: 0 };
@@ -275,18 +298,30 @@ ${newsHeadlines.map((h: string, i: number) => `${i+1}. ${h}`).join('\n')}
     // --- 4. Return Result & Save to Backtesting Log ---
     
     // Save prediction asynchronously (don't block response)
-    const { error: logError } = await supabase.from('ai_predictions').insert({
-      ticker: ticker,
-      persona_used: persona.name,
-      dna_score: analysis.dnaScore,
-      predicted_direction: analysis.dnaScore >= 50 ? 'BULLISH' : 'BEARISH',
-      start_price: price
-    });
+    const logPrediction = async () => {
+      // 1. Log to ai_predictions for backtesting
+      await supabase.from('ai_predictions').insert({
+        ticker: ticker,
+        persona_used: persona.name,
+        dna_score: analysis.dnaScore,
+        predicted_direction: analysis.dnaScore >= 50 ? 'BULLISH' : 'BEARISH',
+        start_price: price
+      });
+
+      // 2. Save to analysis cache (Improvement 1)
+      await supabase.from('stock_analysis_cache').insert({
+        ticker: ticker,
+        analysis: analysis
+      });
+      
+      console.log(`💾 [Memorize] Analysis cached for ${ticker}`);
+    };
     
-    if (logError) console.warn("Failed to log prediction for backtesting:", logError);
+    // Run logging but don't wait for it to return response faster
+    logPrediction().catch(err => console.error("Logging error:", err));
 
     return new Response(JSON.stringify(analysis), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Cache': 'MISS' },
       status: 200,
     });
   } catch (error: any) {

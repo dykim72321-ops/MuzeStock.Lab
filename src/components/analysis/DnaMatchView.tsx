@@ -4,11 +4,14 @@ import { ArrowLeft, TrendingUp, AlertTriangle, BrainCircuit, Share2, ShieldAlert
 import { GradeBadge } from '../ui/GradeBadge';
 import { AddToWatchlistBtn } from '../ui/AddToWatchlistBtn';
 import { DnaRadarChart } from './DnaRadarChart';
+import { Card } from '../ui/Card';
+import { Badge } from '../ui/Badge';
 import clsx from 'clsx';
 
 import { fetchStockQuote } from '../../services/stockService';
 import { fetchStockAnalysis } from '../../services/analysisService'; 
 import { useLiveTicker } from '../../hooks/useLiveTicker';
+import { supabase } from '../../lib/supabase';
 
 // --- Types ---
 interface AnalysisData {
@@ -89,6 +92,7 @@ export const DnaMatchView = () => {
   const [loading, setLoading] = useState(true);
   const [realTimeData, setRealTimeData] = useState<RealTimeData | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
+  const [legendData, setLegendData] = useState<any>(null); // 🆕 Matched Legend details
   const [error, setError] = useState<string | null>(null);
 
   // --- Live Ticker Hook ---
@@ -156,7 +160,6 @@ export const DnaMatchView = () => {
             riskScore: analysisData.riskLevel === 'CRITICAL' ? 95 : 
                        analysisData.riskLevel === 'High' ? 75 : 
                        analysisData.riskLevel === 'Medium' ? 45 : 15,
-            radarData: [],
             financialHealthAudit: analysisData.financialHealthAudit,
             marketTrendAnalysis: analysisData.marketTrendAnalysis,
             solvencyAnalysis: analysisData.solvencyAnalysis,
@@ -164,6 +167,7 @@ export const DnaMatchView = () => {
             // 🆕 Master Algorithm Mapping
             popProbability: analysisData.popProbability,
             matchedLegend: analysisData.matchedLegend,
+            radarData: [], // Initial empty, will be updated by Effect 3
           });
         }
       } catch (err) {
@@ -180,6 +184,52 @@ export const DnaMatchView = () => {
 
     return () => { isMounted = false; };
   }, [ticker]);
+
+  // --- Effect 2: Fetch Legend Data for Comparison (Improvement 3) ---
+  useEffect(() => {
+    const fetchLegend = async () => {
+      if (!analysis?.matchedLegend || analysis.matchedLegend.ticker === 'None') {
+        setLegendData(null);
+        return;
+      }
+
+      try {
+        const { data } = await supabase
+          .from('stock_legends')
+          .select('*')
+          .eq('ticker', analysis.matchedLegend.ticker)
+          .maybeSingle();
+
+        if (data) {
+          console.log(`🗺️ [Legend Loaded] ${data.ticker} details fetched for comparison.`);
+          setLegendData(data);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch legend details:", err);
+      }
+    };
+
+    fetchLegend();
+  }, [analysis?.matchedLegend]);
+
+  // --- Effect 3: Generate Radar Data ---
+  useEffect(() => {
+    if (analysis && analysis.score !== undefined) {
+      // Comparison logic: A = Legend, B = Current
+      const lMetrics = legendData?.metrics || {};
+      const rMetrics = realTimeData?.relativeVolume || 0;
+      
+      const newRadarData = [
+        { subject: 'Momentum', A: lMetrics.relVol ? Math.min(lMetrics.relVol * 10, 100) : 70, B: Math.min(rMetrics * 10, 100), fullMark: 100 },
+        { subject: 'Growth', A: lMetrics.gain15d ? 95 : 80, B: Math.min(Math.abs(realTimeData?.changePercent || 0) * 2, 100), fullMark: 100 },
+        { subject: 'DNA', A: 90, B: analysis.score, fullMark: 100 },
+        { subject: 'Volume', A: legendData ? 85 : 0, B: realTimeData?.volume ? 75 : 0, fullMark: 100 },
+        { subject: 'Risk', A: 30, B: analysis.riskScore || 50, fullMark: 100 },
+      ];
+      
+      setAnalysis(prev => prev ? { ...prev, radarData: newRadarData } : null);
+    }
+  }, [analysis?.score, legendData, realTimeData]);
 
 
 
@@ -281,43 +331,75 @@ export const DnaMatchView = () => {
         </blockquote>
       )}
 
-      {/* 🆕 MOMENTUM PATTERN MATCH - Hero Section */}
-      {analysis?.matchedLegend && analysis.matchedLegend.ticker !== "None" && (
-        <section className="mb-10 bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-indigo-500/5">
-          <div className="flex items-center gap-5">
-            <div className="p-3 bg-indigo-500/10 rounded-full">
-              <BrainCircuit className="w-8 h-8 text-indigo-400" />
-            </div>
-            <div>
-              <p className="text-xs text-indigo-400 font-bold uppercase tracking-widest mb-1">Historical Pattern Match</p>
-              <h3 className="text-2xl font-black text-white">
-                "{analysis.matchedLegend.ticker}" <span className="text-indigo-500/60 font-serif lowercase italic">Breakout Logic</span>
-              </h3>
-            </div>
+      {/* MOMENTUM PATTERN MATCH - Hero Section */}
+      {analysis?.matchedLegend && analysis.matchedLegend.ticker !== 'None' && (
+        <Card className="mb-12 p-8 bg-gradient-to-br from-indigo-950/40 via-slate-900 to-purple-950/20 border-indigo-500/30 overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <TrendingUp className="w-32 h-32 text-indigo-400 rotate-12" />
           </div>
           
-          <div className="flex items-center gap-8">
-            <div className="text-right">
-              <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">Similarity</p>
-              <p className="text-3xl font-black text-indigo-400 font-mono">{analysis.matchedLegend.similarity}%</p>
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-indigo-500 p-2 rounded-lg shadow-[0_0_20px_rgba(99,102,241,0.5)]">
+                <BrainCircuit className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-black text-white tracking-tight uppercase">Momentum Pattern Match</h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest">Master Algorithm Engine</span>
+                  <div className="h-1 w-1 rounded-full bg-slate-600"></div>
+                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Similarity: {analysis.matchedLegend.similarity.toFixed(1)}%</span>
+                </div>
+              </div>
             </div>
-            <div className="h-12 w-px bg-slate-800 hidden md:block" />
-            <div className="text-right">
-              <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">Pop Probability</p>
-              <p className={clsx(
-                "text-3xl font-black font-mono",
-                (analysis.popProbability || 0) >= 80 ? "text-emerald-400 animate-pulse" : 
-                (analysis.popProbability || 0) >= 50 ? "text-amber-400" : "text-slate-400"
-              )}>
-                {analysis.popProbability ? `${analysis.popProbability}%` : 'N/A'}
-              </p>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+              <div>
+                <p className="text-slate-300 text-lg leading-relaxed font-medium italic">
+                  "현재 {ticker}의 거래량 분출과 가격 변동성이 전설적인 **{analysis.matchedLegend.ticker}**의 급등 전 초기 패턴과 
+                  <span className="text-white font-bold ml-1">{analysis.matchedLegend.similarity.toFixed(0)}% 일치</span>합니다."
+                </p>
+                
+                <div className="mt-8 grid grid-cols-2 gap-4">
+                  <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Pop Probability</p>
+                    <p className="text-3xl font-black text-emerald-400 font-mono">{analysis.popProbability}%</p>
+                  </div>
+                  <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Mirror Target</p>
+                    <p className="text-3xl font-black text-indigo-400 font-mono">{analysis.matchedLegend.ticker}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Legendary Mini-Card */}
+              <div className="bg-slate-950/80 rounded-2xl p-6 border border-white/10 shadow-2xl">
+                 <div className="flex justify-between items-start mb-4">
+                    <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30 font-black">HISTORICAL LEGEND</Badge>
+                    <p className="text-xs text-slate-500 font-bold">2021 Momentum King</p>
+                 </div>
+                 <h3 className="text-3xl font-black text-white mb-2">{legendData?.ticker || analysis.matchedLegend.ticker}</h3>
+                 <p className="text-sm text-slate-400 leading-relaxed mb-6">
+                   {legendData?.description || "과거 기록적인 숏스퀴즈와 개인 투자자들의 결집으로 폭발적인 성장을 기록했던 전설적 종목입니다."}
+                 </p>
+                 
+                 <div className="space-y-3">
+                    <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
+                       <span className="text-slate-500">Historical Gain</span>
+                       <span className="text-emerald-400">+1,800% (15d)</span>
+                    </div>
+                    <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
+                       <div className="h-full bg-emerald-500 w-[95%]"></div>
+                    </div>
+                 </div>
+              </div>
             </div>
           </div>
-        </section>
+        </Card>
       )}
 
-      {/* KEY METRICS - Horizontal Row */}
-      <section className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-12 py-6 border-y border-slate-800">
+      {/* Main Analysis Sections */}
+      <section className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-12">
         <div className="text-center">
           <p className="text-xs text-slate-500 uppercase tracking-widest mb-2 font-bold">DNA Score</p>
           <p className="text-4xl font-black text-white font-mono">{analysis?.score || 0}</p>

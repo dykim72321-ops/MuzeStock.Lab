@@ -7,6 +7,7 @@ import { SettingsView } from './components/dashboard/SettingsView';
 import { DnaMatchView } from './components/analysis/DnaMatchView';
 import { BacktestingDashboard } from './components/dashboard/BacktestingDashboard';
 import { PersonaPerformance } from './components/dashboard/PersonaPerformance';
+import { ScannerPage } from './pages/ScannerPage';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { queryClient } from './lib/queryClient';
 
@@ -18,8 +19,8 @@ function App() {
           <Routes>
             <Route path="/" element={<Layout />}>
               <Route path="/" element={<DailyPicks />} /> {/* Step 1: Discovery with AI Rankings */}
-              <Route path="scan" element={<Navigate to="/" replace />} />
-              <Route path="scanner" element={<Navigate to="/" replace />} />
+              <Route path="scan" element={<Navigate to="/scanner" replace />} />
+              <Route path="scanner" element={<ScannerPage />} />
               <Route path="stock/:id" element={<DnaMatchView />} /> {/* Step 3: Analysis */}
               <Route path="watchlist" element={<WatchlistView />} /> {/* Step 2: Exploration */}
               <Route path="backtesting" element={<BacktestingDashboard />} />
