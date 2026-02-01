@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, BrainCircuit, Share2, ShieldAlert, ExternalLink, Database, Banknote, Globe, CheckCircle, ShieldCheck, Search, AlertOctagon } from 'lucide-react';
-import { Badge } from '../ui/Badge';
-import { Card } from '../ui/Card';
+import { ArrowLeft, TrendingUp, AlertTriangle, BrainCircuit, Share2, ShieldAlert, ExternalLink, Banknote, ShieldCheck } from 'lucide-react';
 import { GradeBadge } from '../ui/GradeBadge';
 import { AddToWatchlistBtn } from '../ui/AddToWatchlistBtn';
 import { DnaRadarChart } from './DnaRadarChart';
@@ -55,6 +53,9 @@ interface RealTimeData {
   fiftyTwoWeekPosition?: number;
   analystCount?: number;
   recommendation?: string;
+  // 🆕 Momentum Indicators
+  averageVolume10d?: number;
+  relativeVolume?: number;
 }
 
 // Helper function to safely render AI analysis content (string or object)
@@ -131,7 +132,10 @@ export const DnaMatchView = () => {
             upsidePotential: quoteData.relevantMetrics.upsidePotential,
             fiftyTwoWeekPosition: quoteData.relevantMetrics.fiftyTwoWeekPosition,
             analystCount: quoteData.relevantMetrics.analystCount,
-            recommendation: quoteData.relevantMetrics.recommendation
+            recommendation: quoteData.relevantMetrics.recommendation,
+            // 🆕 Momentum Indicators
+            averageVolume10d: quoteData.relevantMetrics.averageVolume10d,
+            relativeVolume: quoteData.relevantMetrics.relativeVolume,
           });
         }
 
@@ -215,504 +219,273 @@ export const DnaMatchView = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in pb-10">
-      {/* 1. Header Navigation & Price Info */}
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-2 group">
-        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-        <span className="text-sm font-medium">Back to List</span>
-      </button>
-
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-6">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-5xl font-black text-white tracking-tighter font-mono">{ticker}</h1>
-            <Badge variant="neutral" className="text-xs">{realTimeData.sector}</Badge>
-            {analysis && (analysis.score < 40 || analysis.riskScore > 70) && (
-              <Badge variant="warning" className="animate-pulse flex items-center gap-1">
-                <ShieldAlert className="w-3 h-3" /> Risk Alert
-              </Badge>
-            )}
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <span className="text-3xl font-mono text-slate-200">${realTimeData.price.toFixed(3)}</span>
+    <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in">
+      
+      {/* MASTHEAD - Newspaper Style Header */}
+      <header className="border-b-2 border-slate-700 pb-6 mb-8">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors mb-4 group text-sm">
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          Back to List
+        </button>
+        
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            {/* Ticker & Company */}
+            <div className="flex items-baseline gap-3 mb-1">
+              <h1 className="text-5xl font-black text-white tracking-tighter font-serif">{ticker}</h1>
+              <span className="text-3xl font-light text-slate-400 font-mono">${realTimeData.price.toFixed(2)}</span>
+              <span className={clsx(
+                "text-lg font-bold px-2 py-0.5 rounded",
+                realTimeData.changePercent >= 0 ? "text-emerald-400 bg-emerald-500/10" : "text-rose-400 bg-rose-500/10"
+              )}>
+                {realTimeData.changePercent >= 0 ? '▲' : '▼'} {Math.abs(realTimeData.changePercent).toFixed(2)}%
+              </span>
               {isConnected && (
-                <span className="absolute -top-1 -right-2 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
               )}
             </div>
-            <span className={clsx("flex items-center gap-1 font-mono font-bold px-2 py-1 rounded text-sm", 
-              realTimeData.changePercent >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
-              {realTimeData.changePercent >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-              {Math.abs(realTimeData.changePercent).toFixed(2)}%
-            </span>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <AddToWatchlistBtn ticker={ticker} />
-          <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-colors flex items-center gap-2 text-sm font-medium">
-            <Share2 className="w-4 h-4" /> Share
-          </button>
-        </div>
-      </div>
-
-      {/* Yahoo Finance Analyst Consensus */}
-      {realTimeData.targetPrice && realTimeData.targetPrice > 0 && (
-        <Card className="bg-slate-900/50 border-slate-700/50 overflow-hidden">
-          <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-800">
-            <div className="flex-1 p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Globe className="w-5 h-5 text-blue-400" />
-                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Market Consensus</h3>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Target Price</div>
-                  <div className="text-2xl font-black text-white font-mono">${realTimeData.targetPrice.toFixed(2)}</div>
-                  {realTimeData.upsidePotential !== undefined && (
-                    <div className={clsx(
-                      "text-xs font-bold mt-1",
-                      realTimeData.upsidePotential > 0 ? "text-emerald-400" : "text-rose-400"
-                    )}>
-                      {realTimeData.upsidePotential > 0 ? '↑' : '↓'} 
-                      {Math.abs(realTimeData.upsidePotential).toFixed(1)}% Potential
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Recommendation</div>
-                  <div className="text-2xl font-black text-indigo-400 uppercase tracking-tighter">
-                    {realTimeData.recommendation?.replace(/([A-Z])/g, ' $1')}
-                  </div>
-                  <div className="text-xs text-slate-400 mt-1">Based on {realTimeData.analystCount} analysts</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex-1 p-6 bg-slate-800/20">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] text-slate-500 uppercase font-bold">52W Range</span>
-                <span className="text-[10px] text-slate-400 font-mono">
-                  {realTimeData.fiftyTwoWeekPosition?.toFixed(0)}% from low
-                </span>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="h-2 w-full bg-slate-800 rounded-full relative overflow-hidden">
-                  <div 
-                    className="absolute top-0 bottom-0 bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000"
-                    style={{ width: `${realTimeData.fiftyTwoWeekPosition}%` }}
-                  />
-                  <div 
-                    className="absolute top-0 bottom-0 w-1 bg-white shadow-[0_0_10px_white] z-10 transition-all duration-1000"
-                    style={{ left: `${realTimeData.fiftyTwoWeekPosition}%`, marginLeft: '-2px' }}
-                  />
-                </div>
-                <div className="flex justify-between text-[9px] font-mono text-slate-500 uppercase">
-                  <span>52W Low</span>
-                  <span>52W High</span>
-                </div>
-              </div>
-
-              <div className="mt-6 flex items-center gap-6">
-                <div>
-                  <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Market Cap</div>
-                  <div className="text-sm font-bold text-slate-200 font-mono">{realTimeData.marketCap}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Volume</div>
-                  <div className="text-sm font-bold text-slate-200 font-mono">
-                    {realTimeData.volume > 1e6 ? `${(realTimeData.volume / 1e6).toFixed(1)}M` : realTimeData.volume.toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* 2. 추천 근거 섹션 (최상단) */}
-      {analysis && (
-        <Card className="bg-gradient-to-br from-indigo-950/50 to-purple-950/30 border-indigo-500/40">
-          <div className="p-6">
-            <h2 className="text-2xl font-bold text-indigo-300 mb-4 flex items-center gap-2">
-              <BrainCircuit className="w-7 h-7" />
-              왜 {ticker}를 추천하는가?
-            </h2>
             
-            {/* AI 분석 근거 (5W1H) */}
-            <div className="bg-black/30 p-4 rounded-lg border border-indigo-500/30 mb-4">
-              <h3 className="text-sm font-bold text-slate-400 mb-3 flex items-center gap-1">
-                <Database className="w-4 h-4" />
-                AI 분석 근거
-              </h3>
-              <pre className="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed font-sans">
-                {renderContent(analysis.reason)}
-              </pre>
-            </div>
-
-            {/* Bull Case */}
-            {analysis.bullPoints && analysis.bullPoints.length > 0 && (
-              <div>
-                <h3 className="text-sm font-bold text-emerald-400 mb-3 flex items-center gap-1">
-                  <TrendingUp className="w-4 h-4" />
-                  주요 긍정 요인
-                </h3>
-                <ul className="space-y-2">
-                  {analysis.bullPoints.map((point, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-slate-300">{point}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            {/* Subtitle */}
+            <p className="text-slate-400 text-sm tracking-wide">
+              {realTimeData.name} • <span className="text-slate-500">{realTimeData.sector}</span>
+              {analysis && analysis.riskScore > 70 && (
+                <span className="ml-2 text-amber-500 font-medium">• ⚠ High Risk</span>
+              )}
+            </p>
           </div>
-        </Card>
-      )}
-
-      {/* 3. Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column: AI Verdict (2/3 width) */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="bg-gradient-to-br from-slate-900 to-slate-800 border-indigo-500/30 shadow-2xl shadow-indigo-900/20 overflow-hidden relative">
-            <div className="absolute top-0 right-0 p-32 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none"></div>
-            
-            <div className="p-8">
-              {/* Verdict Header */}
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <BrainCircuit className="w-5 h-5 text-indigo-400" />
-                    <span className="text-xs font-bold text-indigo-400 tracking-widest uppercase">AI Growth DNA Analysis</span>
-                    {analysis?.marketTrendAnalysis?.includes("Zero-Cost") && (
-                      <Badge variant="success" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[9px] py-0">ZERO-COST AUDIT</Badge>
-                    )}
-                  </div>
-                  <h2 className="text-3xl font-bold text-white mb-1">
-                    Verdict: <span className={analysis && analysis.score >= 80 ? "text-emerald-400" : "text-yellow-400"}>
-                      {analysis?.verdict || "ANALYZING..."}
-                    </span>
-                  </h2>
-                </div>
-                <div className="text-right">
-                  <div className="text-6xl font-black text-white font-mono tracking-tighter">
-                    {analysis?.score || 0}
-                  </div>
-                  <div className="text-xs text-slate-400 font-mono mt-1">/ 100 SCORE</div>
-                </div>
-              </div>
-
-              {/* Reasoning */}
-              <div className="bg-slate-950/50 rounded-xl p-6 border border-indigo-500/20 mb-8 overflow-hidden">
-                <div className="text-slate-200 leading-relaxed font-medium whitespace-pre-wrap text-sm">
-                  {renderContent(analysis?.reason)}
-                </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Database className="w-3 h-3 text-slate-500" />
-                    <span className="text-[10px] text-slate-500 font-mono italic">
-                      {analysis?.marketTrendAnalysis?.includes("Zero-Cost") 
-                        ? "Grounded in Yahoo & RSS Free Analytics" 
-                        : "Grounded in Alpha Vantage Real-time Financials"}
-                    </span>
-                  </div>
-                  <div className="h-px bg-slate-800 flex-1 mx-4"></div>
-                  <Badge variant="neutral" className="bg-slate-800 text-slate-500 text-[9px] border-slate-700">Audit Status: Fact-Checked</Badge>
-                </div>
-              </div>
-
-              {/* Bull/Bear Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-emerald-950/30 border border-emerald-500/20 rounded-xl p-5">
-                  <h3 className="text-emerald-400 font-bold mb-3 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" /> Bull Case
-                  </h3>
-                  <ul className="space-y-2">
-                    {analysis?.bullPoints?.length ? analysis.bullPoints.map((point, i) => (
-                      <li key={i} className="text-slate-300 text-sm flex items-start gap-2">
-                        <span className="text-emerald-500 mt-1">•</span>{point}
-                      </li>
-                    )) : <li className="text-slate-500 text-sm">데이터 분석 중...</li>}
-                  </ul>
-                </div>
-
-                <div className="bg-rose-950/30 border border-rose-500/20 rounded-xl p-5">
-                  <h3 className="text-rose-400 font-bold mb-3 flex items-center gap-2">
-                    <ShieldAlert className="w-4 h-4" /> Bear Case
-                  </h3>
-                  <ul className="space-y-2">
-                    {analysis?.bearPoints?.length ? analysis.bearPoints.map((point, i) => (
-                      <li key={i} className="text-slate-300 text-sm flex items-start gap-2">
-                        <span className="text-rose-500 mt-1">•</span>{point}
-                      </li>
-                    )) : <li className="text-slate-500 text-sm">데이터 분석 중...</li>}
-                  </ul>
-                </div>
-              </div>
-
-              {/* Strategic Audit Section */}
-              <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-5">
-                  <h3 className="text-slate-200 font-bold mb-3 flex items-center gap-2">
-                    <Banknote className="w-4 h-4 text-emerald-400" /> Revenue & Financial Health
-                  </h3>
-                  <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
-                    {renderContent(analysis?.financialHealthAudit) || "재무 지표 분석 중..."}
-                  </p>
-                </div>
-                <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-5">
-                  <h3 className="text-slate-200 font-bold mb-3 flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-indigo-400" /> Market Dynamics & Trend
-                  </h3>
-                  <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
-                    {renderContent(analysis?.marketTrendAnalysis) || "시장 동향 분석 중..."}
-                  </p>
-                </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Solvency Analysis (v3) */}
-          {analysis?.solvencyAnalysis && (
-            <Card className="bg-slate-900/50 border-indigo-500/20 shadow-xl overflow-hidden">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-500/10 rounded-lg">
-                      <ShieldAlert className="w-5 h-5 text-indigo-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-white">Solvency & Cash Runway Audit</h3>
-                      <p className="text-xs text-slate-400 font-mono">Distressed Asset Analysis Persona</p>
-                    </div>
-                  </div>
-                  <GradeBadge grade={analysis.solvencyAnalysis.financial_health_grade} />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800">
-                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Survival Months</p>
-                    <p className="text-2xl font-mono font-bold text-white">
-                      {analysis.solvencyAnalysis.survival_months} <span className="text-sm font-normal text-slate-400">Mo</span>
-                    </p>
-                  </div>
-                  <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800">
-                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Burn Rate Status</p>
-                    <p className={clsx(
-                      "text-sm font-bold",
-                      analysis.solvencyAnalysis.survival_months < 6 ? "text-rose-400" :
-                      analysis.solvencyAnalysis.survival_months < 12 ? "text-yellow-400" : "text-emerald-400"
-                    )}>
-                      {analysis.solvencyAnalysis.survival_months < 6 ? "CRITICAL BURN" : 
-                       analysis.solvencyAnalysis.survival_months < 12 ? "MANAGEABLE" : "HEALTHY"}
-                    </p>
-                  </div>
-                  <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800">
-                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Capital Raise Needed</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      {analysis.solvencyAnalysis.capital_raise_needed ? (
-                        <>
-                          <AlertTriangle className="w-4 h-4 text-rose-500" />
-                          <span className="text-rose-400 font-bold text-sm underline decoration-rose-500/30">DILUTION LIKELY</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="w-4 h-4 text-emerald-500" />
-                          <span className="text-emerald-400 font-bold text-sm">NO IMMEDIATE NEED</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-indigo-500/5 p-4 rounded-xl border border-indigo-500/10">
-                  <p className="text-slate-300 text-sm italic leading-relaxed">
-                    "{analysis?.solvencyAnalysis?.reason}"
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {/* Sentiment & Hype Audit (v4) */}
-          {analysis?.sentimentAudit && (
-            <Card className={clsx(
-              "overflow-hidden border-l-4 shadow-xl",
-              analysis.sentimentAudit.category === 'Organic' ? "bg-emerald-950/10 border-emerald-500" :
-              analysis.sentimentAudit.category === 'Hype' ? "bg-amber-950/10 border-amber-500" : "bg-rose-950/10 border-rose-500"
-            )}>
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className={clsx(
-                      "p-2 rounded-lg",
-                      analysis.sentimentAudit.category === 'Organic' ? "bg-emerald-500/10" :
-                      analysis.sentimentAudit.category === 'Hype' ? "bg-amber-500/10" : "bg-rose-500/10"
-                    )}>
-                      {analysis.sentimentAudit.category === 'Organic' ? <ShieldCheck className="w-5 h-5 text-emerald-400" /> :
-                       analysis.sentimentAudit.category === 'Hype' ? <Search className="w-5 h-5 text-amber-400" /> : <AlertOctagon className="w-5 h-5 text-rose-400" />}
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-white">Sentiment & Hype Audit</h3>
-                      <p className="text-xs text-slate-400 font-mono">Market Manipulation Monitor AI</p>
-                    </div>
-                  </div>
-                  <div className="px-3 py-1 bg-slate-800 rounded-full text-[10px] font-bold text-slate-300 uppercase tracking-widest">
-                    {analysis.sentimentAudit.category} Growth
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-800 flex flex-col items-center">
-                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-2">Hype Score</p>
-                    <div className="relative flex items-center justify-center">
-                      <svg className="w-16 h-16 transform -rotate-90">
-                        <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-slate-800" />
-                        <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="4" fill="transparent" 
-                          strokeDasharray={2 * Math.PI * 28}
-                          strokeDashoffset={2 * Math.PI * 28 * (1 - analysis.sentimentAudit.hype_score / 100)}
-                          className={clsx(
-                            analysis.sentimentAudit.hype_score > 70 ? "text-amber-500" :
-                            analysis.sentimentAudit.hype_score > 40 ? "text-indigo-500" : "text-emerald-500"
-                          )} />
-                      </svg>
-                      <span className="absolute text-lg font-black font-mono text-white">{analysis.sentimentAudit.hype_score}</span>
-                    </div>
-                  </div>
-                  <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center">
-                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-2">Sentiment Val.</p>
-                    <p className={clsx(
-                      "text-2xl font-black font-mono",
-                      analysis.sentimentAudit.score >= 0 ? "text-emerald-400" : "text-rose-400"
-                    )}>
-                      {analysis.sentimentAudit.score > 0 ? '+' : ''}{analysis.sentimentAudit.score}
-                    </p>
-                    <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">-100 to +100</p>
-                  </div>
-                </div>
-
-                {analysis.sentimentAudit.key_event && (
-                  <div className="mb-4 flex items-center gap-2 px-3 py-2 bg-rose-500/10 border border-rose-500/20 rounded-lg">
-                    <AlertTriangle className="w-4 h-4 text-rose-400" />
-                    <span className="text-xs font-bold text-rose-400 uppercase tracking-tight">Detect: {analysis.sentimentAudit.key_event}</span>
-                  </div>
-                )}
-
-                <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
-                  <p className="text-slate-300 text-sm leading-relaxed">
-                    {analysis.sentimentAudit.summary}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-        </div>
-
-        {/* Right Column: Visuals & Metrics (1/3 width) */}
-        <div className="space-y-6">
           
-          {/* Radar Chart Component */}
-          <DnaRadarChart data={analysis?.radarData || []} />
+          <div className="flex gap-2">
+            <AddToWatchlistBtn ticker={ticker} />
+            <button className="px-3 py-2 bg-slate-800/50 hover:bg-slate-700 text-slate-400 rounded-lg border border-slate-700/50 transition-colors flex items-center gap-2 text-sm">
+              <Share2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </header>
 
-          {/* Risk Shield */}
-          <Card className="p-5 border-rose-500/30 bg-rose-950/10">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-rose-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4" /> Risk Assessment
+      {/* LEAD QUOTE - One-line summary in large italic font */}
+      {analysis && (
+        <blockquote className="border-l-4 border-indigo-500 pl-6 py-4 mb-10">
+          <p className="text-xl md:text-2xl text-slate-200 font-serif italic leading-relaxed">
+            "{analysis.bullPoints?.[0] || "AI 분석 결과를 기반으로 투자 의견을 제공합니다."}"
+          </p>
+          <footer className="mt-3 text-sm text-slate-500 font-mono">
+            — MuzeStock.Lab AI Analysis • {new Date().toLocaleDateString('ko-KR')}
+          </footer>
+        </blockquote>
+      )}
+
+      {/* KEY METRICS - Horizontal Row */}
+      <section className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-12 py-6 border-y border-slate-800">
+        <div className="text-center">
+          <p className="text-xs text-slate-500 uppercase tracking-widest mb-2 font-bold">DNA Score</p>
+          <p className="text-4xl font-black text-white font-mono">{analysis?.score || 0}</p>
+          <p className="text-xs text-slate-600 mt-1">/100</p>
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-slate-500 uppercase tracking-widest mb-2 font-bold">Target Price</p>
+          <p className="text-4xl font-black text-white font-mono">
+            {realTimeData.targetPrice ? `$${realTimeData.targetPrice.toFixed(2)}` : 'N/A'}
+          </p>
+          {realTimeData.upsidePotential && (
+            <p className={clsx("text-xs mt-1 font-bold", realTimeData.upsidePotential > 0 ? "text-emerald-400" : "text-rose-400")}>
+              {realTimeData.upsidePotential > 0 ? '↑' : '↓'}{Math.abs(realTimeData.upsidePotential).toFixed(1)}%
+            </p>
+          )}
+        </div>
+        {/* 🆕 Relative Volume - Key Momentum Signal */}
+        <div className="text-center">
+          <p className="text-xs text-slate-500 uppercase tracking-widest mb-2 font-bold">Rel Volume</p>
+          <p className={clsx(
+            "text-4xl font-black font-mono",
+            (realTimeData.relativeVolume || 0) >= 3 ? "text-amber-400" : 
+            (realTimeData.relativeVolume || 0) >= 2 ? "text-emerald-400" : 
+            (realTimeData.relativeVolume || 0) >= 1 ? "text-white" : "text-slate-500"
+          )}>
+            {realTimeData.relativeVolume ? `${realTimeData.relativeVolume.toFixed(1)}x` : 'N/A'}
+          </p>
+          <p className="text-xs text-slate-600 mt-1">
+            {(realTimeData.relativeVolume || 0) >= 2 ? '🔥 Strong' : 
+             (realTimeData.relativeVolume || 0) >= 1.5 ? 'Active' : 'Normal'}
+          </p>
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-slate-500 uppercase tracking-widest mb-2 font-bold">Risk Level</p>
+          <p className={clsx(
+            "text-3xl font-black",
+            (analysis?.riskScore || 0) > 70 ? "text-rose-400" : 
+            (analysis?.riskScore || 0) > 40 ? "text-amber-400" : "text-emerald-400"
+          )}>
+            {(analysis?.riskScore || 0) > 70 ? "HIGH" : (analysis?.riskScore || 0) > 40 ? "MEDIUM" : "LOW"}
+          </p>
+          <p className="text-xs text-slate-600 mt-1">{analysis?.riskScore || 0}/100</p>
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-slate-500 uppercase tracking-widest mb-2 font-bold">Verdict</p>
+          <p className={clsx(
+            "text-3xl font-black uppercase tracking-tight",
+            (analysis?.score || 0) >= 70 ? "text-emerald-400" : 
+            (analysis?.score || 0) >= 50 ? "text-amber-400" : "text-rose-400"
+          )}>
+            {analysis?.verdict || "—"}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            {realTimeData.analystCount ? `${realTimeData.analystCount} analysts` : ''}
+          </p>
+        </div>
+      </section>
+
+      {/* INVESTMENT THESIS - Editorial text block */}
+      {analysis && (
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold text-white mb-6 tracking-tight font-serif border-b border-slate-800 pb-3">
+            Investment Thesis
+          </h2>
+          <div className="prose prose-invert prose-slate max-w-none">
+            <p className="text-slate-300 text-base leading-relaxed whitespace-pre-wrap">
+              {renderContent(analysis.reason)}
+            </p>
+          </div>
+        </section>
+      )}
+
+      {/* BULL vs BEAR - Side by Side (Only Once) */}
+      {analysis && (analysis.bullPoints?.length || analysis.bearPoints?.length) && (
+        <section className="mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Bull Case */}
+            <div>
+              <h3 className="text-lg font-bold text-emerald-400 mb-4 flex items-center gap-2 border-b border-emerald-500/30 pb-2">
+                <TrendingUp className="w-5 h-5" />
+                Bull Case
               </h3>
-              <span className={clsx("font-mono font-bold", (analysis?.riskScore || 0) > 50 ? 'text-rose-500' : 'text-emerald-500')}>
-                {analysis?.riskScore || 0}/100
+              <ul className="space-y-3">
+                {analysis.bullPoints?.map((point, i) => (
+                  <li key={i} className="flex items-start gap-3 text-slate-300 text-sm leading-relaxed">
+                    <span className="text-emerald-500 font-bold mt-0.5">+</span>
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            {/* Bear Case */}
+            <div>
+              <h3 className="text-lg font-bold text-rose-400 mb-4 flex items-center gap-2 border-b border-rose-500/30 pb-2">
+                <ShieldAlert className="w-5 h-5" />
+                Bear Case
+              </h3>
+              <ul className="space-y-3">
+                {analysis.bearPoints?.map((point, i) => (
+                  <li key={i} className="flex items-start gap-3 text-slate-300 text-sm leading-relaxed">
+                    <span className="text-rose-500 font-bold mt-0.5">−</span>
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* FINANCIAL DATA + CHART - Two Column */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 py-8 border-y border-slate-800">
+        {/* Financial Health */}
+        <div>
+          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <Banknote className="w-5 h-5 text-indigo-400" />
+            Financial Health
+          </h3>
+          <div className="space-y-4">
+            <div className="flex justify-between items-baseline border-b border-slate-800/50 pb-3">
+              <span className="text-slate-400 text-sm">Total Cash</span>
+              <span className="text-white font-mono font-bold">{realTimeData?.totalCash || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between items-baseline border-b border-slate-800/50 pb-3">
+              <span className="text-slate-400 text-sm">TTM Net Income</span>
+              <span className={clsx("font-mono font-bold", realTimeData?.netIncome?.includes('-') ? "text-rose-400" : "text-emerald-400")}>
+                {realTimeData?.netIncome || 'N/A'}
               </span>
             </div>
-            <div className="w-full bg-slate-800 rounded-full h-2">
-              <div 
-                className={clsx("h-2 rounded-full", (analysis?.riskScore || 0) > 50 ? 'bg-rose-500' : 'bg-emerald-500')} 
-                style={{ width: `${analysis?.riskScore || 0}%` }}
-              ></div>
+            <div className="flex justify-between items-baseline border-b border-slate-800/50 pb-3">
+              <span className="text-slate-400 text-sm">Cash Runway</span>
+              <span className="text-indigo-400 font-mono font-bold">
+                {realTimeData?.cashRunway && realTimeData?.cashRunway !== 99 ? `${realTimeData?.cashRunway} Mo` : 'Healthy'}
+              </span>
             </div>
-            
-            {/* Cash Runway / Survival Rate Alert */}
-            {analysis && (
-              <div className={clsx(
-                "mt-4 p-3 rounded-lg border flex items-center gap-3",
-                analysis.score < 30 ? "bg-rose-500/10 border-rose-500/20 text-rose-400" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-              )}>
-                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-                <div className="text-sm">
-                  <span className="font-bold block uppercase text-[10px] tracking-widest opacity-70">Survival Assessment</span>
-                  {analysis.score < 30 ? (
-                    <>
-                      Cash Runway가 6개월 미만입니다.
-                      <div className="text-[10px] mt-1 opacity-70 italic font-mono">
-                        Source Audit: Approx. {realTimeData?.cashRunway || '< 1'} months remaining.
-                      </div>
-                    </>
-                  ) : "안정적인 현금 흐름을 확보하고 있습니다."}
-                </div>
-              </div>
-            )}
-          </Card>
-
-          {/* Technical Data Audit - Ground Truth */}
-          <Card className="p-5 border-slate-800 bg-slate-900/40">
-            <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Database className="w-4 h-4 text-indigo-400" /> Ground Truth Audit
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center text-sm border-b border-slate-800 pb-2">
-                <span className="text-slate-500">Total Cash (Latest)</span>
-                <span className="text-slate-200 font-mono font-bold">{realTimeData?.totalCash || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm border-b border-slate-800 pb-2">
-                <span className="text-slate-500">TTM Net Income</span>
-                <span className={clsx("font-mono font-bold", realTimeData?.netIncome?.includes('-') ? "text-rose-400" : "text-emerald-400")}>
-                  {realTimeData?.netIncome || 'N/A'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500">Est. Cash Runway</span>
-                <span className="text-indigo-400 font-mono font-bold">{realTimeData?.cashRunway && realTimeData?.cashRunway !== 99 ? `${realTimeData?.cashRunway} Mo` : 'Healthy'}</span>
-              </div>
-            </div>
-            <p className="mt-4 text-[10px] text-slate-600 leading-tight">
-              * Based on latest quarterly SEC filings via Alpha Vantage. 
-              Runway = Total Cash / Avg Quarterly Operating Burn.
-            </p>
-          </Card>
-
-          {/* External Verification Links */}
-          <div className="flex flex-col gap-2 pt-2">
-            <h4 className="text-slate-500 text-[10px] font-bold uppercase tracking-widest px-1">Verify Externally</h4>
-            <div className="grid grid-cols-2 gap-2">
-              <a 
-                href={`https://finviz.com/quote.ashx?t=${ticker}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 transition-colors border border-slate-700"
-              >
-                Finviz <ExternalLink className="w-3 h-3" />
-              </a>
-              <a 
-                href={`https://www.alphavantage.co/`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 transition-colors border border-slate-700"
-              >
-                AlphaV <ExternalLink className="w-3 h-3" />
-              </a>
+            <div className="flex justify-between items-baseline">
+              <span className="text-slate-400 text-sm">Market Cap</span>
+              <span className="text-white font-mono font-bold">{realTimeData?.marketCap || 'N/A'}</span>
             </div>
           </div>
-
+          
+          {/* External Links */}
+          <div className="flex gap-2 mt-6">
+            <a 
+              href={`https://finviz.com/quote.ashx?t=${ticker}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-xs text-slate-500 hover:text-white transition-colors flex items-center gap-1"
+            >
+              Finviz <ExternalLink className="w-3 h-3" />
+            </a>
+            <span className="text-slate-700">•</span>
+            <a 
+              href={`https://finance.yahoo.com/quote/${ticker}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-xs text-slate-500 hover:text-white transition-colors flex items-center gap-1"
+            >
+              Yahoo <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
         </div>
-      </div>
+        
+        {/* DNA Pattern Chart */}
+        <div>
+          <DnaRadarChart data={analysis?.radarData || []} />
+        </div>
+      </section>
+
+      {/* SOLVENCY ANALYSIS (if available) */}
+      {analysis?.solvencyAnalysis && (
+        <section className="mb-12 p-6 bg-slate-900/30 rounded-lg border border-slate-800">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-indigo-400" />
+              Solvency Assessment
+            </h3>
+            <GradeBadge grade={analysis.solvencyAnalysis.financial_health_grade} />
+          </div>
+          <p className="text-slate-400 text-sm leading-relaxed italic">
+            "{analysis.solvencyAnalysis.reason}"
+          </p>
+          <div className="flex gap-6 mt-4 text-sm">
+            <span className="text-slate-500">
+              Survival: <span className="text-white font-bold">{analysis.solvencyAnalysis.survival_months} months</span>
+            </span>
+            {analysis.solvencyAnalysis.capital_raise_needed && (
+              <span className="text-amber-500 flex items-center gap-1">
+                <AlertTriangle className="w-4 h-4" /> Dilution Risk
+              </span>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* DISCLAIMER */}
+      <footer className="text-center py-8 border-t border-slate-800">
+        <p className="text-[11px] text-slate-600 leading-relaxed max-w-2xl mx-auto">
+          본 보고서는 AI 알고리즘에 의해 자동 생성되었으며 투자 권유가 아닙니다. 
+          모든 투자 결정은 본인의 책임 하에 이루어져야 합니다.
+        </p>
+        <p className="text-[10px] text-slate-700 mt-3 font-mono">
+          Data: Finnhub • Yahoo Finance • Alpha Vantage | AI: GPT-4o-mini | Generated: {new Date().toISOString().slice(0, 16).replace('T', ' ')}
+        </p>
+      </footer>
     </div>
   );
 };

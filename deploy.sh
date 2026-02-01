@@ -15,6 +15,8 @@ npx supabase functions deploy --project-ref $PROJECT_REF get-stock-quote
 npx supabase functions deploy --project-ref $PROJECT_REF analyze-stock
 npx supabase functions deploy --project-ref $PROJECT_REF update-market-context
 npx supabase functions deploy --project-ref $PROJECT_REF get-market-scanner
+npx supabase functions deploy --project-ref $PROJECT_REF get-yahoo-quote
+npx supabase functions deploy --project-ref $PROJECT_REF smart-quote
 
 # 3. Apply DB Migrations
 echo "💾 Pushing database changes..."

@@ -32,9 +32,14 @@ export interface Stock {
     upsidePotential?: number; // % upside to target
     fiftyTwoWeekPosition?: number; // 0-100 position in 52-week range
     analystCount?: number; // Number of analyst opinions
+    numberOfAnalysts?: number; // Alias for analystCount
     recommendation?: string; // strongBuy, buy, hold, sell, strongSell
+    // 🆕 Momentum Indicators (Phase 1)
+    averageVolume10d?: number; // 10-day average volume
+    relativeVolume?: number; // Current volume / Avg volume (key momentum signal)
   };
   news?: { title: string; url: string; time_published: string }[];
+  newsHeadlines?: string[]; // 🆕 Google News headlines
 }
 
 export interface HistoricalDataPoint {

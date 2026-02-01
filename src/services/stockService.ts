@@ -1,7 +1,5 @@
 import { supabase } from '../lib/supabase';
 import type { Stock } from '../types';
-import { apiCircuitBreaker } from '../utils/circuitBreaker';
-import { validateStockData } from '../utils/normalizer';
 
 // Focused Penny Stock Watchlist
 export const WATCHLIST_TICKERS = [
@@ -153,180 +151,90 @@ export async function fetchStockQuote(ticker: string): Promise<Stock | null> {
     return cached.data;
   }
 
-// Fallback helper to return partial data from cache or minimal object
-    const getFallback = async (): Promise<Stock | null> => {
-      // 1. 메모리 캐시 확인
-      if (cached) {
-        console.warn(`[CircuitBreaker] Serving stale memory cache for ${ticker}`);
-        return cached.data;
-      }
-      
-      // 2. Yahoo Finance API 시도 (가장 풍부한 데이터)
-      const yahooData = await fetchFromYahoo(ticker);
-      if (yahooData && yahooData.price > 0) {
-        return yahooData;
-      }
-      
-      // 3. Finnhub API 시도 (실시간 데이터)
+  try {
+    // Use new unified smart-quote endpoint
+    const { data, error } = await supabase.functions.invoke('smart-quote', {
+      body: { ticker, includeFinancials: false }
+    });
+
+    if (error) {
+      console.warn(`[SmartQuote] Error for ${ticker}:`, error);
+      // Fallback to direct Finnhub
       const finnhubData = await fetchFromFinnhub(ticker);
-      if (finnhubData && finnhubData.price > 0) {
-        return finnhubData;
-      }
+      if (finnhubData) return finnhubData;
       
-      // 3. DB 캐시 확인 (오래된 데이터라도 반환)
-      try {
-        const { data: dbCache } = await supabase
-          .from('stock_cache')
-          .select('*')
-          .eq('ticker', ticker)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-        
-        if (dbCache) {
-          console.warn(`[CircuitBreaker] Serving stale DB cache for ${ticker}`);
-          // DB 데이터를 Stock 타입으로 매핑
-          return {
-            id: ticker,
-            ticker,
-            name: dbCache.name || ticker,
-            price: dbCache.price || 0,
-            changePercent: dbCache.change_percent || 0,
-            volume: dbCache.volume || 0,
-            marketCap: dbCache.market_cap || 'N/A',
-            dnaScore: dbCache.dna_score || 0,
-            sector: dbCache.sector || 'Unknown',
-            description: dbCache.description || '',
-            relevantMetrics: {
-              debtToEquity: 0,
-              rndRatio: 0,
-              sentimentScore: 0,
-              institutionalOwnership: 0,
-            }
-          };
-        }
-      } catch (err) {
-        console.error(`[CircuitBreaker] DB fallback failed for ${ticker}:`, err);
-      }
+      // Fallback to Yahoo
+      const yahooData = await fetchFromYahoo(ticker);
+      if (yahooData) return yahooData;
       
+      // Fallback to stale cache
+      if (cached) return cached.data;
       return null;
-    };
+    }
 
-    return await apiCircuitBreaker.execute(async () => {
-      const { data, error } = await supabase.functions.invoke('get-stock-quote', {
-        body: { ticker }
-      });
-      
-      if (error) throw error;
-      
-      if (!data || !data.quote) {
-        console.warn(`No price data for ${ticker}`);
-        throw new Error(`Data missing for ${ticker}`); // Trip Circuit Breaker
-      }
-      
-      const { 
-        quote: quoteData, 
-        overview: overviewData, 
-        cashFlow: cashFlowData,
-        balanceSheet: balanceSheetData,
-        sentiment: sentimentData, 
-        institutional: institutionalData 
-      } = data;
-      
-      const quote = quoteData['Global Quote'];
-      if (!quote || !quote['05. price']) {
-         throw new Error(`Invalid quote data for ${ticker}`);
-      }
-
-      // --- Financial Health Calculations (Resilient) ---
-      const overview = overviewData || {};
-      const cashFlow = cashFlowData || {};
-      const balanceSheet = balanceSheetData || {};
-
-      let totalCashValue = 0;
-      let netIncomeValue = 0;
-      let runwayMonths = undefined;
-
-      try {
-        if (balanceSheet.quarterlyReports && balanceSheet.quarterlyReports.length > 0) {
-          const latestBS = balanceSheet.quarterlyReports[0];
-          totalCashValue = parseFloat(latestBS.cashAndCashEquivalentsAtCarryingValue || '0') + 
-                           parseFloat(latestBS.shortTermInvestments || '0');
-        }
-
-        if (cashFlow.quarterlyReports && cashFlow.quarterlyReports.length > 0) {
-          const reports = cashFlow.quarterlyReports;
-          netIncomeValue = reports.slice(0, 4).reduce((sum: number, r: any) => sum + parseFloat(r.netIncome || '0'), 0);
-          const quarterlyOCFs = reports.slice(0, 4).map((r: any) => parseFloat(r.operatingCashflow || '0'));
-          const negativeOCFs = quarterlyOCFs.filter((v: number) => v < 0);
-          
-          if (negativeOCFs.length > 0 && totalCashValue > 0) {
-            const avgBurn = Math.abs(negativeOCFs.reduce((a: number, b: number) => a + b, 0) / negativeOCFs.length);
-            if (avgBurn > 0) runwayMonths = Math.round((totalCashValue / avgBurn) * 3);
-          } else if (quarterlyOCFs.length > 0 && totalCashValue > 0) {
-            runwayMonths = 99; 
-          }
-        }
-      } catch (calcErr) {
-        console.error("Financial calculation error:", calcErr);
-      }
-
-      const formatCurrency = (val: number) => {
-        if (val === 0) return 'N/A';
-        if (Math.abs(val) >= 1e9) return `$${(val / 1e9).toFixed(1)}B`;
-        if (Math.abs(val) >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
-        return `$${val.toLocaleString()}`;
-      };
-
-      const price = parseFloat(quote['05. price']);
-      const changePercent = parseFloat(quote['10. change percent'].replace('%', ''));
-      const volume = parseInt(quote['06. volume'], 10);
+    if (!data || data.price <= 0) {
+      console.warn(`[SmartQuote] No valid price for ${ticker}`);
+      // Try direct APIs as fallback
+      const finnhubData = await fetchFromFinnhub(ticker);
+      if (finnhubData && finnhubData.price > 0) return finnhubData;
+      return null;
+    }
 
     const stock: Stock = {
-        id: ticker,
-        ticker: quote['01. symbol'],
-        name: getCompanyName(ticker),
-        price,
-        changePercent,
-        volume,
-        marketCap: 'N/A',
-        dnaScore: calculateDnaScore(price, changePercent, volume),
-        sector: getSector(ticker),
-        description: getDescription(ticker),
-        relevantMetrics: {
-          debtToEquity: parseFloat(overview['DebtToEquityTTL'] || '0'),
-          rndRatio: 15.0, // Default estimate
-          revenueGrowth: parseFloat(overview['QuarterlyRevenueGrowthYOY'] || '0') * 100,
-          peRatio: parseFloat(overview['PERatio'] || '0'),
-          operatingMargin: parseFloat(overview['OperatingMarginTTM'] || '0'),
-          sentimentScore: sentimentData?.feed?.[0]?.overall_sentiment_score || 0,
-          sentimentLabel: sentimentData?.feed?.[0]?.overall_sentiment_label || 'Neutral',
-          institutionalOwnership: institutionalData?.data?.[0]?.ownership || 0,
-          topInstitution: institutionalData?.data?.[0]?.investorName || 'N/A',
-          cashRunway: runwayMonths,
-          netIncome: formatCurrency(netIncomeValue),
-          totalCash: formatCurrency(totalCashValue),
-        },
-        news: sentimentData?.feed?.map((f: any) => ({
-          title: f.title,
-          url: f.url,
-          time_published: f.time_published
-        })) || []
-      };
+      id: ticker,
+      ticker: ticker,
+      name: getCompanyName(ticker),
+      price: data.price,
+      changePercent: data.changePercent || 0,
+      volume: data.volume || 0,
+      marketCap: formatMarketCap(data.marketCap),
+      dnaScore: data.dnaScore || calculateDnaScore(data.price, data.changePercent, data.volume),
+      sector: getSector(ticker),
+      description: getDescription(ticker),
+      relevantMetrics: {
+        debtToEquity: 0,
+        rndRatio: 0,
+        sentimentScore: 0,
+        institutionalOwnership: 0,
+        targetPrice: data.targetPrice,
+        upsidePotential: data.upsidePotential,
+        recommendation: data.recommendation,
+        numberOfAnalysts: data.numberOfAnalysts,
+        // 🆕 Momentum Indicators
+        averageVolume10d: data.averageVolume10d,
+        relativeVolume: data.relativeVolume,
+      },
+      newsHeadlines: data.newsHeadlines || [],
+    };
 
-      if (!validateStockData(stock)) {
-         console.warn(`[DataQuality] Invalid stock data for ${ticker}, discarding.`);
-         return null;
-      }
+    // Log source information
+    console.log(`[SmartQuote] ${ticker}: $${data.price} (Sources: ${JSON.stringify(data.sources)})`);
 
-      cache.set(ticker, { data: stock, timestamp: Date.now() });
-      return stock;
-    }, getFallback);
+    cache.set(ticker, { data: stock, timestamp: Date.now() });
+    return stock;
+
+  } catch (err) {
+    console.error(`[SmartQuote] Failed for ${ticker}:`, err);
+    
+    // Final fallback chain
+    const finnhubData = await fetchFromFinnhub(ticker);
+    if (finnhubData) return finnhubData;
+    
+    if (cached) return cached.data;
+    return null;
+  }
 }
 
 export async function fetchMultipleStocks(tickers: string[]): Promise<Stock[]> {
-  const results = await Promise.all(tickers.map(fetchStockQuote));
-  return results.filter((stock): stock is Stock => stock !== null);
+  // Sequential execution to prevent Yahoo rate limiting / race conditions
+  const results: Stock[] = [];
+  for (const ticker of tickers) {
+    const stock = await fetchStockQuote(ticker);
+    if (stock) results.push(stock);
+    // Small delay between requests to be gentle on APIs
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  return results;
 }
 
 export async function getTopStocks(): Promise<Stock[]> {
