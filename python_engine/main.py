@@ -188,6 +188,7 @@ def backtest_strategy(request: BacktestRequest):
         return result
     except Exception as e:
         import traceback
+
         error_msg = f"Backtest failed: {str(e)}\n{traceback.format_exc()}"
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
