@@ -8,9 +8,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/py-api': {
-        target: 'http://localhost:8000',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/py-api/, '/api'),
+        rewrite: (path) => path.replace(/^\/py-api/, ''),
       },
     },
   },

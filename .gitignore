@@ -21,4 +21,8 @@ dist-ssr
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+# Python
+python_engine/venv/
+__pycache__/
+*.py[cod]
+*$py.class

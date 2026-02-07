@@ -1,4 +1,4 @@
-name: Finviz Hunter Bot
+name: Finviz Hunter Bot (Python)
 
 on:
   schedule:
@@ -10,37 +10,35 @@ jobs:
   hunt:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: python_engine
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Python 3.9
+        uses: actions/setup-python@v5
         with:
-          node-version: "22"
-          cache: "npm"
+          python-version: '3.9'
+          cache: 'pip'
+          cache-dependency-path: python_engine/requirements.txt
 
       - name: Install dependencies
         run: |
-          npm ci
-          npx playwright install chromium
-          npx playwright install-deps # Fix 2: Install system dependencies for Linux
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install chromium
+          playwright install-deps
 
-      - name: Check Secrets (Debug)
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          if [ -z "$VITE_SUPABASE_URL" ]; then echo "❌ VITE_SUPABASE_URL is missing"; else echo "✅ VITE_SUPABASE_URL is set"; fi
-          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then echo "❌ SUPABASE_SERVICE_ROLE_KEY is missing"; else echo "✅ SUPABASE_SERVICE_ROLE_KEY is set"; fi
-
-      - name: Run Finviz Hunter
-        id: run_scraper
+      - name: Run Unified Hunter
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           VITE_FINNHUB_API_KEY: ${{ secrets.VITE_FINNHUB_API_KEY }}
-        run: node scripts/daily_scraper.js
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scraper.py
 
       - name: Summary
-        run: echo "🎯 Finviz Hunter Bot 완료! Supabase daily_discovery 테이블이 업데이트되었습니다."
+        run: echo "🎯 Unified Python Hunter Bot 완료! 데이터 수집 및 AI 분석이 성공적으로 저장되었습니다."
