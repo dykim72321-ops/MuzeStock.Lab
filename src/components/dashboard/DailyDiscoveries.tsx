@@ -19,7 +19,7 @@ export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
   limit = 10, 
   className 
 }) => {
-  const [sortMode, setSortMode] = useState<SortMode>('updated_at');
+  const [sortMode, setSortMode] = useState<SortMode>('performance');
 
   const { data: discoveries, isLoading, error } = useQuery({
     queryKey: ['discoveries', limit, sortMode],
