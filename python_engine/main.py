@@ -5,6 +5,7 @@ MuzeStock.Lab - Python Technical Analysis Engine
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
 import yfinance as yf
 import pandas as pd
 import ta
@@ -34,13 +35,13 @@ class TechnicalIndicators(BaseModel):
     ticker: str
     period: str
     current_price: float
-    rsi_14: float | None
-    sma_20: float | None
-    sma_50: float | None
-    ema_12: float | None
-    ema_26: float | None
-    macd: float | None
-    macd_signal: float | None
+    rsi_14: Optional[float] = None
+    sma_20: Optional[float] = None
+    sma_50: Optional[float] = None
+    ema_12: Optional[float] = None
+    ema_26: Optional[float] = None
+    macd: Optional[float] = None
+    macd_signal: Optional[float] = None
     signal: str  # "BUY", "SELL", "HOLD"
     reasoning: str
 
