@@ -35,7 +35,9 @@ class DBManager:
         sort_by: "updated_at" (최신순) 또는 "performance" (백테스트 수익률순)
         """
         try:
-            order_column = "backtest_return" if sort_by == "performance" else "updated_at"
+            order_column = (
+                "backtest_return" if sort_by == "performance" else "updated_at"
+            )
             response = (
                 self.supabase.table("daily_discovery")
                 .select("*")
