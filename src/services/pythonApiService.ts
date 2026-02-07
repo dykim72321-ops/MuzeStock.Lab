@@ -1,0 +1,108 @@
+/**
+ * Python API Service
+ * 통합 파이썬 엔진과 통신하는 서비스 모듈
+ */
+
+const PY_API_BASE = '/py-api';
+
+export interface TechnicalIndicators {
+  ticker: string;
+  period: string;
+  current_price: number;
+  rsi_14: number | null;
+  sma_20: number | null;
+  sma_50: number | null;
+  ema_12: number | null;
+  ema_26: number | null;
+  macd: number | null;
+  macd_signal: number | null;
+  signal: 'BUY' | 'SELL' | 'HOLD';
+  reasoning: string;
+}
+
+export interface DiscoveryItem {
+  id: number;
+  ticker: string;
+  sector: string;
+  price: number;
+  volume: string;
+  change: string;
+  dna_score: number;
+  ai_summary: string;
+  updated_at: string;
+  created_at: string;
+}
+
+/**
+ * 기술적 지표 분석 요청
+ */
+export async function fetchTechnicalAnalysis(
+  ticker: string,
+  period: string = '1mo'
+): Promise<TechnicalIndicators | null> {
+  try {
+    const response = await fetch(`${PY_API_BASE}/api/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticker, period }),
+    });
+
+    if (!response.ok) {
+      console.warn(`[PythonAPI] Analyze failed for ${ticker}: ${response.status}`);
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`[PythonAPI] Analyze error for ${ticker}:`, error);
+    return null;
+  }
+}
+
+/**
+ * 최근 발견 종목 조회
+ */
+export async function fetchDiscoveries(limit: number = 10): Promise<DiscoveryItem[]> {
+  try {
+    const response = await fetch(`${PY_API_BASE}/api/discoveries?limit=${limit}`);
+
+    if (!response.ok) {
+      console.warn(`[PythonAPI] Discoveries fetch failed: ${response.status}`);
+      return [];
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('[PythonAPI] Discoveries error:', error);
+    return [];
+  }
+}
+
+/**
+ * 수동 수집 트리거 (관리자 전용)
+ */
+export async function triggerHunt(adminKey: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const response = await fetch(`${PY_API_BASE}/api/hunt`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Key': adminKey,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.detail || `Error: ${response.status}`,
+      };
+    }
+
+    const data = await response.json();
+    return { success: true, message: data.message || 'Hunt triggered!' };
+  } catch (error) {
+    console.error('[PythonAPI] Hunt trigger error:', error);
+    return { success: false, message: 'Network error' };
+  }
+}

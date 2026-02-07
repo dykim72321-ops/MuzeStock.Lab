@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { DailyPicks } from './DailyPicks';
+import { DailyDiscoveries } from './DailyDiscoveries';
+import { AdminHuntButton } from '../admin/AdminHuntButton';
 import { getTopStocks } from '../../services/stockService';
 import { MOCK_STOCKS } from '../../data/mockData';
 import type { Stock } from '../../types';
@@ -116,6 +118,18 @@ export const MorningBrief = () => {
 
       {/* Daily Picks Section */}
       <DailyPicks />
+
+      {/* 🆕 Python API 연동: Daily Discoveries */}
+      <DailyDiscoveries limit={10} />
+
+      {/* 🆕 관리자 수동 수집 버튼 */}
+      <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+        <div>
+          <h4 className="text-sm font-medium text-white">관리자 도구</h4>
+          <p className="text-xs text-slate-400">파이썬 엔진 수동 수집 트리거</p>
+        </div>
+        <AdminHuntButton />
+      </div>
 
       <div className="bg-gradient-to-r from-indigo-900/50 to-slate-900/50 border border-indigo-500/20 rounded-xl p-6 flex items-start gap-4">
         <div className="bg-indigo-500/20 p-3 rounded-lg">
