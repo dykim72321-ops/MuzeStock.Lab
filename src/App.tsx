@@ -13,6 +13,7 @@ const DnaMatchView = lazy(() => import('./components/analysis/DnaMatchView').the
 const WatchlistView = lazy(() => import('./components/dashboard/WatchlistView').then(m => ({ default: m.WatchlistView })));
 const SimulatorView = lazy(() => import('./components/dashboard/SimulatorView').then(m => ({ default: m.SimulatorView })));
 const PersonaPerformance = lazy(() => import('./components/dashboard/PersonaPerformance').then(m => ({ default: m.PersonaPerformance })));
+const BacktestingDashboard = lazy(() => import('./components/dashboard/BacktestingDashboard').then(m => ({ default: m.BacktestingDashboard })));
 const SettingsView = lazy(() => import('./components/dashboard/SettingsView').then(m => ({ default: m.SettingsView })));
 
 // 로딩 폴백 컴포넌트
@@ -50,6 +51,7 @@ function App() {
                 
                 {/* Tools - 전략 시뮬레이션 */}
                 <Route path="simulator" element={<SimulatorView />} />
+                <Route path="backtesting" element={<BacktestingDashboard />} />
                 <Route path="personas" element={<PersonaPerformance />} />
                 
                 {/* Settings */}

@@ -1,11 +1,35 @@
 import { Outlet, NavLink } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
-import { LayoutDashboard, List, Settings } from 'lucide-react';
+import { LayoutDashboard, List, Settings, Zap } from 'lucide-react';
 import clsx from 'clsx';
+import { useMarketPulse } from '../../hooks/useMarketPulse';
+import { Toaster } from 'sonner';
 
 export const Layout = () => {
+  // Activate Realtime Pulse Listener
+  const lastSignal = useMarketPulse();
+
   return (
     <div className="flex min-h-screen bg-[#020617] text-slate-100 font-sans">
+      <Toaster position="top-right" theme="dark" />
+      
+      {/* ⚡ Realtime Pulse Indicator (Global) */}
+      <div className="fixed top-4 right-4 z-[100] flex items-center gap-2 pointer-events-none">
+        {lastSignal && (
+          <div className={clsx(
+            "px-3 py-1.5 rounded-full border shadow-2xl backdrop-blur-md flex items-center gap-2 animate-in slide-in-from-top-2 duration-300",
+            lastSignal.signal === 'OVERSOLD' ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400" :
+            lastSignal.signal === 'OVERBOUGHT' ? "bg-rose-500/20 border-rose-500/40 text-rose-400" :
+            "bg-slate-800/80 border-slate-700 text-slate-400"
+          )}>
+            <Zap className={clsx("w-3 h-3 fill-current", lastSignal ? "animate-pulse" : "")} />
+            <span className="text-xs font-bold font-mono">
+              {lastSignal.ticker} RSI: {lastSignal.value}
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* 고정 사이드바 너비 확보 */}
       <aside className="hidden lg:block fixed inset-y-0 left-0 w-64 border-r border-white/5 bg-slate-900/50 backdrop-blur-xl z-50">
         <Sidebar />

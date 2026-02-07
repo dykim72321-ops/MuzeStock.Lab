@@ -115,8 +115,8 @@ export const TechnicalAnalysisCard: React.FC<Props> = ({
       {/* 3. 하단: 알고리즘 분석 (Reasoning) */}
       <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-800">
         <div className="flex items-center gap-2 mb-2">
-          <Activity className="w-3 h-3 text-indigo-400" />
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Algorithmic Reasoning</span>
+          <Activity className="w-3 h-3 text-emerald-400" />
+          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-tight">Quantitative Logic (Python Engine)</span>
         </div>
         <p className="text-xs text-slate-300 leading-relaxed font-medium">
           {data.reasoning}

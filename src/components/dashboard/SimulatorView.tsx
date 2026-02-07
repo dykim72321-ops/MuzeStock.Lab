@@ -41,12 +41,17 @@ export const SimulatorView = () => {
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
+        <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
             <History className="w-8 h-8 text-indigo-500" />
             타임머신 시뮬레이터
           </h1>
-          <p className="text-slate-400 mt-2">RSI 역추세 전략 (과매도 매수, 과매수 매도)의 성과를 검증합니다.</p>
+          <div className="flex items-center gap-2">
+            <p className="text-slate-400">과거 시장 데이터와 수학적 알고리즘을 통한 수익률 검증</p>
+            <Badge variant="neutral" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px] font-bold uppercase tracking-wider">
+              100% Math Engine (Zero AI Intervention)
+            </Badge>
+          </div>
         </div>
       </div>
 

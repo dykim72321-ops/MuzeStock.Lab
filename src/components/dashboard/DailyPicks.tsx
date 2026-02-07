@@ -157,16 +157,16 @@ export const DailyPicks = () => {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2 py-0.5 rounded text-xs font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-              STEP 1: DISCOVERY
+              STEP 1: MATH DISCOVERY
             </span>
             <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              AI RANKED
+              DATA RANKED
             </span>
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Market Discovery</h1>
           <p className="text-slate-400 mt-2">
-            오늘 아침 발굴한 <span className="text-emerald-400 font-bold">$1 미만 급등 후보군</span>입니다. 
-            관심 종목을 클릭하여 <span className="text-indigo-400 font-bold">AI 심층 분석(Step 3)</span>을 진행하세요.
+            수학적 필터링으로 발굴한 <span className="text-emerald-400 font-bold">$1 미만 급등 후보군</span>입니다. 
+            기술적 지표를 우선 확인하고, <span className="text-indigo-400 font-bold">AI 컨텍스트(참고용)</span>를 활용하세요.
           </p>
         </div>
         

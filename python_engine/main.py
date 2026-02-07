@@ -8,9 +8,14 @@ import ta
 import os
 from dotenv import load_dotenv
 from scraper import FinvizHunter
+from scraper import FinvizHunter
 from db_manager import DBManager
+import asyncio
+from datetime import datetime
+from supabase import create_client, Client
 
 # .env 파일에서 환경변수 로드
+# .env 파일에서 환경변수 로드 (Updated for Realtime Pulse) (Verified)
 load_dotenv()
 
 app = FastAPI(
@@ -193,6 +198,67 @@ def backtest_strategy(request: BacktestRequest):
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
 
+
+# --- REALTIME PULSE ENGINE (Start) ---
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
+except:
+    supabase = None
+
+async def market_pulse_check():
+    """10초마다 RSI를 체크하여 Supabase Realtime으로 쏘는 심장박동"""
+    print("💓 Market Pulse Engine Started...")
+    while True:
+        try:
+            # 1. 데이터 계산 (샘플: TSLA)
+            ticker_symbol = "TSLA"
+            tk = yf.Ticker(ticker_symbol)
+            # 1분봉 데이터로 실시간성 확보
+            hist = tk.history(period="1d", interval="1m")
+            
+            if not hist.empty and len(hist) > 14:
+                current_price = hist["Close"].iloc[-1]
+                # RSI 계산
+                rsi_series = ta.momentum.RSIIndicator(hist["Close"]).rsi()
+                current_rsi = rsi_series.iloc[-1]
+                
+                # 2. 신호 조건 (테스트용: 무조건 전송)
+                signal_type = "NEUTRAL"
+                if current_rsi < 30: signal_type = "OVERSOLD"
+                elif current_rsi > 70: signal_type = "OVERBOUGHT"
+                
+                payload = {
+                    "ticker": ticker_symbol,
+                    "indicator": "RSI",
+                    "value": round(float(current_rsi), 2),
+                    "price": round(float(current_price), 2),
+                    "signal": signal_type,
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                # 3. Supabase에 Push
+                if supabase:
+                    try:
+                        # realtime_signals 테이블에 insert
+                        supabase.table("realtime_signals").insert(payload).execute()
+                        print(f"📡 Pulse Sent: TSLA RSI={payload['value']} ({signal_type})")
+                    except Exception as db_err:
+                        print(f"⚠️ DB Push Error (Create table 'realtime_signals'?): {db_err}")
+                else:
+                    print(f"⚠️ Supabase credentials missing. Pulse simulated: {payload}")
+            
+        except Exception as e:
+            print(f"❌ Pulse Error: {e}")
+            
+        await asyncio.sleep(10)  # 10초 대기
+
+@app.on_event("startup")
+async def start_pulse():
+    # 백그라운드 태스크로 실행
+    asyncio.create_task(market_pulse_check())
+# --- REALTIME PULSE ENGINE (End) ---
 
 if __name__ == "__main__":
     import uvicorn
