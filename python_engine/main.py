@@ -1,19 +1,43 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Security, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
 from typing import Optional, List
 import yfinance as yf
 import pandas as pd
 import ta
 import asyncio
+import os
 from scraper import FinvizHunter
 from db_manager import DBManager
 
 app = FastAPI(
     title="MuzeStock Technical Analysis API",
     description="Unified Python Platform for Stock Analysis & Discovery",
-    version="2.0.0",
+    version="2.1.0",
 )
+
+# Security Configuration
+API_KEY_NAME = "X-Admin-Key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+async def get_api_key(header_value: str = Security(api_key_header)):
+    """ADMIN_SECRET_KEY 환경변수와 헤더 값을 비교하여 인증"""
+    admin_key = os.getenv("ADMIN_SECRET_KEY")
+    if not admin_key:
+        # 보안을 위해 키가 설정되지 않은 경우 모든 요청 거부
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Admin secret key not configured on server"
+        )
+    
+    if header_value == admin_key:
+        return header_value
+    
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Could not validate credentials"
+    )
 
 # Global instances
 db = DBManager()
@@ -52,7 +76,7 @@ def root():
 
 @app.post("/api/analyze", response_model=TechnicalIndicators)
 def analyze_stock(request: AnalyzeRequest):
-    """지표 계산 API (기존 기능 유지)"""
+    """지표 계산 API (기본 기능)"""
     try:
         ticker = yf.Ticker(request.ticker)
         df = ticker.history(period=request.period)
@@ -95,8 +119,11 @@ def analyze_stock(request: AnalyzeRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/hunt")
-async def trigger_hunt(background_tasks: BackgroundTasks):
-    """수동 수집 트리거 (백그라운드 실행)"""
+async def trigger_hunt(
+    background_tasks: BackgroundTasks,
+    api_key: str = Security(get_api_key)
+):
+    """수동 수집 트리거 (인증 필수, 백그라운드 실행)"""
     background_tasks.add_task(hunter.scrape)
     return {"message": "🚀 Hunter Bot has been launched in the background."}
 

@@ -23,6 +23,9 @@ dist-ssr
 *.sln
 # Python
 python_engine/venv/
+python_engine/.env
 __pycache__/
 *.py[cod]
 *$py.class
+.env
+.env.local
