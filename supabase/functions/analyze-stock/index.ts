@@ -227,7 +227,7 @@ ${newsHeadlines.map((h: string, i: number) => `${i+1}. ${h}`).join('\n')}
     
     1. 🛑 BRAKE (Financials): Check for dilution, bankruptcy, or toxic debt. (Cash Runway: ${cashRunway}mo)
     2. 🚀 ACCELERATOR (Momentum): Analyze Relative Volume (${relativeVolume}x), Price Action, and Volatility.
-    3. 🧭 NAVIGATION (News): Interpret recent headlines for "why" (catalyst analysis).
+    3. 🧭 NAVIGATION (Catalyst/News): Deep dive into recent headlines. Identify specific catalysts (FDA, Contracts, Earnings). This is the "Fuel" for the momentum.
     4. 🗺️ MAP (Pattern Match): Compare current chart/context to historical momentum legends.
     
     [HISTORICAL LEGEND MATCH]

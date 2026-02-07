@@ -3,9 +3,10 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Load .env.local for local development (GitHub Actions uses env vars directly)
+// Load env files (.env.local for local overrides, .env for shared defaults)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 import { chromium } from 'playwright';
 import { createClient } from '@supabase/supabase-js';
@@ -15,6 +16,7 @@ const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 // 1. Supabase Connection
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const FINNHUB_KEY = process.env.VITE_FINNHUB_API_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('❌ Missing Supabase Env Variables');
@@ -45,7 +47,32 @@ async function fetchStockDetails(ticker) {
   }
 }
 
-async function analyzeWithAI(stockData, yahooData) {
+async function fetchCompanyNews(ticker) {
+  if (!FINNHUB_KEY) {
+    console.warn('⚠️ Finnhub API Key is missing. Skipping news fetch.');
+    return [];
+  }
+
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    const url = `https://finnhub.io/api/v1/company-news?symbol=${ticker}&from=${lastWeek}&to=${today}&token=${FINNHUB_KEY}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    
+    const news = await res.json();
+    console.log(`📡 Fetched ${news.length} news items for ${ticker}`);
+    
+    // Return Top 5 headlines to stay within token limits
+    return news.slice(0, 5).map(item => item.headline);
+  } catch (e) {
+    console.warn(`⚠️ News fetch failed for ${ticker}:`, e.message);
+    return [];
+  }
+}
+
+async function analyzeWithAI(stockData, yahooData, newsHeadlines = []) {
   console.log(`🧠 AI Analyzing ${stockData.ticker}...`);
   
   if (!yahooData) return null;
@@ -63,6 +90,7 @@ async function analyzeWithAI(stockData, yahooData) {
       // Defaulting others for now as they require deeper cleaning or different API points
       sentimentScore: 0, 
       sentimentLabel: 'Neutral',
+      newsHeadlines: newsHeadlines,
     };
 
     const response = await fetch(ANALYZE_FUNCTION_URL, {
@@ -155,12 +183,11 @@ async function scrapeFinviz() {
         // 1. Get Real-time/Better Data
         const yahooData = await fetchStockDetails(stock.ticker);
         
-        // 2. Perform AI Analysis
-        // If yahoo fails, we might skip AI or pass partial data. 
-        // Let's skip AI if no price data is available to avoid hallucination.
+        // 2. Perform AI Analysis with News
         let aiAnalysis = null;
         if (yahooData) {
-            aiAnalysis = await analyzeWithAI(stock, yahooData);
+            const news = await fetchCompanyNews(stock.ticker);
+            aiAnalysis = await analyzeWithAI(stock, yahooData, news);
         }
 
         // 3. Save to Supabase (using actual schema columns only)
