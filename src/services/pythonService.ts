@@ -44,13 +44,17 @@ export const pythonService = {
     }
   },
 
-  // [기능 3] 개별 종목 정밀 분석
-  analyzeStock: async (ticker: string) => {
+  // [기능 4] 타임머신 백테스팅
+  backtestStock: async (ticker: string, period: string = "1y", initialCapital: number = 10000.0) => {
     try {
-      const response = await api.post('/api/analyze', { ticker, period: "1y" });
+      const response = await api.post('/api/backtest', { 
+        ticker, 
+        period, 
+        initial_capital: initialCapital 
+      });
       return response.data;
     } catch (error) {
-      console.error("Analysis failed:", error);
+      console.error("Backtest failed:", error);
       throw error;
     }
   }

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, List, Settings, Radio, Target, Trophy, Dna } from 'lucide-react';
+import { LayoutDashboard, List, Settings, Radio, Target, Trophy, Dna, History } from 'lucide-react';
 import clsx from 'clsx';
 
 export const Sidebar = () => {
@@ -8,6 +8,7 @@ export const Sidebar = () => {
     { name: '2. Watchlist', icon: List, path: '/watchlist', subtitle: '관심 종목' },
     { name: '3. AI 백테스팅', icon: Target, path: '/backtesting', subtitle: '예측 정확도 분석' },
     { name: '4. 페르소나 성능', icon: Trophy, path: '/personas', subtitle: 'AI 성능 비교' },
+    { name: '5. 타임머신 시뮬레이터', icon: History, path: '/simulator', subtitle: '과거 수익률 검증' },
     { name: 'Settings', icon: Settings, path: '/settings', subtitle: '시스템 설정' },
   ];
 

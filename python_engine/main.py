@@ -6,8 +6,12 @@ from typing import Optional
 import yfinance as yf
 import ta
 import os
+from dotenv import load_dotenv
 from scraper import FinvizHunter
 from db_manager import DBManager
+
+# .env 파일에서 환경변수 로드
+load_dotenv()
 
 app = FastAPI(
     title="MuzeStock Technical Analysis API",
@@ -158,6 +162,35 @@ def get_recent_discoveries(limit: int = 10):
     """최근 발견된 종목 조회"""
     data = db.get_latest_discoveries(limit)
     return data
+
+
+# Backtesting endpoint
+from backtester import run_backtest
+
+
+class BacktestRequest(BaseModel):
+    ticker: str
+    period: str = "1y"
+    initial_capital: float = 10000.0
+
+
+@app.post("/api/backtest")
+def backtest_strategy(request: BacktestRequest):
+    """RSI 역추세 전략 백테스팅 실행"""
+    try:
+        result = run_backtest(
+            ticker=request.ticker,
+            period=request.period,
+            initial_capital=request.initial_capital,
+        )
+        if "error" in result:
+            raise HTTPException(status_code=404, detail=result["error"])
+        return result
+    except Exception as e:
+        import traceback
+        error_msg = f"Backtest failed: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 if __name__ == "__main__":
