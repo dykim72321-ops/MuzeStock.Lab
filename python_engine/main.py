@@ -196,6 +196,9 @@ def backtest_strategy(request: BacktestRequest):
         if "error" in result:
             raise HTTPException(status_code=404, detail=result["error"])
         return result
+    except HTTPException:
+        # HTTPException은 그대로 전달 (404 등)
+        raise
     except Exception as e:
         import traceback
 
