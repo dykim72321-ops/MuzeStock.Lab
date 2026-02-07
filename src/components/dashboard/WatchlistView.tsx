@@ -126,7 +126,7 @@ export const WatchlistView = () => {
                   return (
                     <tr 
                       key={item.ticker} 
-                      onClick={() => navigate(`/stock/${item.ticker}`)}
+                      onClick={() => navigate(`/analysis/${item.ticker}`)}
                       className="group hover:bg-slate-800/60 transition-colors cursor-pointer"
                     >
                       {/* Ticker & Name */}

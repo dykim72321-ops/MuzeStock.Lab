@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, BellOff, LayoutGrid, List, Globe } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { StockCard } from './StockCard';
@@ -31,6 +32,7 @@ function getConfidenceLevel(dnaScore: number, riskLevel?: string): 'high' | 'med
 }
 
 export const DailyPicks = () => {
+  const navigate = useNavigate();
   const [rankedRecommendations, setRankedRecommendations] = useState<RankedRecommendation[]>([]);
   const [briefingSummary, setBriefingSummary] = useState('');
   const [loading, setLoading] = useState(true);
@@ -269,7 +271,7 @@ export const DailyPicks = () => {
                   <tr 
                     key={rec.stock.ticker} 
                     className="border-b border-slate-800 hover:bg-slate-800/30 cursor-pointer"
-                    onClick={() => window.location.href = `/stock/${rec.stock.ticker}`}
+                    onClick={() => navigate(`/analysis/${rec.stock.ticker}`)}
                   >
                     <td className="px-4 py-3">
                       <span className={clsx(

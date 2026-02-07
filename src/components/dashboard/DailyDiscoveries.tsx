@@ -4,7 +4,7 @@ import { fetchDiscoveries, type DiscoveryItem } from '../../services/pythonApiSe
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Link } from 'react-router-dom';
-import { TrendingUp, Clock, Sparkles, AlertCircle } from 'lucide-react';
+import { Clock, Sparkles, AlertCircle } from 'lucide-react';
 import clsx from 'clsx';
 
 interface DailyDiscoveriesProps {
@@ -78,54 +78,54 @@ const DiscoveryCard: React.FC<{ item: DiscoveryItem; rank: number }> = ({ item, 
   const isPositive = changeValue >= 0;
 
   return (
-    <div className="flex items-center gap-4 p-3 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors group">
+    <div className="flex items-center gap-4 p-3.5 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 hover:bg-white/10 transition-all group">
       {/* Rank Badge */}
       <div className={clsx(
-        "flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold flex-shrink-0",
-        rank === 1 && "bg-gradient-to-br from-amber-500 to-orange-600 text-white",
-        rank === 2 && "bg-gradient-to-br from-slate-400 to-slate-500 text-white",
-        rank === 3 && "bg-gradient-to-br from-amber-700 to-amber-800 text-white",
-        rank > 3 && "bg-slate-700 text-slate-300"
+        "flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold flex-shrink-0",
+        rank === 1 && "bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20",
+        rank === 2 && "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-lg shadow-slate-500/20",
+        rank === 3 && "bg-gradient-to-br from-amber-700 to-amber-800 text-white shadow-lg shadow-amber-800/20",
+        rank > 3 && "bg-slate-800 text-slate-400 ring-1 ring-white/10"
       )}>
         #{rank}
       </div>
 
       {/* Stock Info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-0.5">
           <Link 
-            to={`/stock/${item.ticker}`}
-            className="font-bold text-white hover:text-indigo-400 transition-colors font-mono"
+            to={`/analysis/${item.ticker}`}
+            className="font-bold text-white hover:text-indigo-400 transition-colors font-mono text-sm tracking-tight"
           >
             {item.ticker}
           </Link>
-          <span className="text-xs text-slate-500">{item.sector}</span>
+          <span className="text-[10px] text-slate-500 uppercase tracking-tighter truncate">{item.sector}</span>
         </div>
-        <p className="text-xs text-slate-400 truncate">
-          {item.ai_summary?.split('\n')[0] || '분석 중...'}
+        <p className="text-[11px] text-slate-400 truncate opacity-70">
+          {item.ai_summary?.split('\n')[0] || 'AI Analysis in progress...'}
         </p>
       </div>
 
-      {/* Price & Change */}
-      <div className="text-right flex-shrink-0">
-        <div className="text-sm font-mono text-white">${item.price.toFixed(2)}</div>
+      {/* Price & Change - 고정 너비 확보 */}
+      <div className="text-right flex-shrink-0 min-w-[70px]">
+        <div className="text-sm font-mono font-bold text-white">${item.price.toFixed(2)}</div>
         <div className={clsx(
-          "text-xs font-bold flex items-center justify-end gap-1",
+          "text-[10px] font-bold flex items-center justify-end gap-1",
           isPositive ? "text-emerald-400" : "text-rose-400"
         )}>
-          {isPositive && <TrendingUp className="w-3 h-3" />}
-          {item.change}
+          {isPositive ? '+' : ''}{item.change}
         </div>
       </div>
 
-      {/* DNA Score */}
+      {/* DNA Score - 고정 너비 확보 */}
       <div className={clsx(
-        "px-2 py-1 rounded text-xs font-bold flex-shrink-0",
-        item.dna_score >= 80 && "bg-amber-500/20 text-amber-400",
-        item.dna_score >= 60 && item.dna_score < 80 && "bg-indigo-500/20 text-indigo-400",
-        item.dna_score < 60 && "bg-slate-500/20 text-slate-400"
+        "flex flex-col items-center justify-center px-2 py-1 rounded-lg flex-shrink-0 min-w-[50px] border",
+        item.dna_score >= 80 ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : 
+        item.dna_score >= 60 ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" : 
+        "bg-slate-800/50 text-slate-500 border-slate-700/50"
       )}>
-        DNA {item.dna_score}
+        <span className="text-[8px] uppercase font-bold tracking-tighter opacity-60">DNA</span>
+        <span className="text-xs font-mono font-bold">{item.dna_score}</span>
       </div>
     </div>
   );

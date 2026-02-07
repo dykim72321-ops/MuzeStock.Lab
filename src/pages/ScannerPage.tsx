@@ -170,7 +170,7 @@ export const ScannerPage = () => {
                   <tr 
                     key={stock.id} 
                     className="hover:bg-indigo-500/5 transition-colors group cursor-pointer"
-                    onClick={() => navigate(`/stock/${stock.ticker}`)}
+                    onClick={() => navigate(`/analysis/${stock.ticker}`)}
                   >
                     <td className="px-6 py-5">
                       <div className="font-black text-lg text-white group-hover:text-indigo-400 transition-colors">{stock.ticker}</div>
@@ -223,7 +223,7 @@ export const ScannerPage = () => {
             <Card 
               key={stock.id} 
               className="p-5 bg-slate-900/40 border-slate-800 hover:border-indigo-500/50 transition-all group cursor-pointer"
-              onClick={() => navigate(`/stock/${stock.ticker}`)}
+              onClick={() => navigate(`/analysis/${stock.ticker}`)}
             >
               <div className="flex justify-between items-start mb-4">
                 <div>

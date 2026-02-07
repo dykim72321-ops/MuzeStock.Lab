@@ -63,7 +63,7 @@ export function sendStockNotification(
 
   notification.onclick = () => {
     window.focus();
-    window.location.href = `/stock/${ticker}`;
+    window.location.href = `/analysis/${ticker}`;
   };
 }
 

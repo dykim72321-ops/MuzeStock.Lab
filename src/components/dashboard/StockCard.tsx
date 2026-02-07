@@ -68,7 +68,7 @@ export const StockCard: React.FC<StockCardProps> = ({
               </div>
             )}
             <Link 
-              to={`/stock/${stock.ticker}`}
+              to={`/analysis/${stock.ticker}`}
               className="text-lg font-bold text-white hover:text-indigo-400 transition-colors font-mono tracking-tight"
             >
               {stock.ticker}
@@ -98,41 +98,39 @@ export const StockCard: React.FC<StockCardProps> = ({
             </div>
           )}
           
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-mono">
-            <span className="text-slate-300">
-              <span className="text-slate-500 uppercase tracking-tighter mr-1">Price:</span> 
-              ${stock.price.toFixed(2)}
-            </span>
-            <span className={clsx("font-bold", stock.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
-              {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
-            </span>
-            <span className="text-slate-300">
-              <span className="text-slate-500 uppercase tracking-tighter mr-1">DNA:</span> 
-              <span className="text-indigo-400 font-bold">{stock.dnaScore}</span>
-            </span>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4 text-[11px] font-mono mt-4">
+            <div className="flex flex-col">
+              <span className="text-slate-500 uppercase tracking-tighter mb-0.5">Price</span> 
+              <span className="text-slate-200 font-bold">${stock.price.toFixed(2)}</span>
+            </div>
+            
+            <div className="flex flex-col">
+              <span className="text-slate-500 uppercase tracking-tighter mb-0.5">Change</span>
+              <span className={clsx("font-bold", stock.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
+                {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
+              </span>
+            </div>
 
-            {/* Yahoo Finance Data Points */}
+            <div className="flex flex-col">
+              <span className="text-slate-500 uppercase tracking-tighter mb-0.5">DNA Score</span> 
+              <span className="text-indigo-400 font-bold">{stock.dnaScore}</span>
+            </div>
+
             {stock.relevantMetrics.targetPrice && stock.relevantMetrics.targetPrice > 0 && (
-              <>
-                <div className="w-px h-3 bg-slate-700 mx-1" />
-                <span className="text-slate-300">
-                  <span className="text-slate-500 uppercase tracking-tighter mr-1">Target:</span> 
+              <div className="flex flex-col">
+                <span className="text-slate-500 uppercase tracking-tighter mb-0.5">Target</span> 
+                <div className="flex items-center gap-1">
                   <span className="text-emerald-400 font-bold">${stock.relevantMetrics.targetPrice.toFixed(2)}</span>
-                </span>
-                {stock.relevantMetrics.upsidePotential !== undefined && (
-                  <span className={clsx(
-                    "font-bold px-1 rounded",
-                    stock.relevantMetrics.upsidePotential > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
-                  )}>
-                    ({stock.relevantMetrics.upsidePotential > 0 ? '+' : ''}{stock.relevantMetrics.upsidePotential.toFixed(1)}%)
-                  </span>
-                )}
-                {stock.relevantMetrics.analystCount && (
-                  <span className="text-slate-500 text-[9px] lowercase italic">
-                    by {stock.relevantMetrics.analystCount} analysts
-                  </span>
-                )}
-              </>
+                  {stock.relevantMetrics.upsidePotential !== undefined && (
+                    <span className={clsx(
+                      "text-[9px] font-bold px-1 rounded",
+                      stock.relevantMetrics.upsidePotential > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+                    )}>
+                      {stock.relevantMetrics.upsidePotential > 0 ? '+' : ''}{stock.relevantMetrics.upsidePotential.toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>

@@ -104,7 +104,7 @@ export const StockScreener = () => {
                 {filteredStocks.map((stock) => (
                   <tr 
                     key={stock.id} 
-                    onClick={() => navigate(`/stock/${stock.ticker}`)}
+                    onClick={() => navigate(`/analysis/${stock.ticker}`)}
                     className="hover:bg-slate-800/50 cursor-pointer transition-colors"
                   >
                     <td className="px-6 py-4">

@@ -106,3 +106,28 @@ export async function triggerHunt(adminKey: string): Promise<{ success: boolean;
     return { success: false, message: 'Network error' };
   }
 }
+/**
+ * RSI 역추세 전략 백테스팅 실행
+ */
+export async function fetchBacktestData(
+  ticker: string,
+  period: string = '1y'
+): Promise<any | null> {
+  try {
+    const response = await fetch(`${PY_API_BASE}/api/backtest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticker, period }),
+    });
+
+    if (!response.ok) {
+      console.warn(`[PythonAPI] Backtest failed for ${ticker}: ${response.status}`);
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`[PythonAPI] Backtest error for ${ticker}:`, error);
+    return null;
+  }
+}

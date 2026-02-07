@@ -5,10 +5,15 @@ import clsx from 'clsx';
 
 export const Layout = () => {
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-950 text-slate-100 font-sans">
-      <Sidebar />
-      <main className="flex-1 overflow-x-hidden pb-20 lg:pb-0">
-        <div className="container mx-auto p-4 md:p-8 max-w-7xl">
+    <div className="flex min-h-screen bg-[#020617] text-slate-100 font-sans">
+      {/* 고정 사이드바 너비 확보 */}
+      <aside className="hidden lg:block fixed inset-y-0 left-0 w-64 border-r border-white/5 bg-slate-900/50 backdrop-blur-xl z-50">
+        <Sidebar />
+      </aside>
+      
+      {/* 메인 컨텐츠 영역: 사이드바 너비만큼 왼쪽 마진 부여 */}
+      <main className="flex-1 lg:ml-64 overflow-x-hidden pb-20 lg:pb-0">
+        <div className="p-4 md:p-8">
           <Outlet />
         </div>
       </main>

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { pythonService } from '../../services/pythonService';
 import { Play, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Card } from '../ui/Card';
+import clsx from 'clsx';
 
 export function HuntControl() {
   const [loading, setLoading] = useState(false);
@@ -17,14 +19,12 @@ export function HuntControl() {
     refreshData();
   }, []);
 
-  // 사냥 버튼 클릭 핸들러
   const handleHunt = async () => {
     setLoading(true);
-    setStatusMsg("🕵️ AI가 Finviz를 탐색 중입니다... (약 10~30초 소요)");
+    setStatusMsg("🕵️ AI가 Finviz를 탐색 중입니다...");
     try {
       await pythonService.triggerHunt();
-      setStatusMsg("✅ 백그라운드 수집이 시작되었습니다! 잠시 후 새로고침 하세요.");
-      // 5초 뒤에 목록 갱신 시도
+      setStatusMsg("✅ 백그라운드 수집이 시작되었습니다!");
       setTimeout(refreshData, 5000);
     } catch (err) {
       setStatusMsg("❌ 수집 실패: 관리자 키를 확인하세요.");
@@ -34,53 +34,87 @@ export function HuntControl() {
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mb-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          <RefreshCw className={loading ? "animate-spin text-indigo-500" : "text-gray-400"} size={20} />
-          AI Hunter Control
-        </h2>
+    <Card className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-3">
+          <div className={clsx(
+            "p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20",
+            loading && "animate-pulse"
+          )}>
+            <RefreshCw className={clsx("w-5 h-5", loading ? "animate-spin text-indigo-400" : "text-slate-400")} />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white tracking-tight">AI Hunter Control</h2>
+            <p className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">Master Algorithm v2.1</p>
+          </div>
+        </div>
+        
         <button
           onClick={handleHunt}
           disabled={loading}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-white transition-all
-            ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'}`}
+          className={clsx(
+            "flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-white transition-all shadow-lg",
+            loading 
+              ? "bg-slate-800 text-slate-500 cursor-not-allowed" 
+              : "bg-indigo-600 hover:bg-indigo-500 active:scale-95 shadow-indigo-500/20"
+          )}
         >
           <Play size={16} fill="currentColor" />
-          {loading ? '탐색 중...' : '지금 수집 시작 (Manual Hunt)'}
+          {loading ? 'HUNTING...' : 'MANUAL HUNT'}
         </button>
       </div>
 
-      {/* 상태 메시지 */}
       {statusMsg && (
-        <div className={`p-3 rounded-lg text-sm mb-4 flex items-center gap-2 
-          ${statusMsg.includes('❌') ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-700'}`}>
+        <div className={clsx(
+          "p-3 rounded-xl text-sm mb-6 flex items-center gap-2 border animate-in slide-in-from-top-2 duration-300",
+          statusMsg.includes('❌') 
+            ? "bg-rose-500/10 text-rose-400 border-rose-500/20" 
+            : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+        )}>
           {statusMsg.includes('❌') ? <AlertCircle size={16}/> : <CheckCircle2 size={16}/>}
           {statusMsg}
         </div>
       )}
 
-      {/* 최근 발견 리스트 (전광판) */}
-      <div className="space-y-3">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-          최근 발견된 보석들 (Live Feed)
+      <div className="space-y-4">
+        <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em]">
+          Live Discovery Feed
         </h3>
         {discoveries.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">아직 수집된 데이터가 없습니다. '수집 시작'을 눌러보세요.</p>
+          <div className="p-8 text-center border-2 border-dashed border-white/5 rounded-2xl">
+            <p className="text-sm text-slate-500 italic">No real-time data collected yet.</p>
+          </div>
         ) : (
-          <div className="grid gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {discoveries.map((stock: any) => (
-              <div key={stock.ticker} className="flex justify-between items-center p-3 bg-gray-50 rounded border border-gray-100 hover:bg-indigo-50 transition-colors">
-                <div>
-                  <span className="font-bold text-gray-900">{stock.ticker}</span>
-                  <span className="text-xs text-gray-500 ml-2">{stock.sector}</span>
-                </div>
-                <div className="text-right">
-                  <div className={`text-sm font-bold ${stock.change_percent >= 0 ? 'text-red-500' : 'text-blue-500'}`}>
-                    {stock.change_percent}%
+              <div 
+                key={stock.ticker} 
+                className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 hover:bg-white/10 transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-indigo-400 font-mono ring-1 ring-white/10">
+                    {stock.ticker[0]}
                   </div>
-                  <div className="text-xs text-indigo-600 font-medium">
-                    DNA: {stock.ai_score}
+                  <div>
+                    <div className="font-bold text-white group-hover:text-indigo-400 transition-colors uppercase font-mono tracking-tighter">
+                      {stock.ticker}
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-medium truncate max-w-[120px]">
+                      {stock.sector}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col items-end gap-1">
+                  <div className={clsx(
+                    "text-xs font-bold font-mono",
+                    stock.change_percent >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                  )}>
+                    {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent}%
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] text-slate-500 uppercase font-bold tracking-tighter">DNA:</span>
+                    <span className="text-xs text-indigo-400 font-bold font-mono">{stock.ai_score}</span>
                   </div>
                 </div>
               </div>
@@ -88,6 +122,6 @@ export function HuntControl() {
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
