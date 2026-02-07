@@ -13,6 +13,7 @@ import {
   Zap
 } from 'lucide-react';
 import clsx from 'clsx';
+import { AddToWatchlistBtn } from '../ui/AddToWatchlistBtn';
 
 export const SimulatorView = () => {
   const [ticker, setTicker] = useState('AAPL');
@@ -115,9 +116,12 @@ export const SimulatorView = () => {
                   <TrendingUp className="w-5 h-5 text-indigo-500" />
                   수익률 시뮬레이션 결과
                 </h3>
-                <Badge variant="primary" className="font-mono">
-                  {result.ticker} / {result.period}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <AddToWatchlistBtn ticker={result.ticker} variant="full" />
+                  <Badge variant="primary" className="font-mono">
+                    {result.ticker} / {result.period}
+                  </Badge>
+                </div>
               </div>
               <BacktestChart data={result.chart_data} />
             </Card>

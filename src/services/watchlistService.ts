@@ -1,9 +1,12 @@
 import { supabase } from '../lib/supabase';
 
+export type WatchlistStatus = 'WATCHING' | 'HOLDING' | 'EXITED';
+
 export interface WatchlistItem {
   ticker: string;
   addedAt: string;
   notes?: string;
+  status: WatchlistStatus;
 }
 
 /**
@@ -24,6 +27,7 @@ export async function getWatchlist(): Promise<WatchlistItem[]> {
     ticker: item.ticker,
     addedAt: item.created_at,
     notes: item.notes,
+    status: (item.status as WatchlistStatus) || 'WATCHING',
   }));
 }
 
@@ -47,19 +51,34 @@ export async function isInWatchlist(ticker: string): Promise<boolean> {
 /**
  * Add a stock to the watchlist
  */
-export async function addToWatchlist(ticker: string, notes?: string): Promise<void> {
+export async function addToWatchlist(ticker: string, notes?: string, status: WatchlistStatus = 'WATCHING'): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   
   const { error } = await supabase
     .from('watchlist')
     .upsert({
       ticker: ticker.toUpperCase(),
-      user_id: user?.id, // Optional if not logged in but RLS might block it
+      user_id: user?.id,
       notes,
+      status,
     });
 
   if (error) {
     console.error('Error adding to watchlist:', error);
+  }
+}
+
+/**
+ * Update the status of a watchlist item
+ */
+export async function updateWatchlistStatus(ticker: string, status: WatchlistStatus): Promise<void> {
+  const { error } = await supabase
+    .from('watchlist')
+    .update({ status })
+    .eq('ticker', ticker.toUpperCase());
+
+  if (error) {
+    console.error('Error updating watchlist status:', error);
   }
 }
 

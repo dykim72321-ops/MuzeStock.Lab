@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, TrendingUp, TrendingDown, Loader2, Star, Activity } from 'lucide-react';
-import { getWatchlist, removeFromWatchlist, type WatchlistItem } from '../../services/watchlistService';
+import { Trash2, TrendingUp, TrendingDown, Loader2, Star, Activity, ChevronDown } from 'lucide-react';
+import { getWatchlist, removeFromWatchlist, updateWatchlistStatus, type WatchlistItem, type WatchlistStatus } from '../../services/watchlistService';
 import { fetchMultipleStocks } from '../../services/stockService';
 import type { Stock } from '../../types';
+import { Badge } from '../ui/Badge';
 import clsx from 'clsx';
 
 export const WatchlistView = () => {
@@ -41,6 +42,24 @@ export const WatchlistView = () => {
     if (confirm(`${ticker}를 모니터링 리스트에서 제거하시겠습니까?`)) {
       await removeFromWatchlist(ticker);
       loadWatchlist();
+    }
+  };
+
+  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>, ticker: string) => {
+    e.stopPropagation();
+    const newStatus = e.target.value as WatchlistStatus;
+    await updateWatchlistStatus(ticker, newStatus);
+    loadWatchlist();
+  };
+
+  const getStatusBadge = (status: WatchlistStatus) => {
+    switch (status) {
+      case 'HOLDING':
+        return <Badge variant="primary" className="bg-blue-500/10 text-blue-400 border-blue-500/20">보유 중</Badge>;
+      case 'EXITED':
+        return <Badge variant="neutral" className="bg-slate-700/50 text-slate-400 border-slate-600">투자 종료</Badge>;
+      default:
+        return <Badge variant="warning" className="bg-amber-500/10 text-amber-400 border-amber-500/20">관찰 중</Badge>;
     }
   };
 
@@ -115,6 +134,7 @@ export const WatchlistView = () => {
                   <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider font-mono text-right">Change (24h)</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider font-mono text-right">Volume</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider font-mono text-center">Sector</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider font-mono text-center">Status</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider font-mono text-right">Action</th>
                 </tr>
               </thead>
@@ -182,6 +202,25 @@ export const WatchlistView = () => {
                         <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
                           {stock?.sector || 'Unknown'}
                         </span>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-6 py-4 text-center">
+                        <div className="relative inline-block" onClick={e => e.stopPropagation()}>
+                          <select 
+                            value={item.status}
+                            onChange={(e) => handleStatusChange(e, item.ticker)}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none"
+                          >
+                            <option value="WATCHING">관찰 중 (WATCHING)</option>
+                            <option value="HOLDING">보유 중 (HOLDING)</option>
+                            <option value="EXITED">투자 종료 (EXITED)</option>
+                          </select>
+                          <div className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity">
+                            {getStatusBadge(item.status)}
+                            <ChevronDown className="w-3 h-3 text-slate-500" />
+                          </div>
+                        </div>
                       </td>
 
                       {/* Actions */}

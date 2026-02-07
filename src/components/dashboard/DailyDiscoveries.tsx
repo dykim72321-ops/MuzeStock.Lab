@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { fetchDiscoveries, fetchBacktestData, type DiscoveryItem } from '../../services/pythonApiService';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Link } from 'react-router-dom';
 import { Clock, Sparkles, AlertCircle, Zap, TrendingUp, ArrowUpDown, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
+import { AddToWatchlistBtn } from '../ui/AddToWatchlistBtn';
 
 interface DailyDiscoveriesProps {
   limit?: number;
@@ -94,7 +95,6 @@ export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
 };
 
 const DiscoveryCard: React.FC<{ item: DiscoveryItem; rank: number }> = ({ item, rank }) => {
-  const queryClient = useQueryClient();
   const [backtestResult, setBacktestResult] = useState<number | null>(null);
   
   const changeValue = parseFloat(item.change.replace('%', ''));
@@ -143,6 +143,13 @@ const DiscoveryCard: React.FC<{ item: DiscoveryItem; rank: number }> = ({ item, 
           {item.ai_summary?.split('\n')[0] || 'AI Analysis in progress...'}
         </p>
       </div>
+
+      {/* Add to Watchlist Button */}
+      <AddToWatchlistBtn 
+        ticker={item.ticker} 
+        variant="icon" 
+        className="flex-shrink-0"
+      />
 
       {/* One-Click Backtest Button */}
       <button

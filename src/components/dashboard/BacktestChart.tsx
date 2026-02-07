@@ -7,15 +7,13 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
-  LineChart,
-  Line,
   ReferenceLine,
   ComposedChart,
 } from 'recharts';
 import { Card } from '../ui/Card';
 import { fetchBacktestData } from '../../services/pythonApiService';
 import { Skeleton } from '../ui/Skeleton';
-import { TrendingUp, Activity } from 'lucide-react';
+import { Activity } from 'lucide-react';
 
 interface BacktestChartProps {
   data?: any[] | any;
@@ -222,16 +220,19 @@ export const BacktestChart: React.FC<BacktestChartProps> = ({ data, ticker }) =>
                   borderRadius: '8px',
                   fontSize: '11px'
                 }}
-                formatter={(value: number) => [
-                  <span className={
-                    value >= 70 ? 'text-rose-400' : 
-                    value <= 30 ? 'text-emerald-400' : 
-                    'text-amber-400'
-                  }>
-                    {value?.toFixed(1)} {value >= 70 ? '(과매수)' : value <= 30 ? '(과매도)' : ''}
-                  </span>,
-                  'RSI'
-                ]}
+                formatter={(value: number | undefined) => {
+                  if (value === undefined) return [null, 'RSI'];
+                  return [
+                    <span className={
+                      value >= 70 ? 'text-rose-400' : 
+                      value <= 30 ? 'text-emerald-400' : 
+                      'text-amber-400'
+                    }>
+                      {value?.toFixed(1)} {value >= 70 ? '(과매수)' : value <= 30 ? '(과매도)' : ''}
+                    </span>,
+                    'RSI'
+                  ];
+                }}
                 labelStyle={{ color: '#94a3b8', fontFamily: 'JetBrains Mono', fontSize: '9px' }}
               />
               
