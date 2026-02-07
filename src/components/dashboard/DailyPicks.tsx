@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Bell, BellOff, LayoutGrid, List, Globe } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { StockCard } from './StockCard';
+import { HuntControl } from './HuntControl';
 import { generateBriefingSummary, type Recommendation } from '../../services/recommendationService';
 import { 
   requestNotificationPermission, 
@@ -206,6 +207,9 @@ export const DailyPicks = () => {
           </button>
         </div>
       </div>
+
+      {/* 🆕 AI Hunter Control - 수동 수집 버튼 */}
+      <HuntControl />
 
       {/* 시장 요약 카드 */}
       {marketContext && (

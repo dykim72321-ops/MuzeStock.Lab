@@ -1,53 +1,57 @@
-/**
- * MuzeStock.Lab - Python Technical Analysis Service
- */
+// src/services/pythonService.ts
+import axios from 'axios';
 
-export interface TechnicalIndicators {
-  ticker: string;
-  period: string;
-  current_price: number;
-  rsi_14: number | null;
-  sma_20: number | null;
-  sma_50: number | null;
-  ema_12: number | null;
-  ema_26: number | null;
-  macd: number | null;
-  macd_signal: number | null;
-  signal: 'BUY' | 'SELL' | 'HOLD';
-  reasoning: string;
-}
+// 1. 개발 환경(Proxy) vs 배포 환경(URL) 자동 구분
+const BASE_URL = import.meta.env.PROD 
+  ? 'https://your-railway-app.com' // 배포 후엔 실제 주소 입력
+  : '/py-api'; // 로컬에선 vite.config.ts의 프록시 사용
 
-export interface AnalyzeRequest {
-  ticker: string;
-  period?: string;
-}
+// 2. 관리자 키 가져오기 (.env)
+const ADMIN_KEY = import.meta.env.VITE_ADMIN_SECRET_KEY;
 
-/**
- * Fetch technical analysis data from the Python backend
- * @param params - { ticker: string, period?: string }
- * @returns Technical indicators and signal
- */
-export async function fetchTechnicalAnalysis(params: AnalyzeRequest): Promise<TechnicalIndicators> {
-  try {
-    const response = await fetch('/py-api/api/analyze', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        ticker: params.ticker,
-        period: params.period || '1mo',
-      }),
-    });
+// API 클라이언트 설정
+const api = axios.create({
+  baseURL: BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || 'Failed to fetch technical analysis');
+export const pythonService = {
+  // [기능 1] 사냥 시작 (관리자 전용)
+  triggerHunt: async () => {
+    try {
+      const response = await api.post('/api/hunt', {}, {
+        headers: {
+          'X-Admin-Key': ADMIN_KEY // 👈 핵심: 인증 헤더 추가
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Hunt trigger failed:", error);
+      throw error;
     }
+  },
 
-    return await response.json();
-  } catch (error) {
-    console.error('Error in fetchTechnicalAnalysis:', error);
-    throw error;
+  // [기능 2] 최근 발견된 보석 조회 (수집 현황)
+  getDiscoveries: async () => {
+    try {
+      const response = await api.get('/api/discoveries');
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch discoveries:", error);
+      return [];
+    }
+  },
+
+  // [기능 3] 개별 종목 정밀 분석
+  analyzeStock: async (ticker: string) => {
+    try {
+      const response = await api.post('/api/analyze', { ticker, period: "1y" });
+      return response.data;
+    } catch (error) {
+      console.error("Analysis failed:", error);
+      throw error;
+    }
   }
-}
+};

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchTechnicalAnalysis } from '../../services/pythonService';
+import { fetchTechnicalAnalysis } from '../../services/pythonApiService';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Skeleton } from '../ui/Skeleton';
@@ -20,7 +20,7 @@ export const TechnicalAnalysisCard: React.FC<Props> = ({
 }) => {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['technical-analysis', ticker, period],
-    queryFn: () => fetchTechnicalAnalysis({ ticker, period }),
+    queryFn: () => fetchTechnicalAnalysis(ticker, period),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
