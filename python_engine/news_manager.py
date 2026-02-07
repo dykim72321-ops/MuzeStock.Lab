@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path="../.env.local")
 load_dotenv(dotenv_path="../.env")
 
+
 class NewsManager:
     def __init__(self):
         self.api_key = os.getenv("VITE_FINNHUB_API_KEY")
@@ -19,21 +20,24 @@ class NewsManager:
             return []
 
         try:
-            today = datetime.now().strftime('%Y-%m-%d')
-            start_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
-            
+            today = datetime.now().strftime("%Y-%m-%d")
+            start_date = (datetime.now() - timedelta(days=days_back)).strftime(
+                "%Y-%m-%d"
+            )
+
             url = f"https://finnhub.io/api/v1/company-news?symbol={ticker}&from={start_date}&to={today}&token={self.api_key}"
             response = requests.get(url)
-            
+
             if response.status_code != 200:
                 return []
-            
+
             news = response.json()
             # 상위 5개 헤드라인만 반환 (AI 토큰 절약)
             return [item.get("headline") for item in news[:5]]
         except Exception as e:
             print(f"❌ News Fetch Error for {ticker}: {e}")
             return []
+
 
 if __name__ == "__main__":
     nm = NewsManager()

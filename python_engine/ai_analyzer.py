@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path="../.env.local")
 load_dotenv(dotenv_path="../.env")
 
+
 class AIAnalyzer:
     def __init__(self):
         api_key = os.getenv("OPENAI_API_KEY")
@@ -17,7 +18,7 @@ class AIAnalyzer:
         수집된 지표와 뉴스를 바탕으로 AI 투자 의견 생성
         """
         ticker = stock_context.get("ticker", "UNKNOWN")
-        
+
         prompt = f"""
 Analyze the following stock data for {ticker} and provide a professional investment summary.
 
@@ -42,33 +43,44 @@ Instructions:
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini", # 가성비 모델 사용
+                model="gpt-4o-mini",  # 가성비 모델 사용
                 messages=[
-                    {{"role": "system", "content": "You are a professional stock analyst specializing in penny stocks and technical analysis."}},
-                    {{"role": "user", "content": prompt}}
+                    {
+                        {
+                            "role": "system",
+                            "content": "You are a professional stock analyst specializing in penny stocks and technical analysis.",
+                        }
+                    },
+                    {{"role": "user", "content": prompt}},
                 ],
-                response_format={{ "type": "json_object" }}
+                response_format={{"type": "json_object"}},
             )
-            
+
             import json
+
             return json.loads(response.choices[0].message.content)
         except Exception as e:
             print(f"❌ AI Analysis Error for {ticker}: {e}")
-            return {{
-                "dna_score": 50,
-                "bull_case": "Error during analysis",
-                "bear_case": "Error during analysis",
-                "reasoning_ko": "AI 분석 중 오류가 발생했습니다."
-            }}
+            return {
+                {
+                    "dna_score": 50,
+                    "bull_case": "Error during analysis",
+                    "bear_case": "Error during analysis",
+                    "reasoning_ko": "AI 분석 중 오류가 발생했습니다.",
+                }
+            }
+
 
 if __name__ == "__main__":
     analyzer = AIAnalyzer()
-    sample_context = {{
-        "ticker": "TSLA",
-        "price": 250.0,
-        "change": "+2.5%",
-        "indicators": "RSI 65, MACD Bullish Cross",
-        "news": ["Tesla reports record deliveries"]
-    }}
+    sample_context = {
+        {
+            "ticker": "TSLA",
+            "price": 250.0,
+            "change": "+2.5%",
+            "indicators": "RSI 65, MACD Bullish Cross",
+            "news": ["Tesla reports record deliveries"],
+        }
+    }
     result = analyzer.analyze_stock(sample_context)
     print(f"✅ AI Analysis for TSLA: {result}")

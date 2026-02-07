@@ -2,11 +2,9 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, Security, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 import yfinance as yf
-import pandas as pd
 import ta
-import asyncio
 import os
 from scraper import FinvizHunter
 from db_manager import DBManager
@@ -21,6 +19,7 @@ app = FastAPI(
 API_KEY_NAME = "X-Admin-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
+
 async def get_api_key(header_value: str = Security(api_key_header)):
     """ADMIN_SECRET_KEY 환경변수와 헤더 값을 비교하여 인증"""
     admin_key = os.getenv("ADMIN_SECRET_KEY")
@@ -28,16 +27,16 @@ async def get_api_key(header_value: str = Security(api_key_header)):
         # 보안을 위해 키가 설정되지 않은 경우 모든 요청 거부
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Admin secret key not configured on server"
+            detail="Admin secret key not configured on server",
         )
-    
+
     if header_value == admin_key:
         return header_value
-    
+
     raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Could not validate credentials"
+        status_code=status.HTTP_403_FORBIDDEN, detail="Could not validate credentials"
     )
+
 
 # Global instances
 db = DBManager()
@@ -52,9 +51,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 class AnalyzeRequest(BaseModel):
     ticker: str
     period: str = "1mo"
+
 
 class TechnicalIndicators(BaseModel):
     ticker: str
@@ -67,12 +68,14 @@ class TechnicalIndicators(BaseModel):
     ema_26: Optional[float] = None
     macd: Optional[float] = None
     macd_signal: Optional[float] = None
-    signal: str 
+    signal: str
     reasoning: str
+
 
 @app.get("/")
 def root():
     return {"message": "MuzeStock Unified Python Platform is running!"}
+
 
 @app.post("/api/analyze", response_model=TechnicalIndicators)
 def analyze_stock(request: AnalyzeRequest):
@@ -82,25 +85,47 @@ def analyze_stock(request: AnalyzeRequest):
         df = ticker.history(period=request.period)
         if df.empty:
             raise HTTPException(status_code=404, detail=f"No data for {request.ticker}")
-        
+
         close = df["Close"]
-        rsi = ta.momentum.RSIIndicator(close=close).rsi().iloc[-1] if len(close) >= 14 else None
-        sma_20 = ta.trend.SMAIndicator(close=close, window=20).sma_indicator().iloc[-1] if len(close) >= 20 else None
-        sma_50 = ta.trend.SMAIndicator(close=close, window=50).sma_indicator().iloc[-1] if len(close) >= 50 else None
-        ema_12 = ta.trend.EMAIndicator(close=close, window=12).ema_indicator().iloc[-1] if len(close) >= 12 else None
-        ema_26 = ta.trend.EMAIndicator(close=close, window=26).ema_indicator().iloc[-1] if len(close) >= 26 else None
+        rsi = (
+            ta.momentum.RSIIndicator(close=close).rsi().iloc[-1]
+            if len(close) >= 14
+            else None
+        )
+        sma_20 = (
+            ta.trend.SMAIndicator(close=close, window=20).sma_indicator().iloc[-1]
+            if len(close) >= 20
+            else None
+        )
+        sma_50 = (
+            ta.trend.SMAIndicator(close=close, window=50).sma_indicator().iloc[-1]
+            if len(close) >= 50
+            else None
+        )
+        ema_12 = (
+            ta.trend.EMAIndicator(close=close, window=12).ema_indicator().iloc[-1]
+            if len(close) >= 12
+            else None
+        )
+        ema_26 = (
+            ta.trend.EMAIndicator(close=close, window=26).ema_indicator().iloc[-1]
+            if len(close) >= 26
+            else None
+        )
         macd_ind = ta.trend.MACD(close=close)
         macd = macd_ind.macd().iloc[-1] if len(close) >= 26 else None
         macd_signal = macd_ind.macd_signal().iloc[-1] if len(close) >= 26 else None
-        
+
         current_price = close.iloc[-1]
-        
+
         # Simple signal logic
         signal = "HOLD"
         reasoning = []
-        if rsi and rsi < 30: signal, reasoning.append("RSI 과매도")
-        elif rsi and rsi > 70: signal, reasoning.append("RSI 과매수")
-        
+        if rsi and rsi < 30:
+            signal, reasoning.append("RSI 과매도")
+        elif rsi and rsi > 70:
+            signal, reasoning.append("RSI 과매수")
+
         return TechnicalIndicators(
             ticker=request.ticker.upper(),
             period=request.period,
@@ -113,19 +138,20 @@ def analyze_stock(request: AnalyzeRequest):
             macd=round(macd, 4) if macd else None,
             macd_signal=round(macd_signal, 4) if macd_signal else None,
             signal=signal,
-            reasoning=" ".join(reasoning) if reasoning else "지표 분석 완료"
+            reasoning=" ".join(reasoning) if reasoning else "지표 분석 완료",
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/api/hunt")
 async def trigger_hunt(
-    background_tasks: BackgroundTasks,
-    api_key: str = Security(get_api_key)
+    background_tasks: BackgroundTasks, api_key: str = Security(get_api_key)
 ):
     """수동 수집 트리거 (인증 필수, 백그라운드 실행)"""
     background_tasks.add_task(hunter.scrape)
     return {"message": "🚀 Hunter Bot has been launched in the background."}
+
 
 @app.get("/api/discoveries")
 def get_recent_discoveries(limit: int = 10):
@@ -133,6 +159,8 @@ def get_recent_discoveries(limit: int = 10):
     data = db.get_latest_discoveries(limit)
     return data
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
