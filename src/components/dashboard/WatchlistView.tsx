@@ -81,7 +81,7 @@ export const WatchlistView = () => {
         <div>
           <div className="flex items-center gap-2 mb-2">
              <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-widest bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase font-mono">
-               Step 2: Exploration
+               Step 3: Watchlist Management
              </span>
           </div>
           <h1 className="text-4xl font-black text-white tracking-tight flex items-center gap-3">

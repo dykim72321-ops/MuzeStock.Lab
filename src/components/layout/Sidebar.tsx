@@ -4,11 +4,11 @@ import clsx from 'clsx';
 
 export const Sidebar = () => {
   const navItems = [
-    { name: '1. Discovery', icon: LayoutDashboard, path: '/', subtitle: 'AI 종목 발굴' },
-    { name: '2. Watchlist', icon: List, path: '/watchlist', subtitle: '관심 종목' },
-    { name: '3. AI 백테스팅', icon: Target, path: '/backtesting', subtitle: '예측 정확도 분석' },
-    { name: '4. 페르소나 성능', icon: Trophy, path: '/personas', subtitle: 'AI 성능 비교' },
-    { name: '5. 타임머신 시뮬레이터', icon: History, path: '/simulator', subtitle: '과거 수익률 검증' },
+    { name: '1. Discovery', icon: LayoutDashboard, path: '/', subtitle: 'AI 종목 발굴 (퀀트 사냥)' },
+    { name: '2. Simulation', icon: History, path: '/simulator', subtitle: '타임머신 수익률 검증' },
+    { name: '3. Watchlist', icon: List, path: '/watchlist', subtitle: '최종 선별 및 투자 관리' },
+    { name: 'AI 백테스팅', icon: Target, path: '/backtesting', subtitle: '예측 정확도 분석' },
+    { name: '페르소나 성능', icon: Trophy, path: '/personas', subtitle: 'AI 성능 비교' },
     { name: 'Settings', icon: Settings, path: '/settings', subtitle: '시스템 설정' },
   ];
 

@@ -43,6 +43,11 @@ export const SimulatorView = () => {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 mb-1">
+             <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-widest bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase font-mono">
+               Step 2: Simulation & Verification
+             </span>
+          </div>
           <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
             <History className="w-8 h-8 text-indigo-500" />
             타임머신 시뮬레이터
