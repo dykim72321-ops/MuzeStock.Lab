@@ -1,10 +1,10 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { fetchDiscoveries, type DiscoveryItem } from '../../services/pythonApiService';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchDiscoveries, fetchBacktestData, type DiscoveryItem } from '../../services/pythonApiService';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Link } from 'react-router-dom';
-import { Clock, Sparkles, AlertCircle } from 'lucide-react';
+import { Clock, Sparkles, AlertCircle, Zap, TrendingUp, ArrowUpDown, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 
 interface DailyDiscoveriesProps {
@@ -12,13 +12,17 @@ interface DailyDiscoveriesProps {
   className?: string;
 }
 
+type SortMode = 'updated_at' | 'performance';
+
 export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({ 
   limit = 10, 
   className 
 }) => {
+  const [sortMode, setSortMode] = useState<SortMode>('updated_at');
+
   const { data: discoveries, isLoading, error } = useQuery({
-    queryKey: ['discoveries', limit],
-    queryFn: () => fetchDiscoveries(limit),
+    queryKey: ['discoveries', limit, sortMode],
+    queryFn: () => fetchDiscoveries(limit, sortMode),
     staleTime: 5 * 60 * 1000, // 5분
     refetchOnWindowFocus: false,
   });
@@ -58,10 +62,26 @@ export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
           <h3 className="text-lg font-bold text-white">오늘의 보석</h3>
           <Badge variant="primary">{discoveries.length}개 발견</Badge>
         </div>
-        <span className="text-xs text-slate-500 flex items-center gap-1">
-          <Clock className="w-3 h-3" />
-          자동 갱신
-        </span>
+        
+        {/* Sort Toggle */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSortMode(sortMode === 'updated_at' ? 'performance' : 'updated_at')}
+            className={clsx(
+              "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all",
+              sortMode === 'performance' 
+                ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30" 
+                : "bg-slate-800 text-slate-400 hover:text-white"
+            )}
+          >
+            <ArrowUpDown className="w-3 h-3" />
+            {sortMode === 'performance' ? '수익률순' : '최신순'}
+          </button>
+          <span className="text-xs text-slate-500 flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            자동 갱신
+          </span>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -74,8 +94,26 @@ export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
 };
 
 const DiscoveryCard: React.FC<{ item: DiscoveryItem; rank: number }> = ({ item, rank }) => {
+  const queryClient = useQueryClient();
+  const [backtestResult, setBacktestResult] = useState<number | null>(null);
+  
   const changeValue = parseFloat(item.change.replace('%', ''));
   const isPositive = changeValue >= 0;
+
+  const backtestMutation = useMutation({
+    mutationFn: () => fetchBacktestData(item.ticker, '1y'),
+    onSuccess: (data) => {
+      if (data && data.total_return_pct !== undefined) {
+        setBacktestResult(data.total_return_pct);
+      }
+    },
+  });
+
+  const handleBacktest = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    backtestMutation.mutate();
+  };
 
   return (
     <div className="flex items-center gap-4 p-3.5 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 hover:bg-white/10 transition-all group">
@@ -106,7 +144,52 @@ const DiscoveryCard: React.FC<{ item: DiscoveryItem; rank: number }> = ({ item, 
         </p>
       </div>
 
-      {/* Price & Change - 고정 너비 확보 */}
+      {/* One-Click Backtest Button */}
+      <button
+        onClick={handleBacktest}
+        disabled={backtestMutation.isPending}
+        className={clsx(
+          "flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all flex-shrink-0",
+          backtestMutation.isPending 
+            ? "bg-slate-700 text-slate-400 cursor-wait"
+            : backtestResult !== null
+            ? backtestResult >= 0 
+              ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30"
+              : "bg-rose-500/20 text-rose-400 ring-1 ring-rose-500/30"
+            : "bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 ring-1 ring-indigo-500/30"
+        )}
+      >
+        {backtestMutation.isPending ? (
+          <Loader2 className="w-3 h-3 animate-spin" />
+        ) : backtestResult !== null ? (
+          <>
+            <TrendingUp className="w-3 h-3" />
+            {backtestResult >= 0 ? '+' : ''}{backtestResult.toFixed(1)}%
+          </>
+        ) : (
+          <>
+            <Zap className="w-3 h-3" />
+            백테스트
+          </>
+        )}
+      </button>
+
+      {/* Backtest Return Badge (from DB) */}
+      {item.backtest_return !== null && (
+        <div className={clsx(
+          "flex flex-col items-center justify-center px-2 py-1 rounded-lg flex-shrink-0 min-w-[50px] border",
+          item.backtest_return >= 10 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+          item.backtest_return >= 0 ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" :
+          "bg-rose-500/10 text-rose-400 border-rose-500/20"
+        )}>
+          <span className="text-[8px] uppercase font-bold tracking-tighter opacity-60">1Y</span>
+          <span className="text-xs font-mono font-bold">
+            {item.backtest_return >= 0 ? '+' : ''}{item.backtest_return.toFixed(1)}%
+          </span>
+        </div>
+      )}
+
+      {/* Price & Change */}
       <div className="text-right flex-shrink-0 min-w-[70px]">
         <div className="text-sm font-mono font-bold text-white">${item.price.toFixed(2)}</div>
         <div className={clsx(
@@ -117,7 +200,7 @@ const DiscoveryCard: React.FC<{ item: DiscoveryItem; rank: number }> = ({ item, 
         </div>
       </div>
 
-      {/* DNA Score - 고정 너비 확보 */}
+      {/* DNA Score */}
       <div className={clsx(
         "flex flex-col items-center justify-center px-2 py-1 rounded-lg flex-shrink-0 min-w-[50px] border",
         item.dna_score >= 80 ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : 

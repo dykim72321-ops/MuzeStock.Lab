@@ -126,7 +126,17 @@ class FinvizHunter:
                 }
                 ai_result = self.ai.analyze_stock(ai_input)
 
-                # 4. Save to DB
+                # 4. Auto Backtest (1년 RSI 전략)
+                from backtester import run_backtest
+                backtest_result = run_backtest(ticker_symbol, period="1y")
+                backtest_return = None
+                if "error" not in backtest_result:
+                    backtest_return = backtest_result.get("total_return_pct", 0)
+                    print(f"📈 Backtest: {ticker_symbol} → {backtest_return:.2f}% (1Y RSI)")
+                else:
+                    print(f"⚠️ Backtest skipped for {ticker_symbol}: {backtest_result.get('error')}")
+
+                # 5. Save to DB
                 db_data = {
                     "ticker": ticker_symbol,
                     "sector": stock["sector"],
@@ -135,11 +145,12 @@ class FinvizHunter:
                     "change": f"{change:.2f}%",
                     "dna_score": ai_result.get("dna_score", 50),
                     "ai_summary": f"🐂 Bull: {ai_result.get('bull_case')}\n🐻 Bear: {ai_result.get('bear_case')}\n\n💡 {ai_result.get('reasoning_ko')}",
+                    "backtest_return": backtest_return,
                     "updated_at": datetime.now().isoformat(),
                 }
 
                 self.db.upsert_discovery(db_data)
-                print(f"💾 Saved {ticker_symbol} (DNA Score: {db_data['dna_score']})")
+                print(f"💾 Saved {ticker_symbol} (DNA: {db_data['dna_score']}, BT: {backtest_return}%)")
 
                 await asyncio.sleep(1)  # Be polite
 

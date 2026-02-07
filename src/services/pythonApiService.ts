@@ -29,6 +29,7 @@ export interface DiscoveryItem {
   change: string;
   dna_score: number;
   ai_summary: string;
+  backtest_return: number | null;
   updated_at: string;
   created_at: string;
 }
@@ -61,10 +62,15 @@ export async function fetchTechnicalAnalysis(
 
 /**
  * 최근 발견 종목 조회
+ * @param limit 조회 개수
+ * @param sortBy 정렬 기준: 'updated_at' (최신순) 또는 'performance' (수익률순)
  */
-export async function fetchDiscoveries(limit: number = 10): Promise<DiscoveryItem[]> {
+export async function fetchDiscoveries(
+  limit: number = 10,
+  sortBy: 'updated_at' | 'performance' = 'updated_at'
+): Promise<DiscoveryItem[]> {
   try {
-    const response = await fetch(`${PY_API_BASE}/api/discoveries?limit=${limit}`);
+    const response = await fetch(`${PY_API_BASE}/api/discoveries?limit=${limit}&sort_by=${sortBy}`);
 
     if (!response.ok) {
       console.warn(`[PythonAPI] Discoveries fetch failed: ${response.status}`);

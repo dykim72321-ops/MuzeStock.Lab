@@ -29,15 +29,17 @@ class DBManager:
             print(f"❌ DB Upsert Error: {e}")
             return None
 
-    def get_latest_discoveries(self, limit=10):
+    def get_latest_discoveries(self, limit=10, sort_by="updated_at"):
         """
         최근 발견된 종목 리스트 조회
+        sort_by: "updated_at" (최신순) 또는 "performance" (백테스트 수익률순)
         """
         try:
+            order_column = "backtest_return" if sort_by == "performance" else "updated_at"
             response = (
                 self.supabase.table("daily_discovery")
                 .select("*")
-                .order("updated_at", desc=True)
+                .order(order_column, desc=True)
                 .limit(limit)
                 .execute()
             )

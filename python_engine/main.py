@@ -168,9 +168,9 @@ async def trigger_hunt(
 
 
 @app.get("/api/discoveries")
-def get_recent_discoveries(limit: int = 10):
-    """최근 발견된 종목 조회"""
-    data = db.get_latest_discoveries(limit)
+def get_recent_discoveries(limit: int = 10, sort_by: str = "updated_at"):
+    """최근 발견된 종목 조회 (sort_by: 'updated_at' 또는 'performance')"""
+    data = db.get_latest_discoveries(limit, sort_by)
     return data
 
 
