@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, Zap } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Skeleton } from '../ui/Skeleton';
@@ -11,7 +11,6 @@ import clsx from 'clsx';
 export const MorningBrief = () => {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -19,14 +18,13 @@ export const MorningBrief = () => {
         setLoading(true);
         const data = await getTopStocks();
         if (data.length > 0) {
-          setStocks(data.slice(0, 3));
-          setLastUpdated(new Date());
+          setStocks(data.slice(0, 4)); // Get 4 for the row
         } else {
-          setStocks(MOCK_STOCKS.slice(0, 3));
+          setStocks(MOCK_STOCKS.slice(0, 4));
         }
       } catch (err) {
         console.error('Failed to fetch stocks:', err);
-        setStocks(MOCK_STOCKS.slice(0, 3));
+        setStocks(MOCK_STOCKS.slice(0, 4));
       } finally {
         setLoading(false);
       }
@@ -35,66 +33,46 @@ export const MorningBrief = () => {
     fetchData();
   }, []);
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-  };
+  if (loading) {
+    return (
+      <Card className="p-5 bg-gradient-to-r from-indigo-900/20 to-slate-900/40">
+        <Skeleton className="h-10 w-full" />
+      </Card>
+    );
+  }
 
   return (
-    <Card className="p-5 flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Zap className="w-5 h-5 text-indigo-400 fill-indigo-400/20" />
-          <h2 className="text-lg font-bold text-white tracking-tight">Morning Brief</h2>
+    <Card className="p-5 bg-gradient-to-r from-indigo-900/20 to-slate-900/40 border-indigo-500/20 overflow-hidden">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h3 className="text-[10px] font-bold text-indigo-400 uppercase tracking-[0.2em] mb-1">Morning Insight</h3>
+          <p className="text-white font-medium text-sm">오늘의 AI 스캔 결과, 기술적 모멘텀이 강한 종목들이 포착되었습니다.</p>
         </div>
-        {lastUpdated && !loading && (
-          <span className="text-[10px] font-mono text-slate-500 uppercase">{formatTime(lastUpdated)} UPDATED</span>
-        )}
-      </div>
-
-      {loading ? (
-        <div className="space-y-3 py-2">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-        </div>
-      ) : (
-        <div className="space-y-3 flex-1">
-          {stocks.map((stock) => (
+        
+        {/* 요약된 티커 리스트 */}
+        <div className="flex flex-wrap gap-2">
+          {stocks.map(stock => (
             <Link 
-              key={stock.id}
+              key={stock.ticker} 
               to={`/analysis/${stock.ticker}`}
-              className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-indigo-500/30 transition-all group"
+              className="px-3 py-1.5 bg-white/5 rounded-full border border-white/10 flex items-center gap-2 hover:bg-white/10 hover:border-indigo-500/30 transition-all group"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-indigo-400 text-xs border border-slate-700">
-                  {stock.ticker[0]}
-                </div>
-                <div>
-                  <div className="font-bold text-white text-sm font-mono">{stock.ticker}</div>
-                  <div className="text-[10px] text-slate-500 truncate max-w-[80px]">{stock.name}</div>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-sm font-bold text-white font-mono">${stock.price.toFixed(2)}</div>
-                <div className={clsx(
-                  "text-[10px] font-bold font-mono",
-                  stock.changePercent >= 0 ? "text-emerald-400" : "text-rose-400"
-                )}>
-                  {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
-                </div>
-              </div>
+              <span className="font-mono font-bold text-white text-xs">{stock.ticker}</span>
+              <span className={clsx(
+                "text-[10px] font-bold font-mono",
+                stock.changePercent >= 0 ? "text-emerald-400" : "text-rose-400"
+              )}>
+                {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(1)}%
+              </span>
             </Link>
           ))}
+          <Link 
+            to="/scanner" 
+            className="w-8 h-8 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all"
+          >
+            <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
-      )}
-
-      <div className="mt-4 pt-4 border-t border-white/5">
-        <Link 
-          to="/scanner"
-          className="flex items-center justify-center gap-2 w-full py-2.5 text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
-        >
-          전체 스캔 결과 보기 <ArrowRight className="w-3 h-3" />
-        </Link>
       </div>
     </Card>
   );
