@@ -1,96 +1,74 @@
 ---
-description: 오늘의 추천 종목 생성 워크플로우 (Penny Stock Scanner)
+description: 오늘의 추천 종목 생성 워크플로우 (Quant Hybrid Pipeline)
 ---
 
-# 🧬 오늘의 추천 종목 워크플로우
+# 🧬 퀀트 하이브리드 추천 종목 워크플로우
 
 ## 개요
 
-MuzeStock.Lab의 "오늘의 추천 종목"이 어떻게 생성되는지 단계별로 정의합니다.
+MuzeStock.Lab의 "오늘의 추천 종목"은 단순한 기술적 지표를 넘어, **파이썬 퀀트
+엔진의 자동 백테스팅(Simulation)**을 통해 검증된 종목만을 선별합니다.
 
 ---
 
-## 1단계: 스캐너 대상 종목 정의
+## 1단계: 전략별 종목 발굴 (Discovery)
 
-**파일**: `src/services/stockService.ts`
+**파일**: `python_engine/scraper.py`
 
-```typescript
-export const WATCHLIST_TICKERS = [
-  'SNDL', 'MULN', 'IDEX', 'ZOM', 'FCEL', ...  // Sub $1-$2
-  'CLOV', 'BB', 'AMC', 'GME', ...             // Volatile
-  'MARA', 'RIOT', 'HUT', 'BITF', ...          // Crypto Miners
-];
-```
-
-> 28개의 "페니 스탁" 및 고변동성 종목이 고정 리스트로 지정되어 있음.
+1. 파이썬 엔진이 매일 정해진 전략(예: RSI 과매도, 골든크로스 등)에 맞는 종목을
+   전 세계 시장에서 사냥합니다.
+2. 수집 대상: 가격, 등락률, 거래량 등 기본 데이터 수집.
 
 ---
 
-## 2단계: 실시간 시세 수집 (Finnhub API)
+## 2단계: 자동 시뮬레이션 검증 (Verify)
 
-**함수**: `get-market-scanner` Edge Function
+**함수**: `scraper.py` 내 `run_backtest_for_ticker`
 
-1. 프론트엔드가 `getTopStocks()` 호출
-2. Supabase Edge Function `get-market-scanner` 트리거
-3. Finnhub API로 28개 종목의 실시간 시세 수집 (5개씩 배치 처리)
-4. 응답 데이터: `{ ticker, price, changePercent, volume }`
-
----
-
-## 3단계: DNA 점수 계산 (Heuristic)
-
-**함수**: `calculateDnaScore(price, change, volume)`
-
-| 조건            | 가산점  |
-| --------------- | ------- |
-| 가격 < $1       | **+30** |
-| 가격 < $3       | +20     |
-| 가격 > $20      | -20     |
-| 등락률 > 15%    | **+20** |
-| 거래량 > 5000만 | **+20** |
-
-> 기본 50점에서 시작하여 조건에 따라 가감.
+1. 발굴된 모든 종목에 대해 즉시 **과거 1년 RSI 전략 백테스트**를 실행합니다.
+2. 결과 데이터: `backtest_return` (전략 수익률), `benchmark_return` (시장
+   수익률).
+3. 검증 기준: 전략 수익률이 시장 수익률(Buy & Hold)을 상회하는지 확인.
 
 ---
 
-## 4단계: 정렬 및 표시
+## 3단계: 데이터베이스 저장 및 랭킹 (Rank)
 
-```typescript
-return stocks.sort((a, b) => b.dnaScore - a.dnaScore);
-```
+**테이블**: `daily_discovery` (Supabase)
 
-> DNA 점수가 높은 순서대로 UI에 표시됨.
+1. 검증된 수익률 데이터를 포함하여 DB에 저장합니다.
+2. 프론트엔드에서는 `sort_by=performance` 파라미터를 통해 **수익률이 높은
+   순서**대로 정렬합니다.
 
 ---
 
-## 5단계: 상세 분석 (On-Demand)
+## 4단계: 최종 검증 및 관리 (Pipeline)
 
-사용자가 종목 클릭 시:
-
-1. `get-stock-quote` (Alpha Vantage) → 재무 데이터 수집
-2. `analyze-stock` (OpenAI GPT-4o-mini) → AI 분석 리포트 생성
+1. **Discovery**: 사용자가 실시간 수익률 순위 확인.
+2. **Simulation**: 사용자가 직접 타임머신 시뮬레이터를 통해 디테일한 차트 및 RSI
+   지표 재확인.
+3. **Watchlist**: 검증 완료된 종목을 최종 리스트에 등록하고 투자
+   단계(관찰/보유/종료) 관리.
 
 ---
 
 ## 데이터 흐름도
 
 ```
-[WATCHLIST_TICKERS]
+[Python Engine] ─(발굴)→ [Target Stocks]
        ↓
-[Finnhub API] ─(실시간 시세)→ [get-market-scanner]
+[Auto Simulator] ─(1Y Backtest)→ [Performance Data]
        ↓
-[calculateDnaScore] ─(점수 계산)→ [정렬]
+[Supabase DB] ─(API)→ [UI: Discovery Dashboard]
        ↓
-[UI: 추천 종목 리스트]
-       ↓ (클릭 시)
-[Alpha Vantage + OpenAI] → [상세 분석 페이지]
+[User Action] ─(Manual Simulation)→ [Watchlist Management]
 ```
 
 ---
 
 ## 관련 파일
 
-- `src/services/stockService.ts`: 스캐너 로직
-- `supabase/functions/get-market-scanner/index.ts`: Finnhub API 호출
-- `supabase/functions/get-stock-quote/index.ts`: 상세 데이터 (Alpha Vantage)
-- `supabase/functions/analyze-stock/index.ts`: AI 분석
+- `python_engine/scraper.py`: 수집 및 자동 검증 엔진
+- `python_engine/main.py`: 백테스트 및 데이터 제공 API
+- `src/services/pythonApiService.ts`: 프론트엔드 API 연동
+- `src/components/dashboard/DailyDiscoveries.tsx`: 추천 종목 대시보드 UI
