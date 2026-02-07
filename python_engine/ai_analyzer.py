@@ -46,14 +46,12 @@ Instructions:
                 model="gpt-4o-mini",  # 가성비 모델 사용
                 messages=[
                     {
-                        {
-                            "role": "system",
-                            "content": "You are a professional stock analyst specializing in penny stocks and technical analysis.",
-                        }
+                        "role": "system",
+                        "content": "You are a professional stock analyst specializing in penny stocks and technical analysis.",
                     },
-                    {{"role": "user", "content": prompt}},
+                    {"role": "user", "content": prompt},
                 ],
-                response_format={{"type": "json_object"}},
+                response_format={"type": "json_object"},
             )
 
             import json
@@ -62,25 +60,21 @@ Instructions:
         except Exception as e:
             print(f"❌ AI Analysis Error for {ticker}: {e}")
             return {
-                {
-                    "dna_score": 50,
-                    "bull_case": "Error during analysis",
-                    "bear_case": "Error during analysis",
-                    "reasoning_ko": "AI 분석 중 오류가 발생했습니다.",
-                }
+                "dna_score": 50,
+                "bull_case": "Error during analysis",
+                "bear_case": "Error during analysis",
+                "reasoning_ko": "AI 분석 중 오류가 발생했습니다.",
             }
 
 
 if __name__ == "__main__":
     analyzer = AIAnalyzer()
     sample_context = {
-        {
-            "ticker": "TSLA",
-            "price": 250.0,
-            "change": "+2.5%",
-            "indicators": "RSI 65, MACD Bullish Cross",
-            "news": ["Tesla reports record deliveries"],
-        }
+        "ticker": "TSLA",
+        "price": 250.0,
+        "change": "+2.5%",
+        "indicators": "RSI 65, MACD Bullish Cross",
+        "news": ["Tesla reports record deliveries"],
     }
     result = analyzer.analyze_stock(sample_context)
     print(f"✅ AI Analysis for TSLA: {result}")
