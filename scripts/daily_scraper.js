@@ -1,8 +1,16 @@
 // scripts/daily_scraper.js
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Load .env.local for local development (GitHub Actions uses env vars directly)
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
+
 import { chromium } from 'playwright';
 import { createClient } from '@supabase/supabase-js';
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
+const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 // 1. Supabase Connection
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -155,21 +163,13 @@ async function scrapeFinviz() {
             aiAnalysis = await analyzeWithAI(stock, yahooData);
         }
 
-        // 3. Save to Supabase
+        // 3. Save to Supabase (using actual schema columns only)
         const upsertData = {
             ticker: stock.ticker,
             sector: stock.sector,
             price: yahooData?.price || 0,
             volume: yahooData?.volume?.toString() || '0',
             change: yahooData?.change ? `${yahooData.change.toFixed(2)}%` : '0%',
-            
-            // AI Fields
-            dna_score: aiAnalysis?.dnaScore || 0,
-            ai_summary: aiAnalysis?.matchReasoning?.join('\n') || 'AI Analysis Unavailable',
-            risk_level: aiAnalysis?.riskLevel || 'Unknown',
-            
-            // Meta
-            last_discovery_mode: mode.name,
             updated_at: new Date().toISOString()
         };
 
