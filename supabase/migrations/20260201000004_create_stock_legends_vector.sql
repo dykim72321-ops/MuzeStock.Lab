@@ -14,9 +14,8 @@ create table if not exists public.stock_legends (
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- Index for vector similarity search
-create index on public.stock_legends using ivfflat (embedding vector_cosine_ops)
-with (lists = 100);
+-- Index for vector similarity search (using HNSW for better performance and memory efficiency)
+create index on public.stock_legends using hnsw (embedding vector_cosine_ops);
 
 -- Search function for cosine similarity
 create or replace function match_stock_patterns (

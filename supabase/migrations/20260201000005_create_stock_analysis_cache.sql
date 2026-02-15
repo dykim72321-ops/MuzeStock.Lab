@@ -13,7 +13,10 @@ create index if not exists idx_stock_analysis_cache_ticker on public.stock_analy
 alter table public.stock_analysis_cache enable row level security;
 
 -- Policies
+DROP POLICY IF EXISTS "Public read access" on public.stock_analysis_cache;
 create policy "Public read access" on public.stock_analysis_cache for select using (true);
+
+DROP POLICY IF EXISTS "Service role insert/update" on public.stock_analysis_cache;
 create policy "Service role insert/update" on public.stock_analysis_cache for all using (true);
 
 -- Maintenance: Utility to delete old cache (Optional, can be triggered by Cron)
