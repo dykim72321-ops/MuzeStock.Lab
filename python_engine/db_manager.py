@@ -13,7 +13,7 @@ class DBManager:
 
         if not url or not key:
             raise ValueError("❌ Missing Supabase environment variables")
-            
+
         # Strip potential whitespace/newlines from GitHub Secrets
         url = url.strip()
         key = key.strip()
