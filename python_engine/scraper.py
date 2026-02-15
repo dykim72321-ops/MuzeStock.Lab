@@ -19,32 +19,32 @@ class FinvizHunter:
         day = datetime.now().weekday()  # 0: Mon, 6: Sun
         modes = [
             {
-                "name": "로켓 (급등주)",
-                "url": "https://finviz.com/screener.ashx?v=111&f=sh_price_1to5&o=-change",
+                "name": "🚀 모멘텀 폭발 (상승 추세 + 거래량)",
+                "url": "https://finviz.com/screener.ashx?v=111&f=ta_perf_52wup,ta_relvol_o1.5,ta_volatility_mo3&o=-change",
             },  # Mon
             {
-                "name": "전통의 강자 (거래량 상위)",
-                "url": "https://finviz.com/screener.ashx?v=111&f=sh_price_u1&o=-volume",
+                "name": "🏛️ 기관 매집 (기관 비중 10% 이상 + 거래량 상위)",
+                "url": "https://finviz.com/screener.ashx?v=111&f=sh_instown_o10,ta_relvol_o1&o=-volume",
             },  # Tue
             {
-                "name": "바닥 탈출 (과매도 반등)",
-                "url": "https://finviz.com/screener.ashx?v=111&f=sh_price_u5,ta_rsi_u30&o=-volume",
+                "name": "💎 세력 매집 (기관 & 내부자 동반 매수)",
+                "url": "https://finviz.com/screener.ashx?v=111&f=sh_insiderown_o5,sh_instown_o5&o=-volume",
             },  # Wed
             {
-                "name": "신고가 헌터 (20일 신고가)",
-                "url": "https://finviz.com/screener.ashx?v=111&f=sh_price_u5,ta_highlow20d_nh&o=-volume",
+                "name": "🔥 숏 스퀴즈 후보 (높은 숏 비중 + 반등 시그널)",
+                "url": "https://finviz.com/screener.ashx?v=111&f=sh_short_o15,ta_rsi_u40&o=-volume",
             },  # Thu
             {
-                "name": "세력 매집 (기관 관심주)",
-                "url": "https://finviz.com/screener.ashx?v=111&f=sh_price_u5,sh_instown_o10&o=-volume",
+                "name": "🌟 저평가 성장주 (P/E 20이하 + 매출 성장)",
+                "url": "https://finviz.com/screener.ashx?v=111&f=fa_eps5y_pos,fa_pe_u20,fa_sales5y_pos&o=-volume",
             },  # Fri
             {
-                "name": "변동성 대장 (모 아니면 도)",
-                "url": "https://finviz.com/screener.ashx?v=111&f=sh_price_u5&o=-volatility",
+                "name": "🌊 과매도 반등 (RSI 바닥 탈출)",
+                "url": "https://finviz.com/screener.ashx?v=111&f=ta_rsi_u30,ta_relvol_o1&o=-volume",
             },  # Sat
             {
-                "name": "대포주 (유동성 폭발)",
-                "url": "https://finviz.com/screener.ashx?v=111&f=sh_price_u2,sh_relvol_o1.5&o=-volume",
+                "name": "🎯 유동성 대장 (Rel Vol 2.0 이상 조용한 매집)",
+                "url": "https://finviz.com/screener.ashx?v=111&f=ta_relvol_o2,ta_volatility_mo2&o=-volume",
             },  # Sun
         ]
         return modes[day]

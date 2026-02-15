@@ -20,7 +20,8 @@ class AIAnalyzer:
         ticker = stock_context.get("ticker", "UNKNOWN")
 
         prompt = f"""
-Analyze the following stock data for {ticker} and provide a professional investment summary.
+Analyze the following stock data for {ticker} and identify its "Multi-bagger Potential".
+Look for patterns of unusual accumulation, institutional interest, and technical setups that precede exponential growth.
 
 Context:
 - Price: ${stock_context.get('price')}
@@ -29,15 +30,18 @@ Context:
 - Recent News: {stock_context.get('news', 'No recent news')}
 
 Instructions:
-1. Provide a concise Bull Case and Bear Case.
-2. Assign a DNA Score (0-100) based on your overall confidence in a technical breakout.
-3. Keep the "reasoning" section in Korean (한국어) for the user.
+1. Provide a professional Bull Case (focus on potential) and Bear Case (focus on risks).
+2. Assign a DNA Score (0-100):
+   - 80+: Strong potential for explosive growth.
+   - 60-79: Solid trend, but requires confirmation.
+   - Below 60: High risk or lack of clear momentum.
+3. reasoning_ko must be deep, professional, and explain WHY this stock has potential.
 4. Output Format (Strict JSON):
 {{
   "dna_score": 85,
-  "bull_case": "Summary of bull case",
-  "bear_case": "Summary of bear case",
-  "reasoning_ko": "한국어로 작성된 상세 근거"
+  "bull_case": "Summary focusing on growth potential",
+  "bear_case": "Summary focusing on critical risks",
+  "reasoning_ko": "잠재력의 근거와 향후 전망에 대한 전문적 분석"
 }}
 """
 
@@ -47,7 +51,7 @@ Instructions:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a professional stock analyst specializing in penny stocks and technical analysis.",
+                        "content": "You are a top-tier institutional stock analyst specializing in identifying high-growth potential stocks using a combination of fundamental and technical 'Confluence'.",
                     },
                     {"role": "user", "content": prompt},
                 ],

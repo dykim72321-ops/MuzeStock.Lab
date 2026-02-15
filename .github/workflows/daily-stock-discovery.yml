@@ -24,30 +24,19 @@ jobs:
           npm ci
           npm install -g ts-node typescript
       
-      - name: Install Playwright browsers
-        run: |
-          npx playwright install --with-deps chromium
-          npx playwright --version
-      
-      - name: Verify environment variables
-        run: |
-          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
-            echo "❌ Required environment variables are missing"
-            echo "VITE_SUPABASE_URL exists: ${{ secrets.VITE_SUPABASE_URL != '' }}"
-            echo "SUPABASE_SERVICE_ROLE_KEY exists: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}"
-            exit 1
-          fi
-          echo "✅ Environment variables are set"
+      - name: Run Potential Stock Discovery
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          VITE_FINNHUB_API_KEY: ${{ secrets.VITE_FINNHUB_API_KEY }}
+        run: |
+          cd python_engine
+          python3 -m pip install -r requirements.txt
+          python3 scraper.py
       
-      - name: Run Finviz Hunter
-        env:
-          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          DEBUG: pw:browser
-        run: npx ts-node scripts/finviz-hunter.ts
+      - name: Discovery Summary
+        run: echo "🚀 Potential Stock Discovery Engine 실행 완료!"
       
       - name: Notify on failure
         if: failure()
