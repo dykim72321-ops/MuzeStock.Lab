@@ -29,6 +29,8 @@ export interface DiscoveryItem {
   change: string;
   dna_score: number;
   ai_summary: string;
+  pop_probability?: number;
+  risk_level?: string;
   backtest_return: number | null;
   updated_at: string;
   created_at: string;

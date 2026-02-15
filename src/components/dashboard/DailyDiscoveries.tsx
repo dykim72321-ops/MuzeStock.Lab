@@ -4,9 +4,11 @@ import { fetchDiscoveries, fetchBacktestData, type DiscoveryItem } from '../../s
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Link } from 'react-router-dom';
-import { Zap, TrendingUp, ArrowUpDown, Loader2, Target, List, Verified } from 'lucide-react';
+import { Zap, TrendingUp, ArrowUpDown, Loader2, List, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 import { AddToWatchlistBtn } from '../ui/AddToWatchlistBtn';
+
+import { AnalysisResultCard } from '../ui/AnalysisResultCard';
 
 interface DailyDiscoveriesProps {
   limit?: number;
@@ -32,7 +34,7 @@ export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
     return (
       <Card className={clsx("p-6", className)}>
         <div className="flex items-center gap-2 mb-4">
-          <h3 className="text-lg font-bold text-white">최적의 투자 기회 탐색 중...</h3>
+          <h3 className="text-lg font-bold text-white uppercase sm:tracking-tight">최적의 투자 기회 탐색 중...</h3>
         </div>
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
@@ -46,7 +48,7 @@ export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
   if (error || !discoveries || discoveries.length === 0) {
     return (
       <Card className={clsx("p-6", className)}>
-        <div className="flex items-center gap-2 text-slate-400">
+        <div className="flex items-center gap-2 text-slate-400 font-medium">
           <span>현재 분석된 고효율 종목이 없습니다. 새로운 스캔을 시작해 주세요.</span>
         </div>
       </Card>
@@ -54,42 +56,42 @@ export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
   }
 
   return (
-    <Card className={clsx("p-6 shadow-2xl border-slate-800", className)}>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <h3 className="text-lg font-bold text-white uppercase tracking-tight">AI 정밀 분석 결과 (Top Picks)</h3>
-          <Badge variant="neutral" className="bg-slate-800 text-slate-400 border-slate-700 font-mono tracking-tighter">
+    <Card className={clsx("p-6 shadow-2xl border-slate-800 bg-slate-900/40", className)}>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <h3 className="text-xl font-black text-white uppercase tracking-tighter">AI 정밀 분석 결과 (Top Picks)</h3>
+          <Badge variant="neutral" className="bg-white/5 text-slate-500 border-white/5 font-mono tracking-tighter px-2">
             {discoveries.length} GEMS FOUND
           </Badge>
         </div>
       </div>
 
-      <div className="mb-8">
+      <div className="mb-10">
         <TopPickHero item={discoveries[0]} />
       </div>
 
-      <div className="flex items-center justify-between mb-4 mt-8 pt-6 border-t border-slate-800">
-        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-          <List className="w-3.5 h-3.5" />
+      <div className="flex items-center justify-between mb-6 mt-10 pt-8 border-t border-white/5">
+        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+          <List className="w-4 h-4" />
           전체 발굴 리스트
         </h4>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setSortMode(sortMode === 'updated_at' ? 'performance' : 'updated_at')}
             className={clsx(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all shadow-sm uppercase tracking-wider",
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black transition-all shadow-sm uppercase tracking-widest border",
               sortMode === 'performance'
-                ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30"
-                : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
+                ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                : "bg-white/5 text-slate-500 hover:text-white border-white/5"
             )}
           >
             <ArrowUpDown className="w-3 h-3" />
-            {sortMode === 'performance' ? 'BY Performance' : 'BY RECENT'}
+            {sortMode === 'performance' ? 'BEST ROI' : 'NEWEST'}
           </button>
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {discoveries.map((item, index) => (
           <DiscoveryCard key={item.id} item={item} rank={index + 1} />
         ))}
@@ -99,67 +101,35 @@ export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
 };
 
 const TopPickHero: React.FC<{ item: DiscoveryItem }> = ({ item }) => {
+  // Parse ai_summary into points
+  const points = item.ai_summary ? item.ai_summary.split(';').map(p => p.trim()) : [];
+  const bullPoints = points.length > 0 ? points : ["No bull thesis points provided."];
+
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-900/40 via-slate-900 to-slate-905 border border-indigo-500/30 p-6 shadow-2xl shadow-indigo-500/10 group">
-      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-700">
-        <Target className="w-24 h-24 text-indigo-400" />
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 px-1">
+        <Badge variant="primary" className="bg-indigo-600 text-white border-none shadow-lg shadow-indigo-600/30 py-1.5 px-3 text-[10px] font-black tracking-widest uppercase flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5" />
+          MASTER ALGORITHM'S PICK
+        </Badge>
+        {item.backtest_return !== null && (
+          <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1.5 ml-2">
+            <TrendingUp className="w-3.5 h-3.5" />
+            Confirmed ROI: {item.backtest_return.toFixed(1)}%
+          </div>
+        )}
       </div>
 
-      <div className="flex flex-col gap-5 relative z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col gap-1">
-              <Badge variant="primary" className="bg-indigo-500 text-white border-none shadow-lg shadow-indigo-500/40 py-1 flex items-center gap-1 w-fit">
-                <Verified className="w-3 h-3" />
-                SIMULATOR'S CHOICE
-              </Badge>
-            </div>
-            <span className="text-[10px] text-indigo-300 font-bold uppercase tracking-widest font-mono opacity-60">Math Verified</span>
-          </div>
-          <AddToWatchlistBtn ticker={item.ticker} variant="icon" className="bg-white/5 border-white/10 hover:bg-white/10" />
-        </div>
-
-        <div className="flex items-end justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <h2 className="text-5xl font-black text-white font-mono tracking-tighter group-hover:text-indigo-400 transition-colors">{item.ticker}</h2>
-              <div className="px-2 py-1 rounded bg-slate-800/80 text-slate-400 text-[10px] font-bold uppercase border border-white/5">{item.sector}</div>
-            </div>
-            <p className="text-sm text-slate-400 font-medium line-clamp-1 opacity-80 italic max-w-md">
-              "데이터 시뮬레이션 결과, 시장 지수 대비 <span className="text-emerald-400 font-bold">압도적인 수익 방어율</span>을 증명했습니다."
-            </p>
-          </div>
-
-          <div className="text-right flex flex-col items-end">
-            <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">1Y STRATEGY RETURN</div>
-            <div className={clsx(
-              "text-4xl font-black font-mono leading-none tracking-tighter",
-              (item.backtest_return || 0) >= 0 ? "text-emerald-400" : "text-rose-400"
-            )}>
-              {item.backtest_return !== null ? `${item.backtest_return >= 0 ? '+' : ''}${item.backtest_return.toFixed(1)}%` : 'TBD'}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3 pt-2">
-          <div className="bg-white/5 rounded-xl p-4 border border-white/5 backdrop-blur-sm">
-            <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">DNA Score</div>
-            <div className="text-2xl font-black text-white font-mono">{item.dna_score}</div>
-          </div>
-          <div className="bg-white/5 rounded-xl p-4 border border-white/5 backdrop-blur-sm">
-            <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Live Price</div>
-            <div className="text-2xl font-black text-white font-mono">${item.price.toFixed(2)}</div>
-          </div>
-          <Link
-            to="/simulator"
-            className="group relative overflow-hidden bg-indigo-600 hover:bg-indigo-500 rounded-xl p-4 flex flex-col items-center justify-center transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
-          >
-            <div className="relative z-10 text-[10px] text-indigo-100 font-black uppercase tracking-widest mb-1">Verify Math</div>
-            <TrendingUp className="relative z-10 w-6 h-6 text-white group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
-          </Link>
-        </div>
-      </div>
+      <AnalysisResultCard
+        ticker={item.ticker}
+        dnaScore={item.dna_score}
+        popProbability={item.pop_probability}
+        riskLevel={item.risk_level}
+        bullPoints={bullPoints}
+        bearPoints={["Microcap volatility", "Regulatory uncertainty", "Market wide rotation"]}
+        aiSummary={item.ai_summary}
+        className="shadow-2xl shadow-indigo-500/10"
+      />
     </div>
   );
 };
