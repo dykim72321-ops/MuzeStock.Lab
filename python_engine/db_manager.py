@@ -10,14 +10,14 @@ class DBManager:
     def __init__(self):
         url = os.getenv("SUPABASE_URL") or os.getenv("VITE_SUPABASE_URL")
         key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        
+
         if not url or not key:
             raise ValueError("❌ Missing Supabase environment variables")
             
         # Strip potential whitespace/newlines from GitHub Secrets
         url = url.strip()
         key = key.strip()
-        
+
         self.supabase: Client = create_client(url, key)
 
     def upsert_discovery(self, data: dict):
