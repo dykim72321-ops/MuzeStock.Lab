@@ -24,7 +24,6 @@ async function masterAnalysis(ticker) {
     while (attempts <= maxAttempts) {
         try {
             // Step 1: Sensing (데이터 수집)
-            // *주의: smart-quote 함수가 배포되어 있어야 합니다. 없다면 목업 데이터를 사용하세요.
             console.log(`   📡 Sensing... (Attempt ${attempts + 1})`);
             const { data: quote, error: quoteError } = await supabase.functions.invoke('smart-quote', {
                 body: { ticker }
@@ -43,7 +42,7 @@ async function masterAnalysis(ticker) {
                     price: quote.price,
                     change: quote.changePercent,
                     volume: quote.volume,
-                    relativeVolume: quote.relativeVolume || 1.5, // 기본값
+                    relativeVolume: quote.relativeVolume || 1.5,
                     newsHeadlines: quote.newsHeadlines || [],
                     sector: quote.sector || 'Unknown'
                 }
@@ -51,7 +50,7 @@ async function masterAnalysis(ticker) {
 
             if (analysisError) throw new Error(`Synthesis failed: ${analysisError.message}`);
 
-            console.log(`      ✅ Result: DNA ${analysis.dnaScore} | Match: ${analysis.matchedLegend?.ticker}`);
+            console.log(`      ✅ Result: DNA ${analysis.dnaScore} | PopProb: ${analysis.popProbability}% | Match: ${analysis.matchedLegend?.ticker || 'None'}`);
 
             // Step 4: Memorize (저장)
             const { error: saveError } = await supabase
@@ -61,13 +60,17 @@ async function masterAnalysis(ticker) {
                     price: quote.price,
                     change: `${quote.changePercent}%`,
                     volume: quote.volume ? quote.volume.toString() : '0',
+                    dna_score: analysis.dnaScore,
+                    pop_probability: analysis.popProbability,
+                    risk_level: analysis.riskLevel,
+                    ai_summary: analysis.bullCase ? analysis.bullCase.join('; ') : '',
                     updated_at: new Date().toISOString()
                 });
 
             if (saveError) console.warn('      ⚠️ DB Save Warning:', saveError.message);
             else console.log('      💾 Analysis Saved.');
 
-            return analysis; // 성공 시 반환
+            return { ticker, ...analysis };
 
         } catch (err) {
             attempts++;
@@ -77,11 +80,29 @@ async function masterAnalysis(ticker) {
                 console.error(`   💀 Failed to analyze ${ticker} after retries.`);
                 return null;
             }
-            await sleep(2000 * attempts); // 2초, 4초 대기 후 재시도
+            await sleep(2000 * attempts);
         }
     }
 }
 
-// 실행
-const ticker = process.argv[2] || 'MULN';
-masterAnalysis(ticker);
+async function runBatch() {
+    const args = process.argv.slice(2);
+    const tickers = args.length > 0 ? args : ['MULN', 'SNDL', 'GME'];
+
+    console.log(`🚀 MuzeStock Master Algorithm: Starting batch analysis for ${tickers.length} tickers...`);
+
+    const results = [];
+    for (const ticker of tickers) {
+        const result = await masterAnalysis(ticker.toUpperCase());
+        if (result) results.push(result);
+    }
+
+    console.log('\n✨ Batch Analysis Result Summary:');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    results.forEach(r => {
+        console.log(`${r.ticker.padEnd(6)} | DNA: ${r.dnaScore.toString().padEnd(3)} | Pop: ${r.popProbability.toString().padEnd(3)}% | Match: ${r.matchedLegend?.ticker || 'N/A'}`);
+    });
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+}
+
+runBatch();

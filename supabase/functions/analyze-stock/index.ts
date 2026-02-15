@@ -118,15 +118,25 @@ serve(async (req) => {
     analysis.matchedLegend = matchedLegend;
 
     // 6. 결과 저장 (비동기 처리 안정화)
-    const saveTask = Promise.all([
-      supabase.from('stock_analysis_cache').insert({ ticker, analysis }),
-      supabase.from('ai_predictions').insert({
-        ticker,
-        dna_score: analysis.dnaScore,
-        predicted_direction: analysis.dnaScore >= 60 ? 'BULLISH' : 'BEARISH',
-        start_price: price
-      })
-    ]);
+    const saveTask = (async () => {
+      try {
+        const results = await Promise.all([
+          supabase.from('stock_analysis_cache').insert({ ticker, analysis }),
+          supabase.from('ai_predictions').insert({
+            ticker,
+            dna_score: analysis.dnaScore,
+            predicted_direction: analysis.dnaScore >= 60 ? 'BULLISH' : 'BEARISH',
+            start_price: price,
+            persona_used: 'AI_LAB_DEFAULT'
+          })
+        ]);
+        results.forEach((res, i) => {
+          if (res.error) console.error(`   ❌ DB Save Error [${i === 0 ? 'Cache' : 'Prediction'}]:`, res.error.message);
+        });
+      } catch (err: any) {
+        console.error("   ❌ Async Save Task Failed:", err.message);
+      }
+    })();
 
     // Edge Runtime 환경에 따라 처리
     if (typeof EdgeRuntime !== 'undefined') {
