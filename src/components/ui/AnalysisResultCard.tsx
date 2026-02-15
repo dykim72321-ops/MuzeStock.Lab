@@ -137,11 +137,15 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
                             <ShieldCheck className="w-4 h-4 text-emerald-500" />
                             <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Bull Thesis</span>
                         </div>
-                        {bullPoints.slice(0, 3).map((point, i) => (
-                            <p key={i} className="text-[11px] text-slate-400 leading-tight flex items-start gap-2">
-                                <span className="text-emerald-500 font-bold">•</span> {point}
-                            </p>
-                        ))}
+                        {bullPoints && bullPoints.length > 0 ? (
+                            bullPoints.slice(0, 3).map((point, i) => (
+                                <p key={i} className="text-[11px] text-slate-400 leading-tight flex items-start gap-2">
+                                    <span className="text-emerald-500 font-bold">•</span> {point}
+                                </p>
+                            ))
+                        ) : (
+                            <p className="text-[11px] text-slate-600 italic">No bullish signals detected.</p>
+                        )}
                     </div>
 
                     <div className="bg-rose-500/5 p-4 rounded-xl border border-rose-500/10 space-y-2">
@@ -149,11 +153,15 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
                             <AlertTriangle className="w-4 h-4 text-rose-500" />
                             <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Bear Risks</span>
                         </div>
-                        {bearPoints.slice(0, 3).map((point, i) => (
-                            <p key={i} className="text-[11px] text-slate-400 leading-tight flex items-start gap-2">
-                                <span className="text-rose-500 font-bold">•</span> {point}
-                            </p>
-                        ))}
+                        {bearPoints && bearPoints.length > 0 ? (
+                            bearPoints.slice(0, 3).map((point, i) => (
+                                <p key={i} className="text-[11px] text-slate-400 leading-tight flex items-start gap-2">
+                                    <span className="text-rose-500 font-bold">•</span> {point}
+                                </p>
+                            ))
+                        ) : (
+                            <p className="text-[11px] text-slate-600 italic">No significant risks identified.</p>
+                        )}
                     </div>
                 </div>
 

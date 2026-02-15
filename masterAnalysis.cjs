@@ -63,7 +63,11 @@ async function masterAnalysis(ticker) {
                     dna_score: analysis.dnaScore,
                     pop_probability: analysis.popProbability,
                     risk_level: analysis.riskLevel,
-                    ai_summary: analysis.bullCase ? analysis.bullCase.join('; ') : '',
+                    ai_summary: analysis.aiSummary || (analysis.bullCase ? analysis.bullCase.join('; ') : ''),
+                    matched_legend_ticker: analysis.matchedLegend?.ticker || 'None',
+                    legend_similarity: analysis.matchedLegend?.similarity || 0,
+                    bull_case: analysis.bullCase || [],
+                    bear_case: analysis.bearCase || [],
                     updated_at: new Date().toISOString()
                 });
 

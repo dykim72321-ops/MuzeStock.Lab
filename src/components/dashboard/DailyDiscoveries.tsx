@@ -101,10 +101,6 @@ export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
 };
 
 const TopPickHero: React.FC<{ item: DiscoveryItem }> = ({ item }) => {
-  // Parse ai_summary into points
-  const points = item.ai_summary ? item.ai_summary.split(';').map(p => p.trim()) : [];
-  const bullPoints = points.length > 0 ? points : ["No bull thesis points provided."];
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 px-1">
@@ -125,8 +121,12 @@ const TopPickHero: React.FC<{ item: DiscoveryItem }> = ({ item }) => {
         dnaScore={item.dna_score}
         popProbability={item.pop_probability}
         riskLevel={item.risk_level}
-        bullPoints={bullPoints}
-        bearPoints={["Microcap volatility", "Regulatory uncertainty", "Market wide rotation"]}
+        bullPoints={item.bull_case || []}
+        bearPoints={item.bear_case || []}
+        matchedLegend={item.matched_legend_ticker ? {
+          ticker: item.matched_legend_ticker,
+          similarity: item.legend_similarity || 0
+        } : undefined}
         aiSummary={item.ai_summary}
         className="shadow-2xl shadow-indigo-500/10"
       />

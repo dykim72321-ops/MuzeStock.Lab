@@ -3,7 +3,7 @@ import { DailyPicks } from '../components/dashboard/DailyPicks';
 import { MorningBrief } from '../components/dashboard/MorningBrief';
 import { BacktestChart } from '../components/dashboard/BacktestChart';
 import { WatchlistView } from '../components/dashboard/WatchlistView';
-import { PersonaPerformance } from '../components/dashboard/PersonaPerformance';
+import { PersonaLeaderboard } from '../components/dashboard/PersonaLeaderboard';
 
 export const Dashboard = () => {
   return (
@@ -18,13 +18,13 @@ export const Dashboard = () => {
             <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 text-[10px] font-bold tracking-tight">STEP 1</span>
             <h2 className="text-xl font-bold text-white tracking-tight">Market Discovery</h2>
           </div>
-          <DailyPicks /> 
+          <DailyPicks />
         </div>
 
         {/* 사이드: 관심 종목 및 성능 분석 */}
         <div className="xl:col-span-4 space-y-8">
           <WatchlistView />
-          <PersonaPerformance />
+          <PersonaLeaderboard />
         </div>
       </div>
 
@@ -34,7 +34,7 @@ export const Dashboard = () => {
           <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[10px] font-bold tracking-tight">STEP 5</span>
           <h2 className="text-xl font-bold text-white tracking-tight">Time Machine Simulator</h2>
         </div>
-        <BacktestChart ticker="AAPL" /> 
+        <BacktestChart ticker="AAPL" />
       </div>
     </div>
   );

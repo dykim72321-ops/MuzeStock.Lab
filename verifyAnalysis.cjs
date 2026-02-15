@@ -79,6 +79,7 @@ async function verifyPerformance() {
             results.push({
                 ticker: pred.ticker,
                 dna: pred.dna_score,
+                persona: pred.persona_used,
                 start: startPrice,
                 current: currentPrice,
                 roi: roi.toFixed(2),
@@ -90,17 +91,39 @@ async function verifyPerformance() {
         }
     }
 
-    // Final Report
-    console.log('\n━━━━━━ AI PERFORMANCE REPORT ━━━━━━');
-    console.log('TICKER | DNA | START  | NOW    | ROI%   | RESULT');
-    console.log('-------|-----|--------|--------|--------|-------');
-    results.forEach(r => {
-        console.log(`${r.ticker.padEnd(6)} | ${r.dna.toString().padEnd(3)} | ${r.start.toFixed(2).padEnd(6)} | ${r.current.toFixed(2).padEnd(6)} | ${r.roi.padStart(6)}% | ${r.status}`);
+    // Aggregation by Persona (New for Phase 6)
+    const personaStats = {};
+    results.forEach(res => {
+        const p = res.persona || 'AI_LAB_DEFAULT';
+        if (!personaStats[p]) personaStats[p] = { correct: 0, total: 0, totalRoi: 0 };
+        personaStats[p].total++;
+        if (res.status.includes('HIT')) personaStats[p].correct++;
+        personaStats[p].totalRoi += parseFloat(res.roi);
     });
 
+    console.log('\n🧠 [Persona Performance Update]');
+    for (const [persona, stats] of Object.entries(personaStats)) {
+        const hitRate = (stats.correct / stats.total) * 100;
+        const avgRoi = stats.totalRoi / stats.total;
+
+        console.log(`   🏆 ${persona.padEnd(20)} | Hit: ${hitRate.toFixed(1)}% | Avg ROI: ${avgRoi.toFixed(2)}%`);
+
+        const { error: pError } = await supabase
+            .from('persona_performance')
+            .upsert({
+                persona_name: persona,
+                total_predictions: stats.total,
+                correct_predictions: stats.correct,
+                avg_roi: avgRoi,
+                verified_at: new Date().toISOString()
+            }, { onConflict: 'persona_name' });
+
+        if (pError) console.warn(`   ⚠️ Persona sync failed for ${persona}:`, pError.message);
+    }
+
     const hitRate = results.length > 0 ? (results.filter(r => r.status.includes('HIT')).length / results.length * 100).toFixed(1) : 0;
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`Total Verified: ${results.length} | Hit Rate: ${hitRate}%`);
+    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`Total Verified: ${results.length} | Global Hit Rate: ${hitRate}%`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 }
 
