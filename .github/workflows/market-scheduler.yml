@@ -1,10 +1,10 @@
-name: Market Heartbeat
+name: MuzeStock Auto-Scanner
 
 on:
   schedule:
-    # 매일 한국 시간 오전 9시 (UTC 00:00)에 실행
-    - cron: '0 0 * * *'
-  workflow_dispatch: # 수동 실행 가능 옵션
+    # 평일(월~금) 한국 시간 밤 11시 (UTC 14:00) - 미국 장 시작 전
+    - cron: '0 14 * * 1-5'
+  workflow_dispatch:
 
 jobs:
   analyze-and-verify:
