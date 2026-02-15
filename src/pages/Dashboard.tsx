@@ -1,4 +1,4 @@
-// src/pages/Dashboard.tsx
+import { SystemStatus } from '../components/dashboard/SystemStatus';
 import { DailyPicks } from '../components/dashboard/DailyPicks';
 import { MorningBrief } from '../components/dashboard/MorningBrief';
 import { BacktestChart } from '../components/dashboard/BacktestChart';
@@ -8,6 +8,9 @@ import { PersonaLeaderboard } from '../components/dashboard/PersonaLeaderboard';
 export const Dashboard = () => {
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto animate-in fade-in duration-500 p-4 md:p-8">
+      {/* System Pulse & Status */}
+      <SystemStatus />
+
       {/* 요약: 이제 MorningBrief는 간결한 한 줄 형태입니다 */}
       <MorningBrief />
 
