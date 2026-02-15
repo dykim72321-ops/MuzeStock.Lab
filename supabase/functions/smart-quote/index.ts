@@ -29,19 +29,19 @@ async function getYahooSession() {
   }
 
   const userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
-  
+
   const cookieRes = await fetch('https://fc.yahoo.com', {
     headers: { 'User-Agent': userAgent },
     redirect: 'manual'
   });
-  
+
   const setCookie = cookieRes.headers.get('set-cookie');
   if (!setCookie) throw new Error('Failed to get Yahoo cookies');
 
   const crumbRes = await fetch('https://query1.finance.yahoo.com/v1/test/getcrumb', {
     headers: { 'Cookie': setCookie, 'User-Agent': userAgent }
   });
-  
+
   const crumb = await crumbRes.text();
   if (!crumb || crumb.length > 50) throw new Error('Failed to get Yahoo crumb');
 
@@ -52,11 +52,11 @@ async function getYahooSession() {
 // 1. Finnhub: Real-time price (fast, reliable)
 async function fetchFinnhubPrice(ticker: string) {
   if (!FINNHUB_API_KEY) return null;
-  
+
   try {
     const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_API_KEY}`);
     const data = await res.json();
-    
+
     if (data.c > 0) {
       console.log(`✅ [Finnhub] ${ticker}: $${data.c}`);
       return {
@@ -82,27 +82,28 @@ async function fetchYahooAnalyst(ticker: string) {
     const session = await getYahooSession();
     const modules = 'price,financialData,recommendationTrend,summaryDetail';
     const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=${modules}&crumb=${session.crumb}`;
-    
+
     const res = await fetch(url, {
       headers: {
         'Cookie': session.cookie,
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
       }
     });
-    
+
     if (!res.ok) return null;
-    
+
     const data = await res.json();
     const result = data?.quoteSummary?.result?.[0];
     if (!result) return null;
-    
+
     const financialData = result.financialData || {};
     const summaryDetail = result.summaryDetail || {};
     const price = result.price || {};
-    
+
     console.log(`✅ [Yahoo] ${ticker}: Target $${financialData.targetMeanPrice?.raw}`);
-    
+
     return {
+      price: price.regularMarketPrice?.raw || summaryDetail.previousClose?.raw || 0,
       targetPrice: financialData.targetMeanPrice?.raw || 0,
       targetHigh: financialData.targetHighPrice?.raw || 0,
       targetLow: financialData.targetLowPrice?.raw || 0,
@@ -128,24 +129,24 @@ async function fetchGoogleNews(ticker: string) {
   try {
     const query = encodeURIComponent(`${ticker} stock`);
     const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=en-US&gl=US&ceid=US:en`;
-    
+
     const res = await fetch(rssUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)' }
     });
-    
+
     if (!res.ok) return null;
-    
+
     const xml = await res.text();
-    
+
     // Simple XML parsing for titles (Deno doesn't have DOMParser natively)
     const titleMatches = xml.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>([^<]+)<\/title>/g) || [];
     const headlines = titleMatches
       .slice(1, 6) // Skip the first title (feed title), take next 5
       .map(t => t.replace(/<title>|<\/title>|<!\[CDATA\[|\]\]>/g, '').trim())
       .filter(h => h.length > 0);
-    
+
     console.log(`✅ [GoogleNews] ${ticker}: Found ${headlines.length} headlines`);
-    
+
     return { headlines, source: 'google_news' };
   } catch (e) {
     console.warn(`[GoogleNews] Failed for ${ticker}:`, e);
@@ -161,7 +162,7 @@ async function fetchAlphaFinancials(ticker: string, supabase: any) {
     .select('overview_data, cash_flow_data, updated_at')
     .eq('ticker', ticker)
     .single();
-  
+
   if (cached?.overview_data) {
     const age = Date.now() - new Date(cached.updated_at).getTime();
     if (age < FINANCIAL_CACHE_TTL) {
@@ -173,25 +174,25 @@ async function fetchAlphaFinancials(ticker: string, supabase: any) {
       };
     }
   }
-  
+
   if (!ALPHA_VANTAGE_API_KEY) return null;
-  
+
   try {
     const ovRes = await fetch(
       `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}`
     );
     const overview = await ovRes.json();
-    
+
     if (overview.Symbol) {
       console.log(`✅ [AlphaVantage] ${ticker}: PE ${overview.PERatio}`);
-      
+
       // Cache for 24 hours
       await supabase.from('stock_cache').upsert({
         ticker,
         overview_data: overview,
         updated_at: new Date().toISOString()
       }, { onConflict: 'ticker' });
-      
+
       return { overview, source: 'alphavantage' };
     }
   } catch (e) {
@@ -210,7 +211,7 @@ serve(async (req) => {
     if (!ticker) throw new Error('Ticker required');
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-    
+
     // Parallel fetch: Finnhub (price) + Yahoo (analyst) + Google News
     const [finnhubData, yahooData, newsData] = await Promise.all([
       fetchFinnhubPrice(ticker),
@@ -225,36 +226,36 @@ serve(async (req) => {
     }
 
     // Combine results
-    const price = finnhubData?.price || 0;
+    const price = finnhubData?.price || yahooData?.price || 0;
     const changePercent = finnhubData?.changePercent || 0;
-    
+
     // Calculate Relative Volume (key momentum indicator)
     const volume = yahooData?.volume || 0;
     const avgVolume = yahooData?.averageVolume10d || 0;
     const relativeVolume = avgVolume > 0 ? Math.round((volume / avgVolume) * 100) / 100 : 0;
-    
+
     console.log(`📊 [RelVol] ${ticker}: ${relativeVolume.toFixed(2)}x (${volume.toLocaleString()} / ${avgVolume.toLocaleString()})`);
-    
+
     // Calculate DNA Score with RelVol factor
     let dnaScore = 50;
     if (price > 0 && price < 1) dnaScore += 30;
     else if (price < 3) dnaScore += 20;
     if (changePercent > 15) dnaScore += 20;
     else if (changePercent > 5) dnaScore += 10;
-    
+
     // 🆕 Relative Volume bonus (key momentum signal)
     if (relativeVolume >= 3) dnaScore += 15;      // 3x+ = very strong momentum
     else if (relativeVolume >= 2) dnaScore += 10; // 2x+ = strong momentum
     else if (relativeVolume >= 1.5) dnaScore += 5; // 1.5x = mild interest
-    
+
     // Upside potential from Yahoo analyst data
     const upsidePotential = yahooData?.targetPrice && price > 0
       ? ((yahooData.targetPrice - price) / price) * 100
       : 0;
-    
+
     if (upsidePotential > 50) dnaScore += 10;
     else if (upsidePotential > 20) dnaScore += 5;
-    
+
     dnaScore = Math.min(100, Math.max(0, dnaScore));
 
     const result = {
