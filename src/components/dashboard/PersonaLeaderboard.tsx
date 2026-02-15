@@ -32,50 +32,45 @@ export const PersonaLeaderboard: React.FC = () => {
     if (!stats || stats.length === 0) return null;
 
     return (
-        <Card className="p-6 bg-slate-900/40 border-slate-800 shadow-xl overflow-hidden relative group">
-            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-                <Trophy className="w-20 h-20 text-indigo-400" />
-            </div>
-
-            <div className="flex items-center gap-2 mb-6 relative z-10">
-                <h3 className="text-lg font-black text-white uppercase tracking-tighter">AI Persona Leaderboard</h3>
-                <Badge variant="primary" className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 text-[9px]">
-                    REAL AUTHENTICITY
-                </Badge>
-            </div>
-
-            <div className="space-y-4 relative z-10">
+        <div className="h-full flex flex-col">
+            <div className="space-y-2 flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                 {stats.map((persona, index) => (
-                    <div key={persona.persona_name} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:border-indigo-500/20 transition-all">
+                    <div key={persona.persona_name} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-white/10 transition-all group">
                         <div className="flex items-center gap-3">
                             <div className={clsx(
-                                "w-6 h-6 rounded flex items-center justify-center text-[10px] font-black",
-                                index === 0 ? "bg-amber-500 text-black" : "bg-slate-800 text-slate-400"
+                                "w-6 h-6 rounded flex items-center justify-center text-[10px] font-black border",
+                                index === 0 ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
+                                    index === 1 ? "bg-slate-300/20 text-slate-300 border-slate-300/30" :
+                                        index === 2 ? "bg-orange-700/20 text-orange-400 border-orange-700/30" :
+                                            "bg-slate-800/50 text-slate-500 border-slate-700"
                             )}>
                                 {index + 1}
                             </div>
                             <div>
-                                <p className="text-xs font-bold text-white uppercase tracking-tight">{persona.persona_name.replace(/ \(.*\)/, '')}</p>
-                                <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-xs font-bold text-white uppercase tracking-tight group-hover:text-indigo-300 transition-colors">{persona.persona_name}</p>
+                                <div className="flex items-center gap-2">
                                     <span className="text-[9px] text-slate-500 flex items-center gap-1 font-mono">
-                                        <Target className="w-2.5 h-2.5" /> {persona.total_predictions} Predictions
+                                        <Target className="w-2.5 h-2.5" /> {persona.total_predictions} CALLS
                                     </span>
                                 </div>
                             </div>
                         </div>
 
                         <div className="text-right">
-                            <div className="text-sm font-black text-emerald-400 font-mono">{((persona.win_rate || 0) * 100).toFixed(1)}% HIT</div>
+                            <div className="text-sm font-black text-white font-mono flex items-center justify-end gap-1">
+                                {(persona.win_rate * 100).toFixed(0)}%
+                                <span className="text-[9px] text-slate-500 font-bold">WR</span>
+                            </div>
                             <div className={clsx(
                                 "text-[10px] font-bold font-mono",
-                                (persona.avg_roi || 0) >= 0 ? "text-indigo-400" : "text-rose-400"
+                                persona.avg_roi >= 0 ? "text-emerald-400" : "text-rose-400"
                             )}>
-                                {(persona.avg_roi || 0) >= 0 ? '+' : ''}{(persona.avg_roi || 0).toFixed(2)}% ROI
+                                {persona.avg_roi >= 0 ? '+' : ''}{persona.avg_roi.toFixed(1)}% ROI
                             </div>
                         </div>
                     </div>
                 ))}
             </div>
-        </Card>
+        </div>
     );
 };
