@@ -421,7 +421,9 @@ async def market_pulse_check():
                         # 스키마 불일치(PGRST204) 등의 에러를 로그만 찍고 엔진을 멈추지 않음
                         print(f"⚠️ DB Push Error (Realtime Signal): {db_err}")
                 else:
-                    print(f"⚠️ Supabase credentials missing (Pulse Engine). Pulse simulated: {payload}")
+                    print(
+                        f"⚠️ Supabase credentials missing (Pulse Engine). Pulse simulated: {payload}"
+                    )
 
         except Exception as e:
             print(f"❌ Pulse Engine Core Error: {e}")
