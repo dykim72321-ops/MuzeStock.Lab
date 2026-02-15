@@ -1,4 +1,7 @@
-require('dotenv').config({ path: '.env.local' });
+const fs = require('fs');
+if (fs.existsSync('.env.local')) {
+    require('dotenv').config({ path: '.env.local' });
+}
 const { createClient } = require('@supabase/supabase-js');
 
 // 1. 설정 확인
