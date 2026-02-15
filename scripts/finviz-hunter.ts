@@ -33,10 +33,13 @@ async function scrapeFinviz(): Promise<DiscoveredStock[]> {
   const url = 'https://finviz.com/screener.ashx?v=111&f=sh_price_u1&o=-volume';
   
   console.log('📡 Finviz 접속 중...');
-  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.goto(url, { 
+    waitUntil: 'networkidle',
+    timeout: 30000  // 30초로 증가 (CI 환경 고려)
+  });
   
   // 테이블 로드 대기
-  await page.waitForSelector('table.screener_table', { timeout: 10000 });
+  await page.waitForSelector('table.screener_table', { timeout: 20000 });  // 20초로 증가
   
   // 데이터 추출
   const stocks = await page.evaluate(() => {

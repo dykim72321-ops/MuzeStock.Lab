@@ -23,12 +23,28 @@ jobs:
         run: npm ci
       
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright --version
+      
+      - name: Verify environment variables
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "❌ Required environment variables are missing"
+            echo "SUPABASE_URL exists: ${{ secrets.SUPABASE_URL != '' }}"
+            echo "SUPABASE_SERVICE_ROLE_KEY exists: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}"
+            exit 1
+          fi
+          echo "✅ Environment variables are set"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       
       - name: Run Finviz Hunter
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DEBUG: pw:browser
         run: npx ts-node scripts/finviz-hunter.ts
       
       - name: Notify on failure
