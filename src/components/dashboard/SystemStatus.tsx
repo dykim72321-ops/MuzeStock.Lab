@@ -2,6 +2,8 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { Clock, ShieldCheck, Zap } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { ko } from 'date-fns/locale';
 
 export const SystemStatus: React.FC = () => {
     const { data: lastUpdate, isLoading } = useQuery({
