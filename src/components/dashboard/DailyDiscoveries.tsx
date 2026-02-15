@@ -4,7 +4,7 @@ import { fetchDiscoveries, fetchBacktestData, type DiscoveryItem } from '../../s
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Link } from 'react-router-dom';
-import { Sparkles, AlertCircle, Zap, TrendingUp, ArrowUpDown, Loader2, Target, List, Verified } from 'lucide-react';
+import { Zap, TrendingUp, ArrowUpDown, Loader2, Target, List, Verified } from 'lucide-react';
 import clsx from 'clsx';
 import { AddToWatchlistBtn } from '../ui/AddToWatchlistBtn';
 
@@ -15,9 +15,9 @@ interface DailyDiscoveriesProps {
 
 type SortMode = 'updated_at' | 'performance';
 
-export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({ 
-  limit = 10, 
-  className 
+export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
+  limit = 10,
+  className
 }) => {
   const [sortMode, setSortMode] = useState<SortMode>('performance');
 
@@ -32,8 +32,7 @@ export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
     return (
       <Card className={clsx("p-6", className)}>
         <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="w-5 h-5 text-indigo-400 animate-pulse" />
-          <h3 className="text-lg font-bold text-white">오늘의 보석 발굴 중...</h3>
+          <h3 className="text-lg font-bold text-white">최적의 투자 기회 탐색 중...</h3>
         </div>
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
@@ -48,8 +47,7 @@ export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
     return (
       <Card className={clsx("p-6", className)}>
         <div className="flex items-center gap-2 text-slate-400">
-          <AlertCircle className="w-5 h-5" />
-          <span>발견된 종목이 없습니다. 수집을 실행해 주세요.</span>
+          <span>현재 분석된 고효율 종목이 없습니다. 새로운 스캔을 시작해 주세요.</span>
         </div>
       </Card>
     );
@@ -59,14 +57,13 @@ export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
     <Card className={clsx("p-6 shadow-2xl border-slate-800", className)}>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <Target className="w-5 h-5 text-indigo-400" />
-          <h3 className="text-lg font-bold text-white uppercase tracking-tight">오늘의 퀀트 사냥 결과</h3>
+          <h3 className="text-lg font-bold text-white uppercase tracking-tight">AI 정밀 분석 결과 (Top Picks)</h3>
           <Badge variant="neutral" className="bg-slate-800 text-slate-400 border-slate-700 font-mono tracking-tighter">
             {discoveries.length} GEMS FOUND
           </Badge>
         </div>
       </div>
-        
+
       <div className="mb-8">
         <TopPickHero item={discoveries[0]} />
       </div>
@@ -81,8 +78,8 @@ export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
             onClick={() => setSortMode(sortMode === 'updated_at' ? 'performance' : 'updated_at')}
             className={clsx(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all shadow-sm uppercase tracking-wider",
-              sortMode === 'performance' 
-                ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30" 
+              sortMode === 'performance'
+                ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30"
                 : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
             )}
           >
@@ -107,7 +104,7 @@ const TopPickHero: React.FC<{ item: DiscoveryItem }> = ({ item }) => {
       <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-700">
         <Target className="w-24 h-24 text-indigo-400" />
       </div>
-      
+
       <div className="flex flex-col gap-5 relative z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -129,7 +126,7 @@ const TopPickHero: React.FC<{ item: DiscoveryItem }> = ({ item }) => {
               <div className="px-2 py-1 rounded bg-slate-800/80 text-slate-400 text-[10px] font-bold uppercase border border-white/5">{item.sector}</div>
             </div>
             <p className="text-sm text-slate-400 font-medium line-clamp-1 opacity-80 italic max-w-md">
-              "타임머신 시뮬레이션 결과 시장 지수 대비 <span className="text-emerald-400 font-bold">압도적인 수익 방어율</span>을 기록했습니다."
+              "데이터 시뮬레이션 결과, 시장 지수 대비 <span className="text-emerald-400 font-bold">압도적인 수익 방어율</span>을 증명했습니다."
             </p>
           </div>
 
@@ -153,13 +150,13 @@ const TopPickHero: React.FC<{ item: DiscoveryItem }> = ({ item }) => {
             <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Live Price</div>
             <div className="text-2xl font-black text-white font-mono">${item.price.toFixed(2)}</div>
           </div>
-          <Link 
-            to="/simulator" 
+          <Link
+            to="/simulator"
             className="group relative overflow-hidden bg-indigo-600 hover:bg-indigo-500 rounded-xl p-4 flex flex-col items-center justify-center transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
           >
-             <div className="relative z-10 text-[10px] text-indigo-100 font-black uppercase tracking-widest mb-1">Verify Math</div>
-             <TrendingUp className="relative z-10 w-6 h-6 text-white group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
+            <div className="relative z-10 text-[10px] text-indigo-100 font-black uppercase tracking-widest mb-1">Verify Math</div>
+            <TrendingUp className="relative z-10 w-6 h-6 text-white group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
           </Link>
         </div>
       </div>
@@ -169,7 +166,7 @@ const TopPickHero: React.FC<{ item: DiscoveryItem }> = ({ item }) => {
 
 const DiscoveryCard: React.FC<{ item: DiscoveryItem; rank: number }> = ({ item, rank }) => {
   const [backtestResult, setBacktestResult] = useState<number | null>(null);
-  
+
   const changeValue = parseFloat(item.change.replace('%', ''));
   const isPositive = changeValue >= 0;
 
@@ -204,7 +201,7 @@ const DiscoveryCard: React.FC<{ item: DiscoveryItem; rank: number }> = ({ item, 
       {/* Stock Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <Link 
+          <Link
             to={`/analysis/${item.ticker}`}
             className="font-bold text-white hover:text-indigo-400 transition-colors font-mono text-sm tracking-tight"
           >
@@ -225,13 +222,13 @@ const DiscoveryCard: React.FC<{ item: DiscoveryItem; rank: number }> = ({ item, 
           disabled={backtestMutation.isPending}
           className={clsx(
             "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black transition-all flex-shrink-0 uppercase tracking-wider",
-            backtestMutation.isPending 
+            backtestMutation.isPending
               ? "bg-slate-700 text-slate-400 cursor-wait"
               : backtestResult !== null
-              ? backtestResult >= 0 
-                ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30"
-                : "bg-rose-500/20 text-rose-400 ring-1 ring-rose-500/30"
-              : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 border border-white/5"
+                ? backtestResult >= 0
+                  ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30"
+                  : "bg-rose-500/20 text-rose-400 ring-1 ring-rose-500/30"
+                : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 border border-white/5"
           )}
         >
           {backtestMutation.isPending ? (
@@ -254,8 +251,8 @@ const DiscoveryCard: React.FC<{ item: DiscoveryItem; rank: number }> = ({ item, 
           <div className={clsx(
             "flex flex-col items-center justify-center px-1.5 py-1 rounded-lg flex-shrink-0 min-w-[45px] border",
             item.backtest_return >= 10 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-            item.backtest_return >= 0 ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" :
-            "bg-rose-500/10 text-rose-400 border-rose-500/20"
+              item.backtest_return >= 0 ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" :
+                "bg-rose-500/10 text-rose-400 border-rose-500/20"
           )}>
             <span className="text-[7px] uppercase font-black tracking-tighter opacity-50">MATH</span>
             <span className="text-[11px] font-mono font-bold leading-none">
@@ -276,9 +273,9 @@ const DiscoveryCard: React.FC<{ item: DiscoveryItem; rank: number }> = ({ item, 
         </div>
 
         {/* Add to Watchlist Button */}
-        <AddToWatchlistBtn 
-          ticker={item.ticker} 
-          variant="icon" 
+        <AddToWatchlistBtn
+          ticker={item.ticker}
+          variant="icon"
           className="bg-slate-800/50 border-white/5 hover:border-indigo-500/30 hover:bg-indigo-500/10"
         />
       </div>

@@ -411,18 +411,20 @@ async def market_pulse_check():
                 # 3. Supabase에 Push
                 if supabase:
                     try:
+                        # kelly_f 컬럼 누락 등 스키마 오류 발생 가능성 대비
                         supabase.table("realtime_signals").insert(payload).execute()
                         print(
                             f"📡 Pulse Sent: {ticker_symbol} RSI={payload['rsi']} "
                             f"MACD_Diff={payload['macd_diff']} ({payload['signal']} - {payload['strength']})"
                         )
                     except Exception as db_err:
-                        print(f"⚠️ DB Push Error: {db_err}")
+                        # 스키마 불일치(PGRST204) 등의 에러를 로그만 찍고 엔진을 멈추지 않음
+                        print(f"⚠️ DB Push Error (Realtime Signal): {db_err}")
                 else:
-                    print(f"⚠️ Supabase credentials missing. Pulse simulated: {payload}")
+                    print(f"⚠️ Supabase credentials missing (Pulse Engine). Pulse simulated: {payload}")
 
         except Exception as e:
-            print(f"❌ Pulse Error: {e}")
+            print(f"❌ Pulse Engine Core Error: {e}")
 
         await asyncio.sleep(10)  # 10초 대기
 

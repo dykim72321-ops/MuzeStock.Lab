@@ -5,12 +5,12 @@ import { Card } from '../ui/Card';
 import { StockCard } from './StockCard';
 import { HuntControl } from './HuntControl';
 import { generateBriefingSummary, type Recommendation } from '../../services/recommendationService';
-import { 
-  requestNotificationPermission, 
-  getNotificationPermission, 
+import {
+  requestNotificationPermission,
+  getNotificationPermission,
   sendDailyPicksNotification,
   getNotificationSettings,
-  saveNotificationSettings 
+  saveNotificationSettings
 } from '../../services/notificationService';
 import { getTopStocks } from '../../services/stockService';
 import { fetchStockAnalysis, type AIAnalysis } from '../../services/analysisService';
@@ -46,26 +46,26 @@ export const DailyPicks = () => {
       try {
         // 1. 종목 리스트 가져오기
         const stocks = await getTopStocks();
-        
+
         // 2. 각 종목 AI 분석 (병렬 처리)
-        const analysisPromises = stocks.map(stock => 
+        const analysisPromises = stocks.map(stock =>
           fetchStockAnalysis(stock).catch(_err => {
             console.warn(`AI analysis failed for ${stock.ticker}, using heuristic`);
             return null;
           })
         );
-        
+
         const analyses = await Promise.all(analysisPromises);
-        
+
         // 3. 분석 결과와 종목 결합
         const combinedData = stocks.map((stock, i) => {
           const aiAnalysis = analyses[i];
           const finalScore = aiAnalysis?.dnaScore || stock.dnaScore;
-          const confidence = aiAnalysis 
+          const confidence = aiAnalysis
             ? getConfidenceLevel(aiAnalysis.dnaScore, aiAnalysis.riskLevel)
             : 'low';
           const topReason = aiAnalysis?.bullCase?.[0] || "기술적 지표 기반 추천";
-          
+
           return {
             stock,
             aiAnalysis,
@@ -74,22 +74,22 @@ export const DailyPicks = () => {
             finalScore
           };
         });
-        
+
         // 4. 최종 점수 기준 정렬
         combinedData.sort((a, b) => b.finalScore - a.finalScore);
-        
+
         // 5. 상위 5개만 선택하여 순위 부여
         const topPicks = combinedData.slice(0, 5).map((item, index) => ({
           stock: item.stock,
-          action: item.finalScore >= 70 ? 'buy' as const : 
-                  item.finalScore >= 50 ? 'watch' as const : 'avoid' as const,
+          action: item.finalScore >= 70 ? 'buy' as const :
+            item.finalScore >= 50 ? 'watch' as const : 'avoid' as const,
           confidence: item.confidence,
           reason: item.topReason,
           rank: index + 1,
           topReason: item.topReason,
           aiAnalysis: item.aiAnalysis
         }));
-        
+
         setRankedRecommendations(topPicks);
         setBriefingSummary(generateBriefingSummary(topPicks));
 
@@ -165,11 +165,11 @@ export const DailyPicks = () => {
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Market Discovery</h1>
           <p className="text-slate-400 mt-2">
-            수학적 필터링으로 발굴한 <span className="text-emerald-400 font-bold">$1 미만 급등 후보군</span>입니다. 
-            기술적 지표를 우선 확인하고, <span className="text-indigo-400 font-bold">AI 컨텍스트(참고용)</span>를 활용하세요.
+            MuzeStock 알고리즘이 발굴한 <span className="text-emerald-400 font-bold">수학적 확률 기반 급등 후보군</span>입니다.
+            DNA 점수와 기술적 지표를 대조하여 최적의 사냥감을 선별하세요.
           </p>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {/* 보기 전환 버튼 */}
           <div className="flex bg-slate-800 rounded-lg p-1">
@@ -194,13 +194,13 @@ export const DailyPicks = () => {
               <List className="w-4 h-4" />
             </button>
           </div>
-          
+
           <button
             onClick={notificationsEnabled ? handleDisableNotifications : handleEnableNotifications}
             className={clsx(
               'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-              notificationsEnabled 
-                ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' 
+              notificationsEnabled
+                ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
                 : 'bg-slate-800 text-slate-400 hover:text-white'
             )}
           >
@@ -239,7 +239,7 @@ export const DailyPicks = () => {
       ) : viewMode === 'card' ? (
         <div className="space-y-4">
           {rankedRecommendations.map((rec) => (
-            <StockCard 
+            <StockCard
               key={rec.stock.ticker}
               stock={rec.stock}
               action={rec.action}
@@ -268,8 +268,8 @@ export const DailyPicks = () => {
               </thead>
               <tbody>
                 {rankedRecommendations.map((rec) => (
-                  <tr 
-                    key={rec.stock.ticker} 
+                  <tr
+                    key={rec.stock.ticker}
                     className="border-b border-slate-800 hover:bg-slate-800/30 cursor-pointer"
                     onClick={() => navigate(`/analysis/${rec.stock.ticker}`)}
                   >
