@@ -3,7 +3,7 @@ if (fs.existsSync('.env.local')) {
     require('dotenv').config({ path: '.env.local' });
 }
 const { createClient } = require('@supabase/supabase-js');
-const { fetchMarketMovers } = require('./fetchMarketMovers.cjs');
+const { getMarketMovers } = require('./fetchMarketMovers.cjs');
 
 // 1. 설정 확인
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -19,7 +19,6 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // 유틸리티: 대기 함수
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// 2. 메인 실행 로직
 async function masterAnalysis(ticker) {
     console.log(`\n🧠 [Master Algorithm] ${ticker} 분석 시작...`);
 
@@ -58,7 +57,7 @@ async function masterAnalysis(ticker) {
             console.log(`      ✅ Result: DNA ${analysis.dnaScore} | PopProb: ${analysis.popProbability}% | Match: ${analysis.matchedLegend?.ticker || 'None'}`);
 
             // Step 4: Filtering & Memorize (저장)
-            // DNA Score 60점 이상만 저장 (Smart Filtering)
+            // DNA Score 60점 이상만 저장 (Smart Filtering - DB 용량 절약)
             if (analysis.dnaScore >= 60) {
                 const { error: saveError } = await supabase
                     .from('daily_discovery')
@@ -101,8 +100,8 @@ async function masterAnalysis(ticker) {
 
 async function runBatch() {
     const args = process.argv.slice(2);
-    // 인자가 있으면 그 종목만, 없으면 핫한 종목 스캔
-    let tickers = args.length > 0 ? args : await fetchMarketMovers();
+    // 인자가 있으면 그 종목만, 없으면 핫한 종목 스캔 (Top 100)
+    let tickers = args.length > 0 ? args : await getMarketMovers();
 
     console.log(`🚀 MuzeStock Master Algorithm: Starting Wide Area Scan for ${tickers.length} tickers...`);
 
@@ -111,7 +110,7 @@ async function runBatch() {
         const result = await masterAnalysis(ticker.toUpperCase());
         if (result && result.dnaScore >= 60) results.push(result);
 
-        // API Rate Limit Protection
+        // API 보호를 위한 2초 대기
         await sleep(2000);
     }
 

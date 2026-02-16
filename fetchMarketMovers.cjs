@@ -2,30 +2,36 @@ const YahooFinance = require('yahoo-finance2').default;
 const yahooFinance = new YahooFinance();
 
 /**
- * 시장에서 가장 뜨거운 종목(Trending & Most Active) Top 100을 가져옵니다.
+ * Yahoo Finance의 'Most Actives' 스크리너를 사용하여 상위 종목을 가져옵니다.
+ * @param {number} count 가져올 종목 수
  * @returns {Promise<string[]>} Ticker 리스트
  */
-async function fetchMarketMovers() {
-    console.log("🔥 시장에서 가장 뜨거운 Top 100 종목을 스캔 중...");
+async function getMarketMovers(count = 100) {
+    console.log(`📡 시장에서 가장 뜨거운 종목 ${count}개를 스캔 중입니다...`);
 
     try {
-        // 1. Trending Symbols (US 시장 기준)
-        const trending = await yahooFinance.trendingSymbols('US');
-        const trendingTickers = trending.quotes.map(q => q.symbol);
+        // Yahoo Finance의 'Most Actives' (거래량 상위) 스크리너 활용
+        const queryOptions = { scrIds: 'most_actives', count: count, region: 'US', lang: 'en-US' };
+        const results = await yahooFinance.screener(queryOptions);
 
-        // 2. 추가적인 추천 종목 (Volatility가 높은 인기 종목들)
-        const fixedTickers = ['MULN', 'SNDL', 'GME', 'TSLA', 'NVDA', 'AAPL', 'AMD', 'PLTR', 'SOFI', 'MARA', 'RIOT', 'COIN'];
+        if (!results || !results.quotes || results.quotes.length === 0) {
+            throw new Error("데이터를 가져오지 못했습니다.");
+        }
 
-        // 중복 제거 및 합치기
-        const combined = [...new Set([...trendingTickers, ...fixedTickers])];
+        // 심볼(Ticker)만 추출
+        const symbols = results.quotes.map(q => q.symbol);
 
-        console.log(`   ✅ ${combined.length}개의 종목을 발굴했습니다.`);
-        return combined;
+        console.log(`✅ 종목 리스트 확보 완료: ${symbols.length}개`);
+        return symbols;
+
     } catch (error) {
-        console.error("   ❌ 시장 종목 수집 중 오류 발생:", error.message);
-        // 오류 발생 시 최소한의 기본 리스트 반환
-        return ['MULN', 'SNDL', 'GME', 'TSLA', 'NVDA'];
+        console.error("❌ 야후 파이낸스 연동 실패. 기본 리스트(Top Tech)를 사용합니다.", error.message);
+        // API 실패 시 사용할 백업 리스트 (안전 장치)
+        return [
+            'TSLA', 'NVDA', 'AAPL', 'AMD', 'AMZN', 'MSFT', 'GOOGL', 'META', 'NFLX', 'INTC',
+            'PLTR', 'SOFI', 'MARA', 'COIN', 'LCID', 'RIVN', 'F', 'BAC', 'T', 'VZ'
+        ];
     }
 }
 
-module.exports = { fetchMarketMovers };
+module.exports = { getMarketMovers };
