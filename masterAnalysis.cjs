@@ -3,8 +3,7 @@ if (fs.existsSync('.env.local')) {
     require('dotenv').config({ path: '.env.local' });
 }
 const { createClient } = require('@supabase/supabase-js');
-const YahooFinance = require('yahoo-finance2').default;
-const yahooFinance = new YahooFinance();
+const { fetchMarketMovers } = require('./fetchMarketMovers.cjs');
 
 // 1. 설정 확인
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -20,29 +19,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // 유틸리티: 대기 함수
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// 2. 새로운 기능: 핫한 종목 가져오기
-async function getHot100Symbols() {
-    console.log("🔥 Fetching Top Trending & Active Stocks from Yahoo Finance...");
-    try {
-        // Trending Symbols
-        const trendingQuery = await yahooFinance.trendingSymbols('US');
-        const trendingTickers = trendingQuery.quotes.map(q => q.symbol);
-
-        // Daily Gainers (Most Active) - Screeners are not fully supported in v2 API directly via simple call, 
-        // using a predefined list of popular/volatile tickers as fallback/supplement if needed.
-        // For v2, trendingSymbols is the best dynamic source.
-
-        // Remove duplicates and limit
-        const uniqueTickers = [...new Set([...trendingTickers, 'MULN', 'SNDL', 'GME', 'TSLA', 'NVDA', 'AAPL', 'AMD', 'PLTR', 'SOFI', 'MARA'])];
-
-        console.log(`   ✅ Found ${uniqueTickers.length} trending symbols.`);
-        return uniqueTickers;
-    } catch (e) {
-        console.error("   ⚠️ Failed to fetch trending symbols:", e.message);
-        return ['MULN', 'SNDL', 'GME', 'TSLA', 'NVDA']; // Fallback
-    }
-}
-
+// 2. 메인 실행 로직
 async function masterAnalysis(ticker) {
     console.log(`\n🧠 [Master Algorithm] ${ticker} 분석 시작...`);
 
@@ -125,7 +102,7 @@ async function masterAnalysis(ticker) {
 async function runBatch() {
     const args = process.argv.slice(2);
     // 인자가 있으면 그 종목만, 없으면 핫한 종목 스캔
-    let tickers = args.length > 0 ? args : await getHot100Symbols();
+    let tickers = args.length > 0 ? args : await fetchMarketMovers();
 
     console.log(`🚀 MuzeStock Master Algorithm: Starting Wide Area Scan for ${tickers.length} tickers...`);
 
