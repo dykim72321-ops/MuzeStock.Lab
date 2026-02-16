@@ -2,35 +2,46 @@ const YahooFinance = require('yahoo-finance2').default;
 const yahooFinance = new YahooFinance();
 
 /**
- * Yahoo Finance의 'Most Actives' 스크리너를 사용하여 상위 종목을 가져옵니다.
+ * 미국 시장 거래량 상위 종목을 가져옵니다.
  * @param {number} count 가져올 종목 수
- * @returns {Promise<string[]>} Ticker 리스트
  */
-async function getMarketMovers(count = 100) {
-    console.log(`📡 시장에서 가장 뜨거운 종목 ${count}개를 스캔 중입니다...`);
+async function getMarketMovers(count = 20) {
+    console.log(`📡 [Yahoo Finance] 시장 주도주(Most Actives) 상위 ${count}개 스캔 시도...`);
+
+    // API 실패 시 사용할 백업 리스트 (방어 코드)
+    const BACKUP_SYMBOLS = [
+        'TSLA', 'NVDA', 'AAPL', 'AMD', 'AMZN', 'MSFT', 'GOOGL', 'META', 'NFLX', 'INTC',
+        'PLTR', 'SOFI', 'MARA', 'COIN', 'LCID', 'RIVN', 'F', 'BAC', 'T', 'VZ'
+    ];
 
     try {
-        // Yahoo Finance의 'Most Actives' (거래량 상위) 스크리너 활용
-        const queryOptions = { scrIds: 'most_actives', count: count, region: 'US', lang: 'en-US' };
+        // Yahoo Finance Screener 호출
+        const queryOptions = {
+            scrIds: 'most_actives',
+            count: count,
+            region: 'US',
+            lang: 'en-US'
+        };
+
         const results = await yahooFinance.screener(queryOptions);
 
-        if (!results || !results.quotes || results.quotes.length === 0) {
-            throw new Error("데이터를 가져오지 못했습니다.");
+        // 데이터 유효성 검사
+        if (!results || !results.quotes || !Array.isArray(results.quotes)) {
+            throw new Error("API 응답 형식이 올바르지 않습니다.");
         }
 
-        // 심볼(Ticker)만 추출
-        const symbols = results.quotes.map(q => q.symbol);
+        if (results.quotes.length === 0) {
+            throw new Error("검색된 종목이 0개입니다.");
+        }
 
-        console.log(`✅ 종목 리스트 확보 완료: ${symbols.length}개`);
+        const symbols = results.quotes.map(q => q.symbol);
+        console.log(`✅ [수집 성공] 총 ${symbols.length}개 종목 리스트 확보 완료.`);
         return symbols;
 
     } catch (error) {
-        console.error("❌ 야후 파이낸스 연동 실패. 기본 리스트(Top Tech)를 사용합니다.", error.message);
-        // API 실패 시 사용할 백업 리스트 (안전 장치)
-        return [
-            'TSLA', 'NVDA', 'AAPL', 'AMD', 'AMZN', 'MSFT', 'GOOGL', 'META', 'NFLX', 'INTC',
-            'PLTR', 'SOFI', 'MARA', 'COIN', 'LCID', 'RIVN', 'F', 'BAC', 'T', 'VZ'
-        ];
+        console.error(`⚠️ [API Error] Yahoo 연결 실패 (${error.message}).`);
+        console.log(`🔄 백업 리스트(${BACKUP_SYMBOLS.length}개)로 전환합니다.`);
+        return BACKUP_SYMBOLS.slice(0, count);
     }
 }
 

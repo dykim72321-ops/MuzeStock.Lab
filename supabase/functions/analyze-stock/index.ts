@@ -97,7 +97,16 @@ serve(async (req) => {
     [NEWS CONTEXT]
     ${safeNews || "No recent news."}
     
-    Return valid JSON with keys: dnaScore (0-100), popProbability (0-100), bullCase (array), bearCase (array), riskLevel (string).`;
+    Return valid JSON with the following schema:
+    {
+      "dnaScore": number (0-100),
+      "popProbability": number (0-100),
+      "bullCase": string[],
+      "bearCase": string[],
+      "riskLevel": "Low" | "Medium" | "High",
+      "recommendation": "Strong Buy" | "Buy" | "Hold" | "Sell" | "Strong Sell",
+      "aiSummary": string (concise 1-2 sentence hook)
+    }`;
 
     const userPrompt = `Ticker: ${ticker}, Price: ${validPrice}, Change: ${change}%, Vol: ${volume}, RelVol: ${relativeVolume}`;
 

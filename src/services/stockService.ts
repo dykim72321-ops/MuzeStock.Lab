@@ -22,24 +22,24 @@ async function fetchFromFinnhub(ticker: string): Promise<Stock | null> {
     console.warn('Finnhub API key not configured');
     return null;
   }
-  
+
   try {
     const response = await fetch(
       `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_API_KEY}`
     );
-    
+
     if (!response.ok) {
       throw new Error(`Finnhub API error: ${response.status}`);
     }
-    
+
     const data = await response.json();
-    
+
     // Finnhub returns: c=current, d=change, dp=percent change, h=high, l=low, o=open, pc=previous close
     if (!data || data.c === 0 || data.c === undefined) {
       console.warn(`[Finnhub] No data for ${ticker}`);
       return null;
     }
-    
+
     const stock: Stock = {
       id: ticker,
       ticker: ticker,
@@ -58,12 +58,12 @@ async function fetchFromFinnhub(ticker: string): Promise<Stock | null> {
         institutionalOwnership: 0,
       }
     };
-    
+
     console.log(`[Finnhub] Successfully fetched ${ticker}: $${data.c}`);
-    
+
     // Cache the result
     cache.set(ticker, { data: stock, timestamp: Date.now() });
-    
+
     return stock;
   } catch (err) {
     console.error(`[Finnhub] Failed for ${ticker}:`, err);
@@ -77,28 +77,28 @@ async function fetchFromYahoo(ticker: string): Promise<Stock | null> {
     const { data, error } = await supabase.functions.invoke('get-yahoo-quote', {
       body: { ticker }
     });
-    
+
     if (error || !data || data.error) {
       console.warn(`[Yahoo] Failed for ${ticker}:`, error || data?.error);
       return null;
     }
-    
+
     // Calculate enhanced DNA score using Yahoo data
     let dnaScore = calculateDnaScore(data.price, data.changePercent, data.volume);
-    
+
     // Boost score based on analyst recommendations
     if (data.recommendationScore >= 4) dnaScore += 15; // Buy/Strong Buy
     else if (data.recommendationScore === 3) dnaScore += 5; // Hold
-    
+
     // Boost if near 52-week low (potential upside)
     if (data.fiftyTwoWeekPosition < 30) dnaScore += 10;
-    
+
     // Boost if significant upside potential
     if (data.upsidePotential > 50) dnaScore += 10;
     else if (data.upsidePotential > 20) dnaScore += 5;
-    
+
     dnaScore = Math.min(100, Math.max(0, dnaScore));
-    
+
     const stock: Stock = {
       id: ticker,
       ticker: ticker,
@@ -123,12 +123,12 @@ async function fetchFromYahoo(ticker: string): Promise<Stock | null> {
         recommendation: data.recommendationKey,
       }
     };
-    
+
     console.log(`[Yahoo] Successfully fetched ${ticker}: $${data.price} (Target: $${data.targetMeanPrice})`);
-    
+
     // Cache the result
     cache.set(ticker, { data: stock, timestamp: Date.now() });
-    
+
     return stock;
   } catch (err) {
     console.error(`[Yahoo] Failed for ${ticker}:`, err);
@@ -162,11 +162,11 @@ export async function fetchStockQuote(ticker: string): Promise<Stock | null> {
       // Fallback to direct Finnhub
       const finnhubData = await fetchFromFinnhub(ticker);
       if (finnhubData) return finnhubData;
-      
+
       // Fallback to Yahoo
       const yahooData = await fetchFromYahoo(ticker);
       if (yahooData) return yahooData;
-      
+
       // Fallback to stale cache
       if (cached) return cached.data;
       return null;
@@ -215,11 +215,11 @@ export async function fetchStockQuote(ticker: string): Promise<Stock | null> {
 
   } catch (err) {
     console.error(`[SmartQuote] Failed for ${ticker}:`, err);
-    
+
     // Final fallback chain
     const finnhubData = await fetchFromFinnhub(ticker);
     if (finnhubData) return finnhubData;
-    
+
     if (cached) return cached.data;
     return null;
   }
@@ -241,17 +241,17 @@ export async function getTopStocks(): Promise<Stock[]> {
   try {
     // 1. 24시간 이내 데이터만 조회
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    
+
     const { data: discoveryData, error: discoveryError } = await supabase
       .from('daily_discovery')
-      .select('*')
-      .gte('created_at', twentyFourHoursAgo) // 신선도 필터
+      .select('*, stock_analysis_cache(analysis)')
+      .gte('updated_at', twentyFourHoursAgo) // updated_at 기준으로 필터링
       .order('updated_at', { ascending: false })
-      .limit(20); // API 부담 감소: 50 → 20
+      .limit(30);
 
     if (discoveryError) throw discoveryError;
 
-    const tickersToSync = (discoveryData && discoveryData.length > 0) 
+    const tickersToSync = (discoveryData && discoveryData.length > 0)
       ? discoveryData.map((item: any) => item.ticker)
       : WATCHLIST_TICKERS.slice(0, 10);
 
@@ -296,7 +296,7 @@ export async function getTopStocks(): Promise<Stock[]> {
 
     // 3. 각 섹터에서 최대 3개씩 선택하여 다양성 확보
     const diverseStocks = Object.values(bySector)
-      .flatMap(sectorStocks => 
+      .flatMap(sectorStocks =>
         sectorStocks
           .sort((a, b) => b.dnaScore - a.dnaScore)
           .slice(0, 3)
@@ -312,7 +312,7 @@ export async function getTopStocks(): Promise<Stock[]> {
 }
 
 function calculateDnaScore(price: number, change: number, volume: number): number {
-  let score = 50; 
+  let score = 50;
   if (price < 1.0) score += 30;
   else if (price < 3.0) score += 20;
   if (change > 15) score += 20;

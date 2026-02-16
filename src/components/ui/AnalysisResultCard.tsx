@@ -1,201 +1,141 @@
-import React from 'react';
-import { Card } from './Card';
-import { Badge } from './Badge';
-import { TrendingUp, AlertTriangle, ShieldCheck, Zap, Sparkles, BrainCircuit } from 'lucide-react';
+import { useState } from 'react';
+import { Target, Zap } from 'lucide-react';
+import { ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { StockTerminalModal } from '../dashboard/StockTerminalModal';
 import clsx from 'clsx';
-import { motion } from 'framer-motion';
 
 interface AnalysisResultCardProps {
     ticker: string;
     dnaScore: number;
-    popProbability?: number;
+    popProbability: number;
     bullPoints: string[];
     bearPoints: string[];
-    matchedLegend?: {
-        ticker: string;
-        similarity: number;
-    };
-    isCorrect?: boolean | null; // hit/miss stamp
-    riskLevel?: string;
-    aiSummary?: string;
+    matchedLegend: { ticker: string; similarity: number };
+    riskLevel: string;
     className?: string;
+    aiSummary?: string;
 }
 
-export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
+export const AnalysisResultCard = ({
     ticker,
     dnaScore,
     popProbability,
     bullPoints,
     bearPoints,
     matchedLegend,
-    isCorrect,
     riskLevel,
-    aiSummary,
-    className
-}) => {
-    const getScoreColor = (score: number) => {
-        if (score >= 70) return 'text-emerald-400';
-        if (score >= 40) return 'text-amber-400';
-        return 'text-rose-400';
-    };
+    className,
+    aiSummary
+}: AnalysisResultCardProps) => {
+    const [isTerminalOpen, setIsTerminalOpen] = useState(false);
 
+    // Sparkline data (mocked for visual effect)
+    const sparkData = [
+        { v: 30 }, { v: 45 }, { v: 35 }, { v: 60 }, { v: 50 }, { v: dnaScore }
+    ];
 
     return (
-        <Card className={clsx("p-0 overflow-hidden bg-slate-900/50 backdrop-blur-xl border border-white/5", className)}>
-            <div className={clsx("h-1.5 w-full bg-gradient-to-r",
-                dnaScore >= 70 ? "from-emerald-500 to-indigo-500" :
-                    dnaScore >= 40 ? "from-amber-500 to-orange-500" :
-                        "from-rose-500 to-purple-500"
-            )} />
+        <>
+            <div
+                onClick={() => setIsTerminalOpen(true)}
+                className={clsx(
+                    "relative group cursor-pointer transition-all duration-500",
+                    className
+                )}
+            >
+                {/* Glow Effects */}
+                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/0 via-indigo-500/0 to-cyan-500/0 group-hover:from-indigo-500/10 group-hover:via-indigo-500/5 group-hover:to-cyan-500/10 rounded-[2rem] blur-xl transition-all duration-700" />
 
-            <div className="p-6">
-                <div className="flex items-start justify-between mb-8">
-                    <div className="flex items-center gap-4">
-                        <div className="bg-white/5 p-3 rounded-2xl border border-white/10">
-                            <BrainCircuit className="w-6 h-6 text-indigo-400" />
+                <div className="relative h-full flex flex-col p-6 bg-slate-900/40 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden hover:border-white/20 transition-all duration-300">
+                    {/* Header */}
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="relative">
+                                <div className="absolute -inset-2 bg-indigo-500/20 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <h3 className="text-3xl font-black text-white tracking-tighter relative z-10">{ticker}</h3>
+                            </div>
+                            <div className={clsx(
+                                "px-2 py-0.5 rounded text-[10px] font-bold tracking-widest uppercase border",
+                                dnaScore >= 70 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" :
+                                    dnaScore >= 50 ? "bg-amber-500/10 border-amber-500/30 text-amber-400" :
+                                        "bg-rose-500/10 border-rose-500/30 text-rose-400"
+                            )}>
+                                {dnaScore >= 80 ? 'Grade S' : dnaScore >= 70 ? 'Grade A' : 'Grade B'}
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="text-2xl font-black text-white tracking-tighter font-mono">{ticker} <span className="text-slate-500 font-light ml-2 uppercase text-xs tracking-widest">DNA Analysis</span></h3>
-                            <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="neutral" className="bg-white/5 border-white/10 text-slate-400 text-[9px] px-1.5 font-bold uppercase tracking-widest">
-                                    AI-CORE v2.0
-                                </Badge>
-                                {riskLevel && (
-                                    <span className={clsx("text-[9px] font-bold uppercase tracking-widest",
-                                        riskLevel === 'Low' ? 'text-emerald-500' : riskLevel === 'Medium' ? 'text-amber-500' : 'text-rose-500'
-                                    )}>
-                                        • {riskLevel} Risk
-                                    </span>
-                                )}
+                        <div className="text-right">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">DNA Score</p>
+                            <div className="text-2xl font-black text-white flex items-center gap-1 justify-end">
+                                {dnaScore}
+                                <span className="text-xs text-indigo-400">%</span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="text-right flex flex-col items-end">
-                        <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">DNA SCORE</div>
-                        <div className={clsx("text-4xl font-black font-mono leading-none", getScoreColor(dnaScore))}>
-                            {dnaScore}
-                        </div>
-                    </div>
-                </div>
-
-                {/* DNA GAUGE & STATS */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                    <div className="relative flex flex-col items-center justify-center py-4 px-8 bg-black/20 rounded-2xl border border-white/5 overflow-hidden group">
-                        {/* SVG Gauge Background */}
-                        <svg className="w-32 h-16" viewBox="0 0 100 50">
-                            <path d="M10,45 A40,40 0 0,1 90,45" fill="none" stroke="#ffffff10" strokeWidth="8" strokeLinecap="round" />
-                            <motion.path
-                                d="M10,45 A40,40 0 0,1 90,45"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="8"
-                                strokeLinecap="round"
-                                strokeDasharray="125.66"
-                                initial={{ strokeDashoffset: 125.66 }}
-                                animate={{ strokeDashoffset: 125.66 - (125.66 * (dnaScore / 100)) }}
-                                transition={{ duration: 1.5, ease: "easeOut" }}
-                                className={getScoreColor(dnaScore)}
-                            />
-                        </svg>
-                        <div className="absolute inset-x-0 bottom-4 text-center">
-                            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Momentum DNA</span>
-                        </div>
-                        <div className="absolute top-2 right-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <Sparkles className="w-8 h-8 text-white" />
-                        </div>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
-                            <div className="flex items-center gap-2">
-                                <Zap className="w-4 h-4 text-amber-400" />
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">Pop Probability</span>
+                    {/* Sparkline & Probability */}
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                        <div className="bg-white/5 p-3 rounded-2xl border border-white/5 overflow-hidden">
+                            <div className="h-10 w-full mb-1">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={sparkData}>
+                                        <Area
+                                            type="monotone"
+                                            dataKey="v"
+                                            stroke="#818cf8"
+                                            strokeWidth={2}
+                                            fill="#818cf8"
+                                            fillOpacity={0.1}
+                                            animationDuration={1500}
+                                        />
+                                    </AreaChart>
+                                </ResponsiveContainer>
                             </div>
-                            <span className="text-lg font-black text-white font-mono">{popProbability || 0}%</span>
+                            <p className="text-[9px] text-slate-500 uppercase font-bold tracking-tighter">Confidence Trend</p>
                         </div>
-
-                        {matchedLegend && matchedLegend.ticker !== 'None' && (
-                            <div className="flex justify-between items-center bg-indigo-500/10 p-3 rounded-xl border border-indigo-500/20">
-                                <div className="flex items-center gap-2">
-                                    <TrendingUp className="w-4 h-4 text-indigo-400" />
-                                    <span className="text-xs font-bold text-indigo-300 uppercase tracking-tight">Pattern Match</span>
-                                </div>
-                                <div className="text-right">
-                                    <span className="text-lg font-black text-indigo-400 font-mono">{matchedLegend.ticker}</span>
-                                    <p className="text-[9px] text-indigo-500/70 font-bold uppercase tracking-tighter">{matchedLegend.similarity.toFixed(0)}% Similarity</p>
-                                </div>
+                        <div className="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col justify-center">
+                            <div className="flex items-center gap-1 text-cyan-400 mb-1">
+                                <Zap className="w-4 h-4 fill-current" />
+                                <span className="text-xl font-black">{popProbability}%</span>
                             </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* BULL vs BEAR */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                    <div className="bg-emerald-500/5 p-4 rounded-xl border border-emerald-500/10 space-y-2">
-                        <div className="flex items-center gap-2 mb-2">
-                            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Bull Thesis</span>
+                            <p className="text-[9px] text-slate-500 uppercase font-bold tracking-tighter">Pop Probability</p>
                         </div>
-                        {bullPoints && bullPoints.length > 0 ? (
-                            bullPoints.slice(0, 3).map((point, i) => (
-                                <p key={i} className="text-[11px] text-slate-400 leading-tight flex items-start gap-2">
-                                    <span className="text-emerald-500 font-bold">•</span> {point}
-                                </p>
-                            ))
-                        ) : (
-                            <p className="text-[11px] text-slate-600 italic">No bullish signals detected.</p>
-                        )}
                     </div>
 
-                    <div className="bg-rose-500/5 p-4 rounded-xl border border-rose-500/10 space-y-2">
-                        <div className="flex items-center gap-2 mb-2">
-                            <AlertTriangle className="w-4 h-4 text-rose-500" />
-                            <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Bear Risks</span>
-                        </div>
-                        {bearPoints && bearPoints.length > 0 ? (
-                            bearPoints.slice(0, 3).map((point, i) => (
-                                <p key={i} className="text-[11px] text-slate-400 leading-tight flex items-start gap-2">
-                                    <span className="text-rose-500 font-bold">•</span> {point}
-                                </p>
-                            ))
-                        ) : (
-                            <p className="text-[11px] text-slate-600 italic">No significant risks identified.</p>
-                        )}
-                    </div>
-                </div>
-
-                {/* AI SUMMARY BOX */}
-                {aiSummary && (
-                    <div className="p-4 bg-indigo-950/20 rounded-xl border border-indigo-500/10 relative overflow-hidden group mb-4">
-                        <p className="text-xs text-indigo-200/80 leading-relaxed italic max-h-16 overflow-hidden">
-                            "{aiSummary}"
+                    {/* AI Narrative Hook */}
+                    <div className="flex-1 mb-6">
+                        <p className="text-sm text-slate-400 font-medium leading-normal line-clamp-3 italic">
+                            "{(aiSummary || bullPoints[0] || "").split(';')[0]}..."
                         </p>
                     </div>
-                )}
 
-                {/* STAMPS & METADATA */}
-                <div className="flex items-center justify-between mt-6 pt-6 border-t border-white/5">
-                    <div className="flex items-center gap-4">
-                        {isCorrect !== undefined && isCorrect !== null && (
-                            <div className={clsx(
-                                "px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-tighter flex items-center gap-1.5",
-                                isCorrect ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-rose-500/20 text-rose-400 border-rose-500/30"
-                            )}>
-                                {isCorrect ? <ShieldCheck className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
-                                {isCorrect ? "VERIFIED HIT" : "VERIFIED MISS"}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="text-[10px] text-slate-600 font-mono">
-                        GENERATED: {new Date().toISOString().slice(0, 10)}
+                    {/* Matched Legend Stamp */}
+                    <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Target className="w-3.5 h-3.5 text-indigo-400" />
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Matched: {matchedLegend.ticker}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <span className="text-[10px] font-mono font-bold text-indigo-300">{matchedLegend.similarity}%</span>
+                            <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Visual Glitch/Overlay effect */}
-            <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-white/5 to-transparent opacity-30" />
-        </Card>
+            <StockTerminalModal
+                isOpen={isTerminalOpen}
+                onClose={() => setIsTerminalOpen(false)}
+                data={{
+                    ticker,
+                    dnaScore,
+                    popProbability,
+                    bullPoints,
+                    bearPoints,
+                    matchedLegend,
+                    riskLevel,
+                    aiSummary: aiSummary || ""
+                }}
+            />
+        </>
     );
 };

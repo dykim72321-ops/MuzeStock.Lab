@@ -1,26 +1,31 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
 import {
   ArrowUpRight, Search, Loader2, RefreshCw,
-  List, LayoutGrid
+  List, LayoutGrid, Filter, ArrowDownWideNarrow, ArrowUpWideNarrow,
+  ShieldCheck, ShieldAlert, Shield, Zap, TrendingUp, TrendingDown
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
-import { Badge } from '../components/ui/Badge';
 import { getTopStocks } from '../services/stockService';
 import type { Stock } from '../types';
 import clsx from 'clsx';
+import { motion } from 'framer-motion';
+import { StockTerminalModal } from '../components/dashboard/StockTerminalModal';
 
 export const ScannerPage = () => {
-  const navigate = useNavigate();
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
-  // Filters
+  // Terminal Modal State
+  const [terminalData, setTerminalData] = useState<any | null>(null);
+
+  // Filters & Sorting
   const [minDna, setMinDna] = useState(0);
   const [selectedSector, setSelectedSector] = useState('All');
-  const [priceRange, setPriceRange] = useState<'all' | 'penny' | 'mid'>('all');
+  const [selectedRisk, setSelectedRisk] = useState('All');
+  const [sortBy, setSortBy] = useState<'dna' | 'price' | 'change'>('dna');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const fetchStocks = async () => {
     try {
@@ -38,104 +43,153 @@ export const ScannerPage = () => {
     fetchStocks();
   }, []);
 
-  const sectors = ['All', ...new Set(stocks.map(s => s.sector))];
+  const sectors = useMemo(() => ['All', ...new Set(stocks.map(s => s.sector))], [stocks]);
 
-  const filteredStocks = stocks.filter(stock => {
-    const matchesSearch = stock.ticker.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stock.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDna = stock.dnaScore >= minDna;
-    const matchesSector = selectedSector === 'All' || stock.sector === selectedSector;
-    const matchesPrice = priceRange === 'all' ||
-      (priceRange === 'penny' && stock.price < 1) ||
-      (priceRange === 'mid' && stock.price >= 1);
+  const processedStocks = useMemo(() => {
+    return stocks
+      .filter(stock => {
+        const matchesSearch = stock.ticker.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          stock.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesDna = stock.dnaScore >= minDna;
+        const matchesSector = selectedSector === 'All' || stock.sector === selectedSector;
+        const matchesRisk = selectedRisk === 'All' ||
+          (selectedRisk === 'Low' && stock.dnaScore < 40) || // Example logic, adjust as needed
+          (selectedRisk === 'Medium' && stock.dnaScore >= 40 && stock.dnaScore < 70) ||
+          (selectedRisk === 'High' && stock.dnaScore >= 70);
 
-    return matchesSearch && matchesDna && matchesSector && matchesPrice;
-  });
+        return matchesSearch && matchesDna && matchesSector && matchesRisk;
+      })
+      .sort((a, b) => {
+        let valA = sortBy === 'dna' ? a.dnaScore : sortBy === 'price' ? a.price : a.changePercent;
+        let valB = sortBy === 'dna' ? b.dnaScore : sortBy === 'price' ? b.price : b.changePercent;
+        return sortOrder === 'asc' ? valA - valB : valB - valA;
+      });
+  }, [stocks, searchTerm, minDna, selectedSector, selectedRisk, sortBy, sortOrder]);
+
+  const toggleSort = (field: 'dna' | 'price' | 'change') => {
+    if (sortBy === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
+  };
+
+  const handleDeepDive = (stock: Stock) => {
+    // Map to Terminal format
+    const analysis = (stock as any).stock_analysis_cache?.[0]?.analysis || {};
+    setTerminalData({
+      ticker: stock.ticker,
+      dnaScore: stock.dnaScore,
+      popProbability: analysis.popProbability || 0,
+      bullPoints: analysis.bullCase || ["No details available"],
+      bearPoints: analysis.bearCase || ["No details available"],
+      matchedLegend: analysis.matchedLegend || { ticker: 'None', similarity: 0 },
+      riskLevel: analysis.riskLevel || 'Medium',
+      aiSummary: analysis.aiSummary || "",
+      price: stock.price,
+      change: `${stock.changePercent.toFixed(2)}%`
+    });
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header */}
-      <section>
-        <div className="flex items-center gap-2 mb-2">
-          <Badge variant="neutral" className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20">LIVE SCANNER</Badge>
-          <Badge variant="neutral" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">REAL-TIME DATA</Badge>
+      <section className="relative overflow-hidden p-8 rounded-[2rem] bg-indigo-500/5 border border-white/5">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full -mr-20 -mt-20" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
+            <p className="text-[10px] text-slate-500 font-mono font-bold tracking-widest uppercase">TERMINAL SCANNER v3.1</p>
+          </div>
+          <h1 className="text-5xl font-black text-white tracking-tighter mb-4 flex items-center gap-4">
+            Market Discovery
+            <Filter className="w-8 h-8 text-indigo-400 opacity-30" />
+          </h1>
+          <p className="text-slate-400 max-w-2xl font-medium leading-relaxed">
+            광범위 스캔 알고리즘이 처리한 상위 100개 종목 중 최적의 기회를 선별합니다.
+            DNA 점수와 패턴 유사도를 기반으로 고밀도 데이터 분석을 시작하십시오.
+          </p>
         </div>
-        <h1 className="text-4xl font-black text-white tracking-tight">Market Scanner</h1>
-        <p className="text-slate-400 mt-2 max-w-2xl">
-          실시간 시장 데이터와 전용 DNA 알고리즘을 결합하여 고수익 기회를 탐색합니다.
-          상대 거래량(RelVol)과 변동성을 추적하여 나만의 정밀한 사냥감을 발굴하세요.
-        </p>
       </section>
 
       {/* Control Bar */}
-      <Card className="p-4 bg-slate-900/50 border-slate-800">
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="flex flex-wrap items-center gap-3">
+      <Card className="p-4 bg-slate-900/50 backdrop-blur-xl border border-white/5 rounded-3xl">
+        <div className="flex flex-col xl:flex-row gap-6 items-center justify-between">
+          <div className="flex flex-wrap items-center gap-4">
             {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
               <input
                 type="text"
-                placeholder="Search ticker..."
+                placeholder="Search symbol..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-slate-950 border border-slate-700 text-white rounded-lg pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-48"
+                className="bg-slate-950/50 border border-white/10 text-white rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none w-56 transition-all"
               />
             </div>
 
-            {/* Price Filter */}
-            <select
-              value={priceRange}
-              onChange={(e) => setPriceRange(e.target.value as any)}
-              className="bg-slate-950 border border-slate-700 text-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            {/* High Performance Toggle */}
+            <button
+              onClick={() => setMinDna(minDna === 70 ? 0 : 70)}
+              className={clsx(
+                "flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-sm font-bold",
+                minDna === 70
+                  ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300"
+                  : "bg-white/5 border-white/5 text-slate-400 hover:bg-white/10"
+              )}
             >
-              <option value="all">All Prices</option>
-              <option value="penny">$1 미만 (Penny)</option>
-              <option value="mid">$1 이상</option>
-            </select>
+              <Zap className={clsx("w-4 h-4", minDna === 70 ? "fill-current" : "")} />
+              DNA 70+ Spec
+            </button>
 
-            {/* Sector Filter */}
+            {/* Risk Selection */}
+            <div className="flex items-center bg-white/5 rounded-xl border border-white/5 p-1">
+              {['All', 'Low', 'Medium', 'High'].map(risk => (
+                <button
+                  key={risk}
+                  onClick={() => setSelectedRisk(risk)}
+                  className={clsx(
+                    "px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+                    selectedRisk === risk ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-300"
+                  )}
+                >
+                  {risk}
+                </button>
+              ))}
+            </div>
+
+            {/* Sector Dropdown */}
             <select
               value={selectedSector}
               onChange={(e) => setSelectedSector(e.target.value)}
-              className="bg-slate-950 border border-slate-700 text-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="bg-slate-950/50 border border-white/10 text-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none"
             >
               {sectors.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-
-            {/* DNA Filter */}
-            <div className="flex items-center gap-2 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg">
-              <span className="text-xs text-slate-500 font-bold">DNA 70+</span>
-              <input
-                type="checkbox"
-                checked={minDna === 70}
-                onChange={(e) => setMinDna(e.target.checked ? 70 : 0)}
-                className="w-4 h-4 accent-indigo-500 cursor-pointer"
-              />
-            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex bg-slate-950 border border-slate-800 rounded-lg p-1">
+          <div className="flex items-center gap-3">
+            <div className="flex bg-slate-950/50 border border-white/10 rounded-xl p-1">
               <button
                 onClick={() => setViewMode('table')}
-                className={clsx("p-1.5 rounded", viewMode === 'table' ? "bg-slate-800 text-white" : "text-slate-500")}
+                className={clsx("p-2 rounded-lg transition-all", viewMode === 'table' ? "bg-white/10 text-white shadow-lg" : "text-slate-600")}
               >
                 <List className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode('grid')}
-                className={clsx("p-1.5 rounded", viewMode === 'grid' ? "bg-slate-800 text-white" : "text-slate-500")}
+                className={clsx("p-2 rounded-lg transition-all", viewMode === 'grid' ? "bg-white/10 text-white shadow-lg" : "text-slate-600")}
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
             </div>
             <button
               onClick={fetchStocks}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-all active:scale-95"
+              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
             >
               <RefreshCw className={clsx("w-4 h-4", loading && "animate-spin")} />
-              Refresh
+              Sync Data
             </button>
           </div>
         </div>
@@ -143,72 +197,97 @@ export const ScannerPage = () => {
 
       {/* Main Content */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-32 space-y-4">
-          <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
-          <p className="text-slate-500 font-mono animate-pulse">Scanning the market for opportunities...</p>
+        <div className="flex flex-col items-center justify-center py-40 space-y-6 relative">
+          <div className="absolute inset-0 bg-indigo-500/5 blur-[120px] rounded-full mx-auto w-64 h-64 opacity-50" />
+          <Loader2 className="w-16 h-16 text-indigo-500 animate-spin relative z-10 drop-shadow-[0_0_15px_rgba(99,102,241,0.5)]" />
+          <p className="text-slate-500 font-mono text-sm tracking-widest uppercase animate-pulse">Filtering Market Signal Matrix...</p>
         </div>
-      ) : filteredStocks.length === 0 ? (
-        <div className="text-center py-20 bg-slate-900/20 rounded-2xl border border-dashed border-slate-800">
-          <p className="text-slate-500 italic">No matches found for current filters.</p>
+      ) : processedStocks.length === 0 ? (
+        <div className="text-center py-40 bg-slate-900/10 rounded-[2rem] border border-dashed border-white/5">
+          <p className="text-slate-500 italic font-medium">No results matched your search matrix.</p>
+          <button onClick={() => { setSearchTerm(''); setMinDna(0); setSelectedRisk('All'); setSelectedSector('All'); }} className="mt-4 text-indigo-400 font-bold hover:underline">Reset Filters</button>
         </div>
       ) : viewMode === 'table' ? (
-        <Card className="overflow-hidden border-slate-800">
+        <div className="bento-card overflow-hidden border-white/5">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-800/30 text-slate-500 uppercase text-[10px] font-black tracking-widest">
+              <thead className="bg-white/[0.02] text-slate-500 uppercase text-[10px] font-black tracking-widest border-b border-white/5">
                 <tr>
-                  <th className="px-6 py-4">Symbol / Name</th>
-                  <th className="px-6 py-4">Price / Change</th>
-                  <th className="px-6 py-4">RelVol</th>
-                  <th className="px-6 py-4">DNA Score</th>
-                  <th className="px-6 py-4">Sector</th>
-                  <th className="px-6 py-4 text-right">Action</th>
+                  <th className="px-8 py-5">Asset Identification</th>
+                  <th className="px-8 py-5 cursor-pointer hover:text-slate-200 transition-colors" onClick={() => toggleSort('price')}>
+                    Market Value {sortBy === 'price' && (sortOrder === 'asc' ? <ArrowUpWideNarrow className="inline w-3 h-3 ml-1" /> : <ArrowDownWideNarrow className="inline w-3 h-3 ml-1" />)}
+                  </th>
+                  <th className="px-8 py-5 cursor-pointer hover:text-slate-200 transition-colors" onClick={() => toggleSort('change')}>
+                    24H Delta {sortBy === 'change' && (sortOrder === 'asc' ? <ArrowUpWideNarrow className="inline w-3 h-3 ml-1" /> : <ArrowDownWideNarrow className="inline w-3 h-3 ml-1" />)}
+                  </th>
+                  <th className="px-8 py-5 cursor-pointer hover:text-slate-200 transition-colors" onClick={() => toggleSort('dna')}>
+                    DNA Signal {sortBy === 'dna' && (sortOrder === 'asc' ? <ArrowUpWideNarrow className="inline w-3 h-3 ml-1" /> : <ArrowDownWideNarrow className="inline w-3 h-3 ml-1" />)}
+                  </th>
+                  <th className="px-8 py-5">Risk Matrix</th>
+                  <th className="px-8 py-5 text-right">Terminal</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/50">
-                {filteredStocks.map(stock => (
+              <tbody className="divide-y divide-white/[0.03]">
+                {processedStocks.map(stock => (
                   <tr
                     key={stock.id}
-                    className="hover:bg-indigo-500/5 transition-colors group cursor-pointer"
-                    onClick={() => navigate(`/analysis/${stock.ticker}`)}
+                    className="hover:bg-white/[0.03] transition-all group cursor-pointer"
+                    onClick={() => handleDeepDive(stock)}
                   >
-                    <td className="px-6 py-5">
-                      <div className="font-black text-lg text-white group-hover:text-indigo-400 transition-colors">{stock.ticker}</div>
-                      <div className="text-xs text-slate-500 font-medium truncate max-w-[150px]">{stock.name}</div>
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-black text-xs text-indigo-400 border border-white/5 group-hover:border-indigo-500/30 transition-all">
+                          {stock.ticker[0]}
+                        </div>
+                        <div>
+                          <div className="font-black text-xl text-white tracking-tighter group-hover:text-indigo-400 transition-colors">{stock.ticker}</div>
+                          <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{stock.sector}</div>
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-6 py-5">
-                      <div className="font-mono text-slate-200 text-base">${stock.price.toFixed(2)}</div>
+                    <td className="px-8 py-6">
+                      <div className="font-mono text-white text-lg font-bold">${stock.price.toFixed(2)}</div>
+                    </td>
+                    <td className="px-8 py-6">
                       <div className={clsx(
-                        "flex items-center gap-1 text-xs font-bold",
+                        "flex items-center gap-1.5 text-sm font-black font-mono",
                         stock.changePercent >= 0 ? "text-emerald-400" : "text-rose-400"
                       )}>
+                        {stock.changePercent >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
                         {stock.changePercent >= 0 ? "+" : ""}{stock.changePercent.toFixed(2)}%
                       </div>
                     </td>
-                    <td className="px-6 py-5 font-mono text-slate-400 text-base">
-                      {stock.relevantMetrics?.relativeVolume ? `${stock.relevantMetrics.relativeVolume.toFixed(1)}x` : 'N/A'}
-                    </td>
-                    <td className="px-6 py-5">
+                    <td className="px-8 py-6">
                       <div className="flex items-center gap-4">
-                        <div className="flex-1 h-1.5 w-24 bg-slate-800 rounded-full overflow-hidden">
-                          <div
+                        <div className="flex-1 h-2 w-24 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${stock.dnaScore}%` }}
+                            transition={{ duration: 1, ease: "circOut" }}
                             className={clsx(
-                              "h-full rounded-full transition-all duration-1000",
-                              stock.dnaScore >= 70 ? "bg-emerald-500" :
-                                stock.dnaScore >= 40 ? "bg-indigo-500" : "bg-rose-500"
+                              "h-full rounded-full",
+                              stock.dnaScore >= 70 ? "bg-gradient-to-r from-emerald-500 to-indigo-500" :
+                                stock.dnaScore >= 40 ? "bg-gradient-to-r from-indigo-500 to-cyan-500" : "bg-gradient-to-r from-rose-500 to-orange-500"
                             )}
-                            style={{ width: `${stock.dnaScore}%` }}
                           />
                         </div>
-                        <span className="font-black text-lg text-white font-mono">{stock.dnaScore}</span>
+                        <span className="font-black text-lg text-white font-mono drop-shadow-[0_0_10px_rgba(99,102,241,0.3)]">{stock.dnaScore}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-5">
-                      <Badge variant="neutral" className="bg-slate-800 text-slate-400 border-none px-2 py-0.5 text-[10px]">{stock.sector}</Badge>
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-2">
+                        {stock.dnaScore >= 70 ? <ShieldCheck className="w-4 h-4 text-emerald-500" /> : stock.dnaScore >= 40 ? <Shield className="w-4 h-4 text-amber-500" /> : <ShieldAlert className="w-4 h-4 text-rose-500" />}
+                        <span className={clsx(
+                          "text-[10px] font-black uppercase tracking-widest",
+                          stock.dnaScore >= 70 ? "text-emerald-500" : stock.dnaScore >= 40 ? "text-amber-500" : "text-rose-400"
+                        )}>
+                          {stock.dnaScore >= 70 ? 'Optimal' : stock.dnaScore >= 40 ? 'Moderate' : 'High Risk'}
+                        </span>
+                      </div>
                     </td>
-                    <td className="px-6 py-5 text-right">
-                      <button className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg opacity-0 group-hover:opacity-100 transition-all active:scale-90">
-                        <ArrowUpRight className="w-5 h-5" />
+                    <td className="px-8 py-6 text-right">
+                      <button className="p-3 bg-white/5 text-slate-400 rounded-2xl opacity-0 group-hover:opacity-100 transition-all active:scale-90 border border-white/5 hover:border-indigo-500/30 hover:text-indigo-400">
+                        <ArrowUpRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                       </button>
                     </td>
                   </tr>
@@ -216,41 +295,57 @@ export const ScannerPage = () => {
               </tbody>
             </table>
           </div>
-        </Card>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredStocks.map(stock => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          {processedStocks.map(stock => (
             <Card
               key={stock.id}
-              className="p-5 bg-slate-900/40 border-slate-800 hover:border-indigo-500/50 transition-all group cursor-pointer"
-              onClick={() => navigate(`/analysis/${stock.ticker}`)}
+              className="p-6 bg-slate-900/40 backdrop-blur-xl border border-white/5 hover:border-indigo-500/40 transition-all group cursor-pointer group rounded-[2rem]"
+              onClick={() => handleDeepDive(stock)}
             >
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-2xl font-black text-white group-hover:text-indigo-400 transition-colors">{stock.ticker}</h3>
-                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">{stock.name}</p>
+              <div className="flex justify-between items-start mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center font-black text-lg text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-all duration-500">
+                  {stock.ticker[0]}
                 </div>
                 <div className={clsx(
-                  "px-2 py-1 rounded text-[10px] font-black",
-                  stock.changePercent >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+                  "px-3 py-1.5 rounded-full text-[10px] font-black uppercase hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all",
+                  stock.changePercent >= 0 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                 )}>
                   {stock.changePercent >= 0 ? "+" : ""}{stock.changePercent.toFixed(2)}%
                 </div>
               </div>
 
+              <div className="mb-8">
+                <h3 className="text-3xl font-black text-white tracking-tighter group-hover:text-indigo-400 transition-colors">{stock.ticker}</h3>
+                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-[0.2em] mt-1">{stock.name}</p>
+              </div>
+
               <div className="flex items-end justify-between">
                 <div>
+                  <p className="text-[10px] text-slate-600 uppercase font-black tracking-widest mb-1">Asset Value</p>
                   <p className="text-3xl font-mono font-black text-white">${stock.price.toFixed(2)}</p>
-                  <p className="text-xs text-slate-500 font-bold mt-1">DNA: <span className="text-indigo-400">{stock.dnaScore}</span></p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] text-slate-600 uppercase font-bold">RelVol</p>
-                  <p className="text-xl font-mono text-slate-400 font-black">{stock.relevantMetrics?.relativeVolume ? `${stock.relevantMetrics.relativeVolume.toFixed(1)}x` : 'N/A'}</p>
+                  <p className="text-[10px] text-slate-600 uppercase font-black tracking-widest mb-1">DNA Power</p>
+                  <div className="flex items-center gap-2">
+                    <Zap className={clsx("w-4 h-4 fill-current", stock.dnaScore >= 70 ? "text-emerald-400" : "text-amber-400")} />
+                    <p className="text-2xl font-mono text-white font-black">{stock.dnaScore}</p>
+                  </div>
                 </div>
               </div>
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Deep-Dive Modal */}
+      {terminalData && (
+        <StockTerminalModal
+          isOpen={!!terminalData}
+          onClose={() => setTerminalData(null)}
+          data={terminalData}
+        />
       )}
     </div>
   );

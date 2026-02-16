@@ -8,6 +8,7 @@ import { PortfolioDashboard } from '../components/dashboard/PortfolioDashboard';
 import { AnalysisResultCard } from '../components/ui/AnalysisResultCard'; // ui 폴더
 import { PersonaLeaderboard } from '../components/dashboard/PersonaLeaderboard';
 import { WatchlistView } from '../components/dashboard/WatchlistView';
+import { SignalTicker } from '../components/dashboard/SignalTicker';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -27,7 +28,7 @@ export const Dashboard = () => {
           ai_predictions (*),
           stock_analysis_cache (analysis)
         `)
-        .order('created_at', { ascending: false })
+        .order('updated_at', { ascending: false })
         .limit(6);
 
       if (error) {
@@ -76,7 +77,10 @@ export const Dashboard = () => {
             <span className="text-indigo-400 font-bold"> Active Signals</span> • <span className="text-emerald-400 font-bold">Fund Performance</span>
           </p>
         </div>
-        <SystemStatus />
+        <div className="flex flex-col gap-2">
+          <SystemStatus />
+          <SignalTicker />
+        </div>
       </header>
 
       {/* 2. Top Metric Section: Alpha Fund Performance (Wide Bento Cell) */}
