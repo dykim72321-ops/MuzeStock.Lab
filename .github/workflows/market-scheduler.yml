@@ -23,11 +23,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Master Analysis (Top Picks)
+      - name: Run Master Analysis (Wide Area Scanner)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node masterAnalysis.cjs MULN SNDL GME
+        run: node masterAnalysis.cjs
+        timeout-minutes: 60
 
       - name: Run Performance Verification
         env:

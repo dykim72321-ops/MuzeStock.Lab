@@ -3,6 +3,8 @@ if (fs.existsSync('.env.local')) {
     require('dotenv').config({ path: '.env.local' });
 }
 const { createClient } = require('@supabase/supabase-js');
+const YahooFinance = require('yahoo-finance2').default;
+const yahooFinance = new YahooFinance();
 
 // 1. 설정 확인
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -17,6 +19,29 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // 유틸리티: 대기 함수
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// 2. 새로운 기능: 핫한 종목 가져오기
+async function getHot100Symbols() {
+    console.log("🔥 Fetching Top Trending & Active Stocks from Yahoo Finance...");
+    try {
+        // Trending Symbols
+        const trendingQuery = await yahooFinance.trendingSymbols('US');
+        const trendingTickers = trendingQuery.quotes.map(q => q.symbol);
+
+        // Daily Gainers (Most Active) - Screeners are not fully supported in v2 API directly via simple call, 
+        // using a predefined list of popular/volatile tickers as fallback/supplement if needed.
+        // For v2, trendingSymbols is the best dynamic source.
+
+        // Remove duplicates and limit
+        const uniqueTickers = [...new Set([...trendingTickers, 'MULN', 'SNDL', 'GME', 'TSLA', 'NVDA', 'AAPL', 'AMD', 'PLTR', 'SOFI', 'MARA'])];
+
+        console.log(`   ✅ Found ${uniqueTickers.length} trending symbols.`);
+        return uniqueTickers;
+    } catch (e) {
+        console.error("   ⚠️ Failed to fetch trending symbols:", e.message);
+        return ['MULN', 'SNDL', 'GME', 'TSLA', 'NVDA']; // Fallback
+    }
+}
 
 async function masterAnalysis(ticker) {
     console.log(`\n🧠 [Master Algorithm] ${ticker} 분석 시작...`);
@@ -55,27 +80,32 @@ async function masterAnalysis(ticker) {
 
             console.log(`      ✅ Result: DNA ${analysis.dnaScore} | PopProb: ${analysis.popProbability}% | Match: ${analysis.matchedLegend?.ticker || 'None'}`);
 
-            // Step 4: Memorize (저장)
-            const { error: saveError } = await supabase
-                .from('daily_discovery')
-                .upsert({
-                    ticker: ticker,
-                    price: quote.price,
-                    change: `${quote.changePercent}%`,
-                    volume: quote.volume ? quote.volume.toString() : '0',
-                    dna_score: analysis.dnaScore,
-                    pop_probability: analysis.popProbability,
-                    risk_level: analysis.riskLevel,
-                    ai_summary: analysis.aiSummary || (analysis.bullCase ? analysis.bullCase.join('; ') : ''),
-                    matched_legend_ticker: analysis.matchedLegend?.ticker || 'None',
-                    legend_similarity: analysis.matchedLegend?.similarity || 0,
-                    bull_case: analysis.bullCase || [],
-                    bear_case: analysis.bearCase || [],
-                    updated_at: new Date().toISOString()
-                });
+            // Step 4: Filtering & Memorize (저장)
+            // DNA Score 60점 이상만 저장 (Smart Filtering)
+            if (analysis.dnaScore >= 60) {
+                const { error: saveError } = await supabase
+                    .from('daily_discovery')
+                    .upsert({
+                        ticker: ticker,
+                        price: quote.price,
+                        change: `${quote.changePercent}%`,
+                        volume: quote.volume ? quote.volume.toString() : '0',
+                        dna_score: analysis.dnaScore,
+                        pop_probability: analysis.popProbability,
+                        risk_level: analysis.riskLevel,
+                        ai_summary: analysis.aiSummary || (analysis.bullCase ? analysis.bullCase.join('; ') : ''),
+                        matched_legend_ticker: analysis.matchedLegend?.ticker || 'None',
+                        legend_similarity: analysis.matchedLegend?.similarity || 0,
+                        bull_case: analysis.bullCase || [],
+                        bear_case: analysis.bearCase || [],
+                        updated_at: new Date().toISOString()
+                    });
 
-            if (saveError) console.warn('      ⚠️ DB Save Warning:', saveError.message);
-            else console.log('      💾 Analysis Saved.');
+                if (saveError) console.warn('      ⚠️ DB Save Warning:', saveError.message);
+                else console.log('      💾 Analysis Saved (High Potential).');
+            } else {
+                console.log('      💨 Skipped Save (Low DNA Score).');
+            }
 
             return { ticker, ...analysis };
 
@@ -94,21 +124,29 @@ async function masterAnalysis(ticker) {
 
 async function runBatch() {
     const args = process.argv.slice(2);
-    const tickers = args.length > 0 ? args : ['MULN', 'SNDL', 'GME'];
+    // 인자가 있으면 그 종목만, 없으면 핫한 종목 스캔
+    let tickers = args.length > 0 ? args : await getHot100Symbols();
 
-    console.log(`🚀 MuzeStock Master Algorithm: Starting batch analysis for ${tickers.length} tickers...`);
+    console.log(`🚀 MuzeStock Master Algorithm: Starting Wide Area Scan for ${tickers.length} tickers...`);
 
     const results = [];
     for (const ticker of tickers) {
         const result = await masterAnalysis(ticker.toUpperCase());
-        if (result) results.push(result);
+        if (result && result.dnaScore >= 60) results.push(result);
+
+        // API Rate Limit Protection
+        await sleep(2000);
     }
 
-    console.log('\n✨ Batch Analysis Result Summary:');
+    console.log('\n✨ Wide Area Scan Result Summary (DNA >= 60):');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    results.forEach(r => {
-        console.log(`${r.ticker.padEnd(6)} | DNA: ${r.dnaScore.toString().padEnd(3)} | Pop: ${r.popProbability.toString().padEnd(3)}% | Match: ${r.matchedLegend?.ticker || 'N/A'}`);
-    });
+    if (results.length === 0) {
+        console.log('   No high-potential stocks found in this batch.');
+    } else {
+        results.forEach(r => {
+            console.log(`${r.ticker.padEnd(6)} | DNA: ${r.dnaScore.toString().padEnd(3)} | Pop: ${r.popProbability.toString().padEnd(3)}% | Match: ${r.matchedLegend?.ticker || 'N/A'}`);
+        });
+    }
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }
 
