@@ -27,7 +27,25 @@ export const PersonaLeaderboard: React.FC = () => {
     });
 
     if (isLoading) return <div className="h-48 bg-slate-800/20 rounded-2xl animate-pulse" />;
-    if (!stats || stats.length === 0) return null;
+    
+    if (!stats || stats.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4 text-slate-600 border border-white/5">
+                    <Target className="w-8 h-8 opacity-20" />
+                </div>
+                <p className="text-white font-bold text-sm tracking-tight">ANALYZING ACCURACY...</p>
+                <p className="text-slate-500 text-[10px] mt-1 max-w-[150px] leading-relaxed">
+                    Awaiting historical trade data to calculate persona win rates.
+                </p>
+                <div className="mt-4 flex gap-1">
+                    <div className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '200ms' }} />
+                    <div className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '400ms' }} />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="h-full flex flex-col">

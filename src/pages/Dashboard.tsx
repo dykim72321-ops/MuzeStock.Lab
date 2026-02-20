@@ -130,20 +130,19 @@ export const Dashboard = () => {
             </div>
           ) : discoveries.length === 0 ? (
             <div className="bento-card p-20 flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4 text-slate-500">
-                <Loader2 className="w-8 h-8" />
+              <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4 text-slate-500 border border-white/5">
+                <Loader2 className="w-8 h-8 opacity-20" />
               </div>
-              <p className="text-slate-400 font-medium">No signals detected yet.</p>
-              <p className="text-slate-600 text-sm mt-1">Initiate a system scan to identify opportunities.</p>
+              <p className="text-white font-bold tracking-tight">NO LIVE SIGNALS</p>
+              <p className="text-slate-500 text-sm mt-1">Initiate a system scan to identify opportunities.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {discoveries.map((stock) => (
                 <div key={stock.ticker} className="group hover:z-20 relative transition-transform duration-300 hover:-translate-y-1">
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-3xl opacity-0 group-hover:opacity-30 blur-lg transition duration-500" />
                   <AnalysisResultCard
                     {...stock}
-                    className="h-full relative bento-card border-white/5 hover:border-white/20"
+                    className="h-full relative"
                   />
                 </div>
               ))}
