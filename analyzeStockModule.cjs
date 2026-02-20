@@ -40,6 +40,7 @@ async function analyzeStock(ticker) {
         return {
             symbol: ticker,
             totalScore: analysis.dnaScore || 0,
+            popProbability: analysis.popProbability || 0,
             riskLevel: analysis.riskLevel || 'Medium',
             recommendation: analysis.recommendation || 'Hold',
             summary: analysis.aiSummary || '',

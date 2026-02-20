@@ -27,6 +27,7 @@ async function saveToSupabase(result) {
                 dna_score: result.totalScore,
                 risk_level: result.riskLevel,
                 ai_summary: result.summary,
+                pop_probability: result.popProbability || 0,
                 updated_at: now
             });
 

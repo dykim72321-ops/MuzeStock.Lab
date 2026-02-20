@@ -21,7 +21,9 @@ export const Dashboard = () => {
 
   useEffect(() => {
     const fetchDiscoveries = async () => {
-      const { data, error } = await supabase
+      setLoading(true);
+      // Try to fetch with relationships (requires FK in DB)
+      let { data, error } = await supabase
         .from('daily_discovery')
         .select(`
           *,
@@ -31,8 +33,19 @@ export const Dashboard = () => {
         .order('updated_at', { ascending: false })
         .limit(6);
 
+      // Fallback: If join fails, fetch daily_discovery only
       if (error) {
-        console.error("Dashboard Fetch Error:", error);
+        console.warn("Joined fetch failed, falling back to simple fetch:", error.message);
+        const { data: simpleData, error: simpleError } = await supabase
+          .from('daily_discovery')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(6);
+        
+        if (simpleError) {
+          console.error("Dashboard Fetch Critical Error:", simpleError);
+        }
+        data = simpleData;
       }
 
       if (data) {
@@ -42,14 +55,14 @@ export const Dashboard = () => {
 
           return {
             ticker: item.ticker,
-            dnaScore: analysis.dnaScore || prediction.dna_score || 0,
-            popProbability: analysis.popProbability || 0,
-            bullPoints: analysis.bullCase || ["Calculating..."],
-            bearPoints: analysis.bearCase || ["Calculating..."],
-            matchedLegend: analysis.matchedLegend || { ticker: 'None', similarity: 0 },
-            riskLevel: analysis.riskLevel || 'Medium',
+            dnaScore: item.dna_score || analysis.dnaScore || prediction.dna_score || 0,
+            popProbability: item.pop_probability || analysis.popProbability || 0,
+            bullPoints: analysis.bullCase || ["High Momentum Strategy"],
+            bearPoints: analysis.bearCase || ["Market Volatility Risks"],
+            matchedLegend: analysis.matchedLegend || { ticker: 'N/A', similarity: 0 },
+            riskLevel: item.risk_level || analysis.riskLevel || 'Medium',
             verification: null,
-            aiSummary: analysis.aiSummary || ""
+            aiSummary: item.ai_summary || analysis.aiSummary || "Analysis pending system synchronization..."
           };
         });
         setDiscoveries(mapped);
