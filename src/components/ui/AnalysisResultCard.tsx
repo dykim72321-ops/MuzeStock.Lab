@@ -72,7 +72,7 @@ export const AnalysisResultCard = ({
                                         dnaScore >= 50 ? "bg-amber-500/10 border-amber-500/30 text-amber-400" :
                                             "bg-rose-500/10 border-rose-500/30 text-rose-400"
                             )}>
-                                {isSTier ? 'LEGENDARY S' : dnaScore >= 70 ? 'OPTIMAL A' : 'STABLE B'}
+                                {isSTier ? '레전더리 S' : dnaScore >= 70 ? '최적 A' : '안정 B'}
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -91,10 +91,10 @@ export const AnalysisResultCard = ({
                             <Zap className={clsx("w-4 h-4", popProbability > 50 ? "text-cyan-400 fill-current" : "text-slate-500")} />
                             <div>
                                 <p className="text-[10px] text-white font-black font-mono leading-none">{popProbability}%</p>
-                                <p className="text-[8px] text-slate-500 uppercase font-bold tracking-tighter mt-1">Explosion Prob.</p>
+                                <p className="text-[8px] text-slate-500 uppercase font-bold tracking-tighter mt-1">급등 발생 확률</p>
                             </div>
                         </div>
-                        <div className="w-24 h-10 bg-white/5 rounded-xl border border-white/5 p-1">
+                        <div className="w-24 h-10 bg-white/5 rounded-xl border border-white/5 p-1 relative">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={sparkData}>
                                     <Area
@@ -107,6 +107,7 @@ export const AnalysisResultCard = ({
                                     />
                                 </AreaChart>
                             </ResponsiveContainer>
+                            <span className="absolute bottom-0 right-1 text-[7px] text-slate-600 font-bold uppercase">예측 신뢰도</span>
                         </div>
                     </div>
 
@@ -122,9 +123,9 @@ export const AnalysisResultCard = ({
                         <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Target className="w-3 h-3 text-indigo-400/70" />
-                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Matched {matchedLegend.ticker}</span>
+                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">과거 패턴 일치 {matchedLegend.ticker}</span>
                             </div>
-                            <span className="text-[9px] font-mono font-bold text-indigo-300/70">{matchedLegend.similarity}% Match</span>
+                            <span className="text-[9px] font-mono font-bold text-indigo-300/70">{matchedLegend.similarity}% 일치</span>
                         </div>
                     )}
                 </div>

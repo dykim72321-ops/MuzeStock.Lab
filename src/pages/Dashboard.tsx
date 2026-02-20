@@ -80,14 +80,14 @@ export const Dashboard = () => {
       <header className="flex flex-col md:flex-row justify-between items-end gap-4 pb-6 relative z-10">
         <div>
           <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-indigo-400 tracking-tighter mb-2 flex items-center gap-3 drop-shadow-[0_0_15px_rgba(99,102,241,0.5)]">
-            COMMAND CENTER
+            작전 지휘소
             <span className="px-2 py-0.5 rounded text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold tracking-widest uppercase shadow-[0_0_10px_rgba(99,102,241,0.3)] backdrop-blur-md">
-              LIVE FEED
+              실시간 피드
             </span>
           </h1>
           <p className="text-slate-400 text-sm max-w-xl font-medium tracking-tight">
-            Advanced Market Surveillance & AI Prediction Engine.
-            <span className="text-indigo-400 font-bold"> Active Signals</span> • <span className="text-emerald-400 font-bold">Fund Performance</span>
+            차세대 시장 감시 및 AI 예측 엔진.
+            <span className="text-indigo-400 font-bold"> 활성 시그널</span> • <span className="text-emerald-400 font-bold">펀드 수익률</span>
           </p>
         </div>
         <div className="flex flex-col gap-2">
@@ -103,7 +103,7 @@ export const Dashboard = () => {
           <div className="flex items-center gap-2 mb-4">
             <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse" />
-              ALPHA FUND PERFORMANCE
+              알파 펀드 운용 현황
             </h2>
           </div>
           <PortfolioDashboard />
@@ -118,9 +118,9 @@ export const Dashboard = () => {
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-3">
               <div className="h-8 w-1 bg-gradient-to-b from-indigo-400 to-cyan-400 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.6)]" />
-              <h2 className="text-2xl font-black text-white tracking-tight">TODAY'S AI SIGNALS</h2>
+              <h2 className="text-2xl font-black text-white tracking-tight">오늘의 AI 포착 종목</h2>
             </div>
-            <span className="text-xs font-mono text-indigo-300/70 font-bold tracking-widest border border-indigo-500/20 px-3 py-1 rounded-full bg-indigo-500/5">LATEST SCAN RESULTS</span>
+            <span className="text-xs font-mono text-indigo-300/70 font-bold tracking-widest border border-indigo-500/20 px-3 py-1 rounded-full bg-indigo-500/5">최신 분석 결과</span>
           </div>
 
           {loading ? (
@@ -133,8 +133,8 @@ export const Dashboard = () => {
               <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4 text-slate-500 border border-white/5">
                 <Loader2 className="w-8 h-8 opacity-20" />
               </div>
-              <p className="text-white font-bold tracking-tight">NO LIVE SIGNALS</p>
-              <p className="text-slate-500 text-sm mt-1">Initiate a system scan to identify opportunities.</p>
+              <p className="text-white font-bold tracking-tight">활성 시그널 없음</p>
+              <p className="text-slate-500 text-sm mt-1">시스템 스캔을 시작하여 기회를 포착하세요.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -158,7 +158,7 @@ export const Dashboard = () => {
             <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[80px] rounded-full pointer-events-none" />
             <div className="flex items-center gap-3 mb-6 relative z-10 border-b border-white/5 pb-4">
               <span className="w-1.5 h-1.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
-              <h2 className="text-lg font-bold text-white tracking-tight uppercase">Model Accuracy</h2>
+              <h2 className="text-lg font-bold text-white tracking-tight uppercase">모델 정확도</h2>
             </div>
             <PersonaLeaderboard />
           </div>
@@ -168,7 +168,7 @@ export const Dashboard = () => {
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none" />
             <div className="flex items-center gap-3 mb-6 border-b border-white/5 pb-4 relative z-10">
               <span className="w-1.5 h-1.5 bg-slate-400 rounded-full shadow-[0_0_8px_rgba(148,163,184,0.5)]" />
-              <h2 className="text-lg font-bold text-white tracking-tight uppercase">Quick Watch</h2>
+              <h2 className="text-lg font-bold text-white tracking-tight uppercase">퀵 워치</h2>
             </div>
             <WatchlistView />
           </div>

@@ -10,7 +10,7 @@ export const SignalTicker = () => {
         <div className="h-8 overflow-hidden bg-indigo-500/5 rounded-full border border-indigo-500/10 px-4 flex items-center gap-3">
             <div className="flex items-center gap-2 shrink-0">
                 <Zap className="w-3 h-3 text-indigo-400 fill-indigo-400/20 animate-pulse" />
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Live Signals:</span>
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">실시간 신호:</span>
             </div>
 
             <AnimatePresence mode="wait">
@@ -39,7 +39,7 @@ export const SignalTicker = () => {
                         animate={{ opacity: 1 }}
                         className="text-[10px] text-slate-600 font-medium italic"
                     >
-                        Waiting for market pulse...
+                        시장 신호 대기 중...
                     </motion.p>
                 )}
             </AnimatePresence>

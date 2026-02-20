@@ -69,14 +69,14 @@ export const PortfolioDashboard = () => {
                     <div>
                         <div className="text-xs font-bold text-slate-400 mb-1 flex items-center gap-2 uppercase tracking-widest whitespace-nowrap">
                             <Wallet className="w-4 h-4 text-indigo-400" />
-                            Account Balance Growth
+                            계좌 자산 수익률
                         </div>
                         <div className="flex items-baseline gap-3 mt-1">
                             <h2 className={`text-6xl font-black font-mono tracking-tighter ${stats.totalReturn >= 0 ? 'text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]' : 'text-rose-400'} transition-all duration-300`}>
                                 {stats.totalReturn > 0 ? '+' : ''}{stats.totalReturn.toFixed(2)}%
                             </h2>
                             <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${stats.totalReturn >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
-                                24H
+                                실시간
                             </span>
                         </div>
                     </div>
@@ -114,7 +114,7 @@ export const PortfolioDashboard = () => {
                 <div className="bg-white/5 rounded-2xl p-5 border border-white/5 flex flex-col justify-between hover:bg-white/10 transition-colors relative overflow-hidden group">
                     <div className="flex items-center gap-2 mb-2 relative z-10">
                         <PieChart className="w-4 h-4 text-cyan-400" />
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Win Rate</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">승률 (Win Rate)</span>
                     </div>
                     <div className="relative z-10">
                         <div className="text-3xl font-black text-white font-mono tracking-tighter group-hover:scale-105 transition-transform origin-left">{stats.winRate.toFixed(0)}%</div>
@@ -128,7 +128,7 @@ export const PortfolioDashboard = () => {
                 <div className="bg-white/5 rounded-2xl p-5 border border-white/5 flex flex-col justify-between hover:bg-white/10 transition-colors relative overflow-hidden group">
                     <div className="flex items-center gap-2 mb-2 relative z-10">
                         <ArrowUpRight className="w-4 h-4 text-emerald-400" />
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Top Pick</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">최고 효자 종목</span>
                     </div>
                     <div className="relative z-10">
                         <div className="text-xl font-black text-white font-mono tracking-tight truncate mb-1">{stats.bestPerformer.ticker}</div>
@@ -142,11 +142,11 @@ export const PortfolioDashboard = () => {
                 <div className="col-span-2 md:col-span-1 bg-indigo-500/10 rounded-2xl p-5 border border-indigo-500/20 flex flex-col justify-between hover:bg-indigo-500/20 transition-colors relative overflow-hidden group">
                     <div className="flex items-center gap-2 mb-2 relative z-10">
                         <TrendingUp className="w-4 h-4 text-indigo-300" />
-                        <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest whitespace-nowrap">Active</span>
+                        <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest whitespace-nowrap">보유 포지션</span>
                     </div>
                     <div className="relative z-10">
                         <div className="text-3xl font-black text-white font-mono tracking-tighter group-hover:scale-105 transition-transform origin-left">{stats.activePositions}</div>
-                        <div className="text-[9px] font-bold text-indigo-300/70 mt-1 uppercase tracking-wider">Open Positions</div>
+                        <div className="text-[9px] font-bold text-indigo-300/70 mt-1 uppercase tracking-wider">활성 포지션 수</div>
                     </div>
                     {/* Decorative BG */}
                     <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-indigo-500/20 blur-3xl rounded-full pointer-events-none group-hover:bg-indigo-500/30 transition-colors duration-500" />

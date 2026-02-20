@@ -34,9 +34,9 @@ export const PersonaLeaderboard: React.FC = () => {
                 <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4 text-slate-600 border border-white/5">
                     <Target className="w-8 h-8 opacity-20" />
                 </div>
-                <p className="text-white font-bold text-sm tracking-tight">ANALYZING ACCURACY...</p>
+                <p className="text-white font-bold text-sm tracking-tight">정확도 분석 중...</p>
                 <p className="text-slate-500 text-[10px] mt-1 max-w-[150px] leading-relaxed">
-                    Awaiting historical trade data to calculate persona win rates.
+                    페르소나별 승률 계산을 위해 신규 데이터를 수집하고 있습니다.
                 </p>
                 <div className="mt-4 flex gap-1">
                     <div className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -66,7 +66,7 @@ export const PersonaLeaderboard: React.FC = () => {
                                 <p className="text-xs font-bold text-white uppercase tracking-tight group-hover:text-indigo-300 transition-colors">{persona.persona_name}</p>
                                 <div className="flex items-center gap-2">
                                     <span className="text-[9px] text-slate-500 flex items-center gap-1 font-mono">
-                                        <Target className="w-2.5 h-2.5" /> {persona.total_predictions} CALLS
+                                        <Target className="w-2.5 h-2.5" /> {persona.total_predictions}회 예측
                                     </span>
                                 </div>
                             </div>
@@ -75,13 +75,13 @@ export const PersonaLeaderboard: React.FC = () => {
                         <div className="text-right">
                             <div className="text-sm font-black text-white font-mono flex items-center justify-end gap-1">
                                 {(persona.win_rate * 100).toFixed(0)}%
-                                <span className="text-[9px] text-slate-500 font-bold">WR</span>
+                                <span className="text-[9px] text-slate-500 font-bold">승률</span>
                             </div>
                             <div className={clsx(
                                 "text-[10px] font-bold font-mono",
                                 persona.avg_roi >= 0 ? "text-emerald-400" : "text-rose-400"
                             )}>
-                                {persona.avg_roi >= 0 ? '+' : ''}{persona.avg_roi.toFixed(1)}% ROI
+                                수익률 {persona.avg_roi >= 0 ? '+' : ''}{persona.avg_roi.toFixed(1)}%
                             </div>
                         </div>
                     </div>

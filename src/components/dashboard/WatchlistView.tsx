@@ -50,7 +50,7 @@ export const WatchlistView = () => {
     return (
       <div className="flex flex-col items-center justify-center py-40 gap-4">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
-        <p className="text-slate-500 font-mono text-sm animate-pulse">SYNCING PORTFOLIO DATA...</p>
+        <p className="text-slate-500 font-mono text-sm animate-pulse">포트폴리오 동기화 중...</p>
       </div>
     );
   }
@@ -64,14 +64,14 @@ export const WatchlistView = () => {
             <Activity className="w-6 h-6 text-slate-500" />
           </div>
           <p className="text-slate-400 text-sm mb-4">
-            Watchlist is empty.
+            관심 종목 리스트가 비어 있습니다.
           </p>
           <button
             onClick={() => navigate('/')}
             className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-xs font-bold rounded-lg transition-all border border-indigo-500/30 hover:border-indigo-500/50 flex items-center gap-2"
           >
             <Activity className="w-3 h-3" />
-            DISCOVER ASSETS
+            시장 발굴 시작
           </button>
         </div>
       ) : (
@@ -100,7 +100,7 @@ export const WatchlistView = () => {
                         </span>
                       </div>
                       <div className="text-[10px] text-slate-500 truncate max-w-[120px]">
-                        {stock?.name || 'Loading...'}
+                        {stock?.name || '데이터 로딩 중...'}
                       </div>
                     </div>
                   </div>
@@ -111,7 +111,7 @@ export const WatchlistView = () => {
                       {stock ? `$${stock.price.toFixed(2)}` : '-'}
                     </div>
                     <div className="text-[10px] text-slate-500 font-mono">
-                      VOL: {stock ? (stock.volume / 1000).toFixed(0) + 'K' : '-'}
+                      거래량: {stock ? (stock.volume / 1000).toFixed(0) + 'K' : '-'}
                     </div>
                   </div>
 
