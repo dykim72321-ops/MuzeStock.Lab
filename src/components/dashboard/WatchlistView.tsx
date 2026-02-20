@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, TrendingUp, TrendingDown, Loader2, Star, Activity, ChevronDown } from 'lucide-react';
-import { getWatchlist, removeFromWatchlist, updateWatchlistStatus, type WatchlistItem, type WatchlistStatus } from '../../services/watchlistService';
+import { Trash2, Loader2, Activity } from 'lucide-react';
+import { getWatchlist, removeFromWatchlist, type WatchlistItem } from '../../services/watchlistService';
 import { fetchMultipleStocks } from '../../services/stockService';
 import type { Stock } from '../../types';
-import { Badge } from '../ui/Badge';
-import clsx from 'clsx';
 
 export const WatchlistView = () => {
   const navigate = useNavigate();
@@ -45,23 +43,6 @@ export const WatchlistView = () => {
     }
   };
 
-  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>, ticker: string) => {
-    e.stopPropagation();
-    const newStatus = e.target.value as WatchlistStatus;
-    await updateWatchlistStatus(ticker, newStatus);
-    loadWatchlist();
-  };
-
-  const getStatusBadge = (status: WatchlistStatus) => {
-    switch (status) {
-      case 'HOLDING':
-        return <Badge variant="primary" className="bg-blue-500/10 text-blue-400 border-blue-500/20">보유 중</Badge>;
-      case 'EXITED':
-        return <Badge variant="neutral" className="bg-slate-700/50 text-slate-400 border-slate-600">투자 종료</Badge>;
-      default:
-        return <Badge variant="warning" className="bg-amber-500/10 text-amber-400 border-amber-500/20">관찰 중</Badge>;
-    }
-  };
 
   const getStockData = (ticker: string) => stocks.find(s => s.ticker === ticker);
 

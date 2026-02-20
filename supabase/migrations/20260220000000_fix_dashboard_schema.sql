@@ -1,16 +1,7 @@
--- 1. Establishing relationships for nested selects to work
--- These foreign keys are required by PostgREST to perform joins via .select('*, ai_predictions(*)')
-
--- Ensure ai_predictions references daily_discovery
--- Note: daily_discovery.ticker is the primary key
-ALTER TABLE public.ai_predictions 
-DROP CONSTRAINT IF EXISTS fk_ai_predictions_ticker;
-
-ALTER TABLE public.ai_predictions
-ADD CONSTRAINT fk_ai_predictions_ticker
-FOREIGN KEY (ticker) 
-REFERENCES public.daily_discovery(ticker)
-ON DELETE CASCADE;
+-- 1. Establishing relationships for nested selects (Optional if skipping strict FK)
+-- We'll skip the strict FK for ai_predictions because it contains historical data
+-- for tickers that might not be in the current daily_discovery subset.
+-- Code-level fallback handles this in Dashboard.tsx.
 
 -- Ensure stock_analysis_cache references daily_discovery
 ALTER TABLE public.stock_analysis_cache

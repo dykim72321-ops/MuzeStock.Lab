@@ -1,9 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
-import { Card } from '../ui/Card';
-import { Badge } from '../ui/Badge';
-import { Trophy, Target } from 'lucide-react';
+import { Target } from 'lucide-react';
 import clsx from 'clsx';
 
 interface PersonaStats {

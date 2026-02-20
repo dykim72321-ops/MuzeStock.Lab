@@ -119,14 +119,14 @@ const TopPickHero: React.FC<{ item: DiscoveryItem }> = ({ item }) => {
       <AnalysisResultCard
         ticker={item.ticker}
         dnaScore={item.dna_score}
-        popProbability={item.pop_probability}
-        riskLevel={item.risk_level}
+        popProbability={item.pop_probability ?? 0}
+        riskLevel={item.risk_level ?? 'Medium'}
         bullPoints={item.bull_case || []}
         bearPoints={item.bear_case || []}
         matchedLegend={item.matched_legend_ticker ? {
           ticker: item.matched_legend_ticker,
           similarity: item.legend_similarity || 0
-        } : undefined}
+        } : { ticker: 'N/A', similarity: 0 }}
         aiSummary={item.ai_summary}
         className="shadow-2xl shadow-indigo-500/10"
       />
