@@ -1,17 +1,7 @@
 -- 1. Establishing relationships for nested selects (Optional if skipping strict FK)
--- We'll skip the strict FK for ai_predictions because it contains historical data
+-- We'll skip strict FKs because the target tables contain historical data
 -- for tickers that might not be in the current daily_discovery subset.
 -- Code-level fallback handles this in Dashboard.tsx.
-
--- Ensure stock_analysis_cache references daily_discovery
-ALTER TABLE public.stock_analysis_cache
-DROP CONSTRAINT IF EXISTS fk_stock_analysis_cache_ticker;
-
-ALTER TABLE public.stock_analysis_cache
-ADD CONSTRAINT fk_stock_analysis_cache_ticker
-FOREIGN KEY (ticker) 
-REFERENCES public.daily_discovery(ticker)
-ON DELETE CASCADE;
 
 -- 2. Create the missing paper_portfolio table for Alpha Fund Performance
 CREATE TABLE IF NOT EXISTS public.paper_portfolio (
