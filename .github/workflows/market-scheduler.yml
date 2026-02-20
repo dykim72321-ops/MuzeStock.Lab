@@ -3,13 +3,13 @@ name: MuzeStock Auto-Scanner
 on:
   schedule:
     # 평일(월~금) 한국 시간 밤 11시 (UTC 14:00) - 미국 장 시작 전
-    - cron: '0 14 * * 1-5'
+    - cron: "0 14 * * 1-5"
   workflow_dispatch:
 
 jobs:
   analyze-and-verify:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -17,8 +17,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -26,6 +26,7 @@ jobs:
       - name: Run Master Analysis (Wide Area Scanner)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node masterAnalysis.cjs
         timeout-minutes: 60
@@ -33,5 +34,6 @@ jobs:
       - name: Run Performance Verification
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node verifyAnalysis.cjs
