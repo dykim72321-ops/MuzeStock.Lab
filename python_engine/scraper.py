@@ -8,7 +8,11 @@ import yfinance as yf
 import ta
 import pandas as pd
 from sklearn.ensemble import IsolationForest
+import requests_cache
+import random
 
+# yfinance용 캐시 세션 (1시간 만료) 설정: 동일 종목 연속 요청 차단
+yf_session = requests_cache.CachedSession('yfinance.cache', expire_after=3600)
 
 class FinvizHunter:
     def __init__(self):
@@ -250,9 +254,14 @@ class FinvizHunter:
 
             # 1. Technical Indicators (using yfinance)
             try:
-                tk = yf.Ticker(ticker_symbol)
-                df = tk.history(period="1mo")
-                if df.empty:
+                # 지터(Jitter) 추가: 요청 간 랜덤 딜레이 스로틀링 (Rate Limit 방어)
+                await asyncio.sleep(random.uniform(0.5, 1.5))
+                
+                tk = yf.Ticker(ticker_symbol, session=yf_session)
+                # I/O 블로킹 방지를 위해 to_thread 사용
+                df = await asyncio.to_thread(tk.history, period="1mo")
+                if df is None or df.empty:
+
                     continue
 
                 price = df["Close"].iloc[-1]

@@ -20,7 +20,8 @@ const PulseDashboard = lazy(() => import('./pages/PulseDashboard'));
 const ScannerPage = lazy(() => import('./pages/ScannerPage').then(m => ({ default: m.ScannerPage })));
 const AlphaFundView = lazy(() => import('./pages/AlphaFundView').then(m => ({ default: m.AlphaFundView })));
 const DnaMatchView = lazy(() => import('./components/analysis/DnaMatchView').then(m => ({ default: m.DnaMatchView })));
-const WatchlistView = lazy(() => import('./components/dashboard/WatchlistView').then(m => ({ default: m.WatchlistView })));
+const WatchlistPage = lazy(() => import('./pages/WatchlistPage').then(m => ({ default: m.WatchlistPage })));
+
 const SimulatorView = lazy(() => import('./components/dashboard/SimulatorView').then(m => ({ default: m.SimulatorView })));
 const PersonaPerformance = lazy(() => import('./components/dashboard/PersonaPerformance').then(m => ({ default: m.PersonaPerformance })));
 const BacktestingDashboard = lazy(() => import('./components/dashboard/BacktestingDashboard').then(m => ({ default: m.BacktestingDashboard })));
@@ -60,7 +61,8 @@ function App() {
                 <Route path="portfolio" element={<AlphaFundView />} />
 
                 {/* 관심 종목 */}
-                <Route path="watchlist" element={<WatchlistView />} />
+                <Route path="watchlist" element={<WatchlistPage />} />
+
 
                 {/* 백테스팅 */}
                 <Route path="backtesting" element={<BacktestingDashboard />} />

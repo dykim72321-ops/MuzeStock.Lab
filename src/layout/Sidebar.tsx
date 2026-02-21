@@ -28,8 +28,8 @@ const NAVIGATION: { section: string; items: NavItem[] }[] = [
     {
         section: 'MAIN OPERATION',
         items: [
-            { name: '퀀트 펄스 (Pulse)', icon: Zap, path: '/pulse', isHot: true },
-            { name: '시장 발굴 (Discovery)', icon: LayoutDashboard, path: '/' },
+            { name: '작전 지휘소 (Command)', icon: LayoutDashboard, path: '/' },
+            { name: '퀀트 펄스 (Live Feed)', icon: Zap, path: '/pulse', isHot: true },
             { name: '마켓 스캐너 (Scanner)', icon: Search, path: '/scanner' },
         ]
     },

@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   ArrowUpRight, Search, Loader2, RefreshCw,
-  List, LayoutGrid, Filter, ArrowDownWideNarrow, ArrowUpWideNarrow,
-  ShieldCheck, ShieldAlert, Shield, Zap, TrendingUp, TrendingDown
+  List, LayoutGrid, ArrowDownWideNarrow, ArrowUpWideNarrow,
+  ShieldCheck, ShieldAlert, Shield, Zap, TrendingUp, TrendingDown, Clock
 } from 'lucide-react';
+
 import { Card } from '../components/ui/Card';
 import { getTopStocks } from '../services/stockService';
 import type { Stock } from '../types';
@@ -28,11 +29,13 @@ export const ScannerPage = () => {
   const [selectedRisk, setSelectedRisk] = useState('All');
   const [sortBy, setSortBy] = useState<'dna' | 'price' | 'change'>('dna');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [isHistorical, setIsHistorical] = useState(false);
+
 
   const fetchStocks = async () => {
     try {
       setLoading(true);
-      const data = await getTopStocks();
+      const data = await getTopStocks(isHistorical);
       setStocks(data);
     } catch (err) {
       console.error('Failed to fetch stocks:', err);
@@ -43,7 +46,8 @@ export const ScannerPage = () => {
 
   useEffect(() => {
     fetchStocks();
-  }, []);
+  }, [isHistorical]);
+
 
   const sectors = useMemo(() => ['All', ...new Set(stocks.map(s => s.sector))], [stocks]);
 
@@ -96,24 +100,42 @@ export const ScannerPage = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
+      {/* Header & AI Insight Bar */}
       <section className="relative overflow-hidden p-8 rounded-[2rem] bg-indigo-500/5 border border-white/5">
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full -mr-20 -mt-20" />
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
-            <p className="text-[10px] text-slate-500 font-mono font-bold tracking-widest uppercase">TERMINAL SCANNER v3.1</p>
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+          <div className="max-w-2xl">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
+              <p className="text-[10px] text-slate-500 font-mono font-bold tracking-widest uppercase">MARKET SCANNER v4.0</p>
+            </div>
+            <h1 className="text-5xl font-black text-white tracking-tighter mb-4 flex items-center gap-4">
+              Alpha Discovery
+            </h1>
+            <p className="text-slate-400 font-medium leading-relaxed">
+              v4 Pulse Engine이 실시간으로 집계한 시장의 핵심 기류를 스캔합니다.<br/>
+              DNA 점수 70점 이상의 종목은 강력한 모멘텀 돌파 가능성을 시사합니다.
+            </p>
           </div>
-          <h1 className="text-5xl font-black text-white tracking-tighter mb-4 flex items-center gap-4">
-            Market Discovery
-            <Filter className="w-8 h-8 text-indigo-400 opacity-30" />
-          </h1>
-          <p className="text-slate-400 max-w-2xl font-medium leading-relaxed">
-            광범위 스캔 알고리즘이 처리한 상위 100개 종목 중 최적의 기회를 선별합니다.
-            DNA 점수와 패턴 유사도를 기반으로 고밀도 데이터 분석을 시작하십시오.
-          </p>
+          
+          <div className="flex flex-col gap-3 py-4 px-6 bg-slate-950/40 backdrop-blur-md rounded-2xl border border-white/5 min-w-[320px]">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">AI Market Pulse</span>
+              <span className="text-[10px] font-mono text-slate-500">Live Feedback</span>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-8 bg-emerald-500 rounded-full" />
+                <div>
+                  <p className="text-xs font-bold text-slate-200">Bullish Sector Rotation</p>
+                  <p className="text-[10px] text-slate-500">Tech & Energy leading the momentum.</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
+
 
       {/* Control Bar */}
       <Card className="p-4 bg-slate-900/50 backdrop-blur-xl border border-white/5 rounded-3xl">
@@ -131,7 +153,6 @@ export const ScannerPage = () => {
               />
             </div>
 
-            {/* High Performance Toggle */}
             <button
               onClick={() => setMinDna(minDna === 70 ? 0 : 70)}
               className={clsx(
@@ -144,6 +165,21 @@ export const ScannerPage = () => {
               <Zap className={clsx("w-4 h-4", minDna === 70 ? "fill-current" : "")} />
               DNA 70+ Spec
             </button>
+
+            {/* Historical Scan Toggle */}
+            <button
+              onClick={() => setIsHistorical(!isHistorical)}
+              className={clsx(
+                "flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-sm font-bold",
+                isHistorical
+                  ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
+                  : "bg-white/5 border-white/5 text-slate-400 hover:bg-white/10"
+              )}
+            >
+              <Clock className={clsx("w-4 h-4", isHistorical ? "fill-current" : "")} />
+              Historical Scan
+            </button>
+
 
             {/* Risk Selection */}
             <div className="flex items-center bg-white/5 rounded-xl border border-white/5 p-1">

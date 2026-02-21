@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import AnimatedNumber from '../components/ui/AnimatedNumber';
 
@@ -12,10 +13,29 @@ import { PersonaLeaderboard } from '../components/dashboard/PersonaLeaderboard';
 import { AlphaFundPositions } from '../components/dashboard/AlphaFundPositions';
 
 // ─────────────────────────────────────────────────────────────────
-// v4 엔진 로직을 반영한 목업 데이터
-// 추후 Supabase 'active_positions' 테이블 & backtester API와 연동
+// v4 엔진 로직을 반영한 데이터 타입 및 목업
 // ─────────────────────────────────────────────────────────────────
-const MOCK_PORTFOLIO = {
+interface Position {
+  ticker: string;
+  status: string;
+  weight: number;
+  entryPrice: number;
+  currentPrice: number;
+  tsThreshold: number;
+  pnlPct: number;
+}
+
+interface PortfolioData {
+  totalAssets: number;
+  cashAvailable: number;
+  investedCapital: number;
+  dailyPnL: number;
+  dailyPnLPct: number;
+  positions: Position[];
+}
+
+const MOCK_PORTFOLIO: PortfolioData = {
+
   totalAssets: 125430.50,
   cashAvailable: 85292.74,   // 3/4 켈리: 현금 비중 높음 (SWAN의 핵심)
   investedCapital: 40137.76,
@@ -72,8 +92,45 @@ const StatusBadge = ({ status }: { status: string }) =>
 // Main Component (named export — App.tsx lazy import에 맞춤)
 // ─────────────────────────────────────────────────────────────────
 export const AlphaFundView = () => {
-  const { totalAssets, cashAvailable, investedCapital, dailyPnL, dailyPnLPct, positions } =
-    MOCK_PORTFOLIO;
+  const [data, setData] = useState<PortfolioData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+
+  useEffect(() => {
+    const fetchPortfolio = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/portfolio');
+        if (!response.ok) throw new Error('Failed to fetch portfolio');
+        const json = await response.json();
+        setData(json);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPortfolio();
+    // 5초마다 갱신 (실시간성 확보)
+    const timer = setInterval(fetchPortfolio, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (loading && !data) return (
+    <div className="flex h-64 items-center justify-center text-slate-500 animate-pulse font-mono">
+      ALPHAFUND SECURE LINK INITIALIZING...
+    </div>
+  );
+
+  if (error && !data) return (
+    <div className="flex h-64 items-center justify-center text-rose-500 font-bold">
+      ERROR: {error}
+    </div>
+  );
+
+  const { totalAssets, cashAvailable, investedCapital, dailyPnL, dailyPnLPct, positions } = data || MOCK_PORTFOLIO;
+
 
   const investedPct = (investedCapital / totalAssets) * 100;
   const cashPct = (cashAvailable / totalAssets) * 100;
@@ -180,8 +237,9 @@ export const AlphaFundView = () => {
         </h2>
 
         <div className="grid grid-cols-1 gap-4">
-          {positions.map((pos) => (
+          {positions.map((pos: Position) => (
             <motion.div
+
               key={pos.ticker}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}

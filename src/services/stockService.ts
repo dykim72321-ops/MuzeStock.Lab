@@ -237,17 +237,22 @@ export async function fetchMultipleStocks(tickers: string[]): Promise<Stock[]> {
   return results;
 }
 
-export async function getTopStocks(): Promise<Stock[]> {
+export async function getTopStocks(historical: boolean = false): Promise<Stock[]> {
   try {
-    // 1. 24시간 이내 데이터만 조회
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-
-    const { data: discoveryData, error: discoveryError } = await supabase
+    // 1. 데이터 조회 (historical이면 시간 제한 해제)
+    let query = supabase
       .from('daily_discovery')
-      .select('*, stock_analysis_cache(analysis)')
-      .gte('updated_at', twentyFourHoursAgo) // updated_at 기준으로 필터링
+      .select('*, stock_analysis_cache(analysis)');
+    
+    if (!historical) {
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      query = query.gte('updated_at', twentyFourHoursAgo);
+    }
+
+    const { data: discoveryData, error: discoveryError } = await query
       .order('updated_at', { ascending: false })
-      .limit(30);
+      .limit(historical ? 100 : 30);
+
 
     if (discoveryError) throw discoveryError;
 
