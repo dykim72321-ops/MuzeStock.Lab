@@ -295,7 +295,7 @@ class FinvizHunter:
                 "tags": [ticker_symbol, "QUANT"],
                 "bull_case": "자동 분석 기능 비활성화 (순수 퀀트 모드)",
                 "bear_case": "자동 분석 기능 비활성화 (순수 퀀트 모드)",
-                "reasoning_ko": "OpenAI 모듈이 제거되어 퀀트 지표 기반으로만 탐지되었습니다."
+                "reasoning_ko": "OpenAI 모듈이 제거되어 퀀트 지표 기반으로만 탐지되었습니다.",
             }
             # 4. Auto Backtest (1년 RSI 전략)
             from backtester import run_backtest
