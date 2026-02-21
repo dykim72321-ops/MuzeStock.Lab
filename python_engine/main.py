@@ -28,8 +28,6 @@ import random
 from webhook_manager import WebhookManager
 from paper_engine import PaperTradingManager
 
-# Realtime Engine용 캐시 세션 (15초 만료: 불필요한 중복 요청 방지)
-yf_session = requests_cache.CachedSession("yfinance_main.cache", expire_after=15)
 webhook = WebhookManager()
 # PaperTradingManager 인스턴스 (Supabase가 초기화된 후 설정)
 paper_engine = None
@@ -207,7 +205,7 @@ def analyze_stock(request: AnalyzeRequest):
         return analyze_cache[cache_key]
 
     try:
-        ticker = yf.Ticker(request.ticker, session=yf_session)
+        ticker = yf.Ticker(request.ticker)
         df = ticker.history(period=request.period)
         if df is None or df.empty:
 
@@ -479,6 +477,8 @@ def run_pulse_engine(ticker: str, df_raw: pd.DataFrame):
         "kelly_f": sizing["kelly_f"],
         "recommended_weight": sizing["recommended_weight"],
         "price": round(float(latest["Close"]), 2),
+        "indicator": "MACD/RSI/VOL Pulse",
+        "value": round(float(latest["Close"]), 2),
         "signal": signal_type,
         "strength": strength,
         "timestamp": datetime.now().isoformat(),
@@ -541,7 +541,7 @@ async def process_ticker_pulse(ticker_symbol: str):
         await asyncio.sleep(random.uniform(0.1, 1.0))
 
         # 1. 1분봉 데이터로 실시간성 확보 (충분한 계산을 위해 1일치 로드) - 별도 스레드에서 I/O 실행
-        tk = yf.Ticker(ticker_symbol, session=yf_session)
+        tk = yf.Ticker(ticker_symbol)
         hist = await asyncio.to_thread(tk.history, period="1d", interval="1m")
 
         if (
