@@ -16,12 +16,50 @@ class FinvizHunter:
         self.ai = AIAnalyzer()
         self.news = NewsManager()
         self.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
-        
+
         # S&P 500 등 기준 유니버스 (Anomaly Hunting용 기본 풀)
-        self.base_universe = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "BRK-B", "JNJ", "V", 
-                              "JPM", "PG", "UNH", "HD", "MA", "DIS", "PYPL", "VZ", "ADBE", "NFLX",
-                              "INTC", "CMCSA", "PFE", "CSCO", "PEP", "KO", "MRK", "ABT", "CRM", "AVGO",
-                              "COST", "T", "WMT", "MCD", "MDT", "NKE", "TXN", "HON", "UNP", "QCOM"]
+        self.base_universe = [
+            "AAPL",
+            "MSFT",
+            "GOOGL",
+            "AMZN",
+            "NVDA",
+            "META",
+            "TSLA",
+            "BRK-B",
+            "JNJ",
+            "V",
+            "JPM",
+            "PG",
+            "UNH",
+            "HD",
+            "MA",
+            "DIS",
+            "PYPL",
+            "VZ",
+            "ADBE",
+            "NFLX",
+            "INTC",
+            "CMCSA",
+            "PFE",
+            "CSCO",
+            "PEP",
+            "KO",
+            "MRK",
+            "ABT",
+            "CRM",
+            "AVGO",
+            "COST",
+            "T",
+            "WMT",
+            "MCD",
+            "MDT",
+            "NKE",
+            "TXN",
+            "HON",
+            "UNP",
+            "QCOM",
+        ]
 
     def get_discovery_mode(self):
         day = datetime.now().weekday()  # 0: Mon, 6: Sun
@@ -63,39 +101,48 @@ class FinvizHunter:
         """
         print("🕵️♂️ Starting Track B: Anomaly Hunter (Isolation Forest)...")
         data_records = []
-        
+
         for ticker in self.base_universe:
             try:
                 tk = yf.Ticker(ticker)
                 hist = tk.history(period="3mo")
                 if len(hist) < 30:
                     continue
-                
+
                 # 피처 엔지니어링 (다차원 데이터 구성)
                 close_prices = hist["Close"]
                 volumes = hist["Volume"]
-                
+
                 # 1. 20일 거래량 변화율
-                vol_change = volumes.iloc[-5:].mean() / (volumes.iloc[-20:-5].mean() + 1e-9)
-                
+                vol_change = volumes.iloc[-5:].mean() / (
+                    volumes.iloc[-20:-5].mean() + 1e-9
+                )
+
                 # 2. RSI (14일)
                 rsi = ta.momentum.RSIIndicator(close_prices).rsi().iloc[-1]
-                
+
                 # 3. 일간 변동성 (최근 20일)
                 returns = close_prices.pct_change().dropna()
                 volatility = returns.tail(20).std()
-                
+
                 # 4. 가격 모멘텀 (20일)
                 momentum = (close_prices.iloc[-1] / close_prices.iloc[-20]) - 1
-                
-                if not pd.isna(vol_change) and not pd.isna(rsi) and not pd.isna(volatility) and not pd.isna(momentum):
-                    data_records.append({
-                        "ticker": ticker,
-                        "vol_change": vol_change,
-                        "rsi": rsi,
-                        "volatility": volatility,
-                        "momentum": momentum
-                    })
+
+                if (
+                    not pd.isna(vol_change)
+                    and not pd.isna(rsi)
+                    and not pd.isna(volatility)
+                    and not pd.isna(momentum)
+                ):
+                    data_records.append(
+                        {
+                            "ticker": ticker,
+                            "vol_change": vol_change,
+                            "rsi": rsi,
+                            "volatility": volatility,
+                            "momentum": momentum,
+                        }
+                    )
             except Exception as e:
                 print(f"⚠️ Anomaly extraction failed for {ticker}: {e}")
 
@@ -105,25 +152,27 @@ class FinvizHunter:
 
         df = pd.DataFrame(data_records)
         features = df[["vol_change", "rsi", "volatility", "momentum"]].values
-        
+
         # Isolation Forest 모델 적용 (가장 이질적인 5% 추출)
         model = IsolationForest(contamination=0.05, random_state=42)
         model.fit(features)
-        
+
         # -1은 이상치(Anomaly), 1은 정상(Normal)
         df["anomaly"] = model.predict(features)
-        
+
         # 이상치로 판별된 종목 리스트 반환
         anomalies = df[df["anomaly"] == -1]
-        
+
         results = []
         for _, row in anomalies.iterrows():
-            results.append({
-                "ticker": row["ticker"],
-                "sector": "Anomaly (AI Detected)",
-                "reason": f"Vol Change: {row['vol_change']:.2f}x, RSI: {row['rsi']:.1f}"
-            })
-            
+            results.append(
+                {
+                    "ticker": row["ticker"],
+                    "sector": "Anomaly (AI Detected)",
+                    "reason": f"Vol Change: {row['vol_change']:.2f}x, RSI: {row['rsi']:.1f}",
+                }
+            )
+
         print(f"🎯 Anomaly Hunter found {len(results)} outlier stocks.")
         return results
 
@@ -178,18 +227,22 @@ class FinvizHunter:
 
     async def scrape(self):
         print("⚙️ Starting Hybrid Quant Funnel (Dual-Track Stage 1)...")
-        
+
         # 1. 듀얼 트랙 실행
         # Track A: Finviz (비동기)
         finviz_candidates = await self._run_finviz_scraper()
-        
+
         # Track B: Isolation Forest (동기 연산이므로 asyncio.to_thread로 오프로드)
         anomaly_candidates = await asyncio.to_thread(self._run_anomaly_hunter)
-        
+
         # 두 결과 병합 및 중복 제거
-        combined_candidates = list({c["ticker"]: c for c in finviz_candidates + anomaly_candidates}.values())
-        
-        print(f"✅ Stage 1 Complete. Total Unique Candidates: {len(combined_candidates)}. Starting Deep Analysis...")
+        combined_candidates = list(
+            {c["ticker"]: c for c in finviz_candidates + anomaly_candidates}.values()
+        )
+
+        print(
+            f"✅ Stage 1 Complete. Total Unique Candidates: {len(combined_candidates)}. Starting Deep Analysis..."
+        )
 
         for stock in combined_candidates:
             ticker_symbol = stock["ticker"]
@@ -211,7 +264,9 @@ class FinvizHunter:
                 volume = int(df["Volume"].iloc[-1])
 
                 rsi = ta.momentum.RSIIndicator(close=df["Close"]).rsi().iloc[-1]
-                indicators_summary = f"Price: ${price:.2f}, RSI: {rsi:.1f}, Change: {change:.2f}%"
+                indicators_summary = (
+                    f"Price: ${price:.2f}, RSI: {rsi:.1f}, Change: {change:.2f}%"
+                )
             except Exception as e:
                 print(f"⚠️ Failed to get technicals for {ticker_symbol}: {e}")
                 continue
@@ -220,8 +275,11 @@ class FinvizHunter:
             headlines = self.news.fetch_company_news(ticker_symbol)
 
             # 3. AI Deep Analysis
-            ai_context_ext = f"Detection Source: {stock.get('reason', 'Unknown')}. \n" + indicators_summary
-            
+            ai_context_ext = (
+                f"Detection Source: {stock.get('reason', 'Unknown')}. \n"
+                + indicators_summary
+            )
+
             ai_input = {
                 "ticker": ticker_symbol,
                 "price": price,
@@ -234,13 +292,13 @@ class FinvizHunter:
             # 4. Auto Backtest (1년 RSI 전략)
             from backtester import run_backtest
 
-            backtest_result = await asyncio.to_thread(run_backtest, ticker_symbol, period="1y")
+            backtest_result = await asyncio.to_thread(
+                run_backtest, ticker_symbol, period="1y"
+            )
             backtest_return = None
             if "error" not in backtest_result:
                 backtest_return = backtest_result.get("total_return_pct", 0)
-                print(
-                    f"📈 Backtest: {ticker_symbol} → {backtest_return:.2f}% (1Y RSI)"
-                )
+                print(f"📈 Backtest: {ticker_symbol} → {backtest_return:.2f}% (1Y RSI)")
             else:
                 print(
                     f"⚠️ Backtest skipped for {ticker_symbol}: {backtest_result.get('error')}"
