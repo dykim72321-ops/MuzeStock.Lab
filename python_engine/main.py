@@ -20,7 +20,6 @@ from db_manager import DBManager
 import asyncio
 from datetime import datetime
 from supabase import create_client, Client
-from openai import OpenAI
 import pandas as pd
 import numpy as np
 from cachetools import TTLCache
@@ -341,43 +340,30 @@ def calculate_position_sizing(
 
 def generate_ai_investment_report(data: dict):
     """
-    수학적 지표를 바탕으로 AI 투자 조언 생성 (한국어 고도화 버전)
+    규칙 기반(Deterministic) 동적 리포트 생성 엔진. (OpenAI API 완전 분리)
     """
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    if not client.api_key:
-        return "AI 리포트 생성을 위한 API 키가 설정되지 않았습니다."
+    rsi = data.get('rsi', 50.0)
+    signal = data.get('signal', 'HOLD')
+    vol = data.get('volatility_ann', 0.0)
+    rec_weight = data.get('recommended_weight', 0.0)
 
-    prompt = f"""
-    당신은 전문 퀀트 애널리스트입니다. 아래 제공된 수학적 지표를 바탕으로 한국어로 투자 조언을 작성하세요.
+    report = []
     
-    [데이터]
-    - 종목: {data['ticker']}
-    - RSI: {data['rsi']} (30 미만은 과매도)
-    - MACD 상태: {data['signal']} ({data['strength']})
-    - 연율화 변동성: {data['volatility_ann']}%
-    - 켈리 공식 추천 비중: {data['recommended_weight']}%
-    
-    [지침]
-    1. 현재 상태를 '수학적 근거'를 들어 요약하세요.
-    2. 변동성과 켈리 비중을 근거로 리스크 관리 조언을 포함하세요.
-    3. 어투는 전문적이고 신뢰감 있게 작성하세요.
-    4. "※ 본 리포트는 데이터 분석 결과일 뿐, 투자의 절대적 권유가 아님을 명시합니다."라는 문구를 반드시 포함하세요.
-    """
+    # 1. 시그널 요약
+    if signal == 'BUY':
+        report.append(f"📈 [초강력 매수 시그널] RSI {rsi} 및 MACD 상향 돌파가 확인되었습니다.")
+    elif signal == 'SELL':
+        report.append(f"📉 [위험 구간] RSI {rsi} 및 MACD 하방 압력 가중.")
+    else:
+        report.append(f"⚖️ [관망] 뚜렷한 추세가 관찰되지 않습니다 (RSI: {rsi}).")
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "당신은 데이터에 기반한 냉철한 퀀트 투자 시스템의 분석 엔진입니다.",
-                },
-                {"role": "user", "content": prompt},
-            ],
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"AI 리포트 생성 중 오류 발생: {str(e)}"
+    # 2. 리스크 관리 조언
+    report.append(f"현재 타겟의 연율화 변동성은 {vol}% 수준이며, 켈리 공식(Kelly Criterion) 기반 최대 안전 권장 비중은 {rec_weight}%입니다.")
+    
+    # 3. 추가 조언 및 면책 조항
+    report.append("※ 본 리포트는 순수 수학적 알고리즘 기반 분석 결과일 뿐, 투자의 절대적 권유가 아님을 명시합니다.")
+
+    return "\n".join(report)
 
 
 def run_pulse_engine(ticker: str, df_raw: pd.DataFrame):
@@ -429,11 +415,19 @@ def run_pulse_engine(ticker: str, df_raw: pd.DataFrame):
 
     # 3. AI 리포트 생성 (STRONG 신호일 때만 생성하여 비용/속도 최적화)
     if strength == "STRONG":
+        # AIAnalyzer의 분석 로직 연계 (메모리 내 AIAnalyzer 인스턴스 활용 권장하나, 여기선 직접 리포트 생성 로직 활용)
         payload["ai_report"] = generate_ai_investment_report(payload)
+        # 프론트엔드 QuantSignalCard를 위한 구조화된 데이터 추가
+        payload["ai_metadata"] = {
+            "dna_score": 85 if signal_type == "BUY" else (40 if signal_type == "SELL" else 60),
+            "bull_case": "수학적 지표상 반등 모멘텀 임계치 도달" if signal_type == "BUY" else "현재 구간 하방 방어선 구축 중",
+            "bear_case": "매물 출회 가능성 및 시장 변동성 리스크" if signal_type == "SELL" else "상단 저항선 돌파 에너지 필요",
+            "reasoning_ko": payload["ai_report"],
+            "tags": [ticker.upper(), signal_type, strength]
+        }
     else:
-        payload["ai_report"] = (
-            "시장 신호 강도가 보통(NORMAL)이며, 정밀 AI 분석 조건에 도달하지 않았습니다."
-        )
+        payload["ai_report"] = "시장 신호 강도가 보통(NORMAL)이며, 정밀 AI 분석 조건에 도달하지 않았습니다."
+        payload["ai_metadata"] = None
 
     return payload
 

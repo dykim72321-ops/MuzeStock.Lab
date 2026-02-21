@@ -1,134 +1,166 @@
-import os
-from openai import OpenAI
-from dotenv import load_dotenv
+import re
 import nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
-
-load_dotenv(dotenv_path="../.env.local")
-load_dotenv(dotenv_path="../.env")
-
+from typing import Dict, Any, List, Union
 
 class AIAnalyzer:
+    """
+    OpenAI 의존성을 제거하고, 수치 데이터와 NLTK 감성 분석을 기반으로
+    0.001초 만에 확정적(Deterministic) 투자 리포트를 생성하는 동적 템플릿 엔진.
+    (기존 코드 호환성을 위해 클래스명 AIAnalyzer 유지: Algorithmic Intelligence)
+    """
     def __init__(self):
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("❌ Missing OpenAI API key")
-        self.client = OpenAI(api_key=api_key)
-
-        # Initialize NLTK VADER
+        # Initialize NLTK VADER (오프라인 감성 분석기)
         try:
             self.sia = SentimentIntensityAnalyzer()
         except LookupError:
             nltk.download("vader_lexicon", quiet=True)
             self.sia = SentimentIntensityAnalyzer()
 
-    def _summarize_news(self, news_list):
+    def _analyze_news_sentiment(self, news_list: Union[List[str], List[Dict], str]) -> Dict[str, Any]:
+        """뉴스의 긍정/부정 스코어를 정량화하여 반환"""
         if not news_list:
-            return "No recent news"
+            return {"score": 0.0, "status": "Neutral", "headlines": []}
 
         if isinstance(news_list, str):
             news_list = [news_list]
 
-        summaries = []
         total_compound = 0
+        impactful_headlines = []
 
         for news in news_list:
-            # We assume news is a string, if it's a dict, adjust accordingly
             text = news.get("title", "") if isinstance(news, dict) else str(news)
             if not text:
                 continue
 
             scores = self.sia.polarity_scores(text)
-            total_compound += scores["compound"]
+            compound = scores["compound"]
+            total_compound += compound
 
-            # Keep only the most impactful news (either very positive or very negative)
-            if abs(scores["compound"]) > 0.3:
-                sentiment = "Positive" if scores["compound"] > 0 else "Negative"
-                summaries.append(f"[{sentiment}] {text}")
+            if abs(compound) > 0.3:
+                sentiment_mark = "🟢" if compound > 0 else "🔴"
+                impactful_headlines.append(f"{sentiment_mark} {text}")
 
-        avg_sentiment = total_compound / len(news_list) if news_list else 0
-        overall = (
-            "Bullish"
-            if avg_sentiment > 0.1
-            else ("Bearish" if avg_sentiment < -0.1 else "Neutral")
-        )
+        valid_count = len(news_list)
+        avg_score = total_compound / valid_count if valid_count > 0 else 0.0
+        
+        status = "Bullish" if avg_score > 0.15 else ("Bearish" if avg_score < -0.15 else "Neutral")
 
-        if not summaries:
-            summaries = [
-                str(news) for news in news_list[:3]
-            ]  # fallback to top 3 if none are highly impactful
+        return {
+            "score": avg_score,
+            "status": status,
+            "headlines": impactful_headlines[:3] # 최대 3개 핵심 기사만 유지
+        }
 
-        # Join to string
-        news_text = "\n".join(summaries[:5])  # limit to 5
-        return f"Overall Sentiment: {overall} (Avg Score: {avg_sentiment:.2f})\nKey Headlines:\n{news_text}"
+    def _parse_indicators(self, ind_str: str) -> Dict[str, Any]:
+        """문자열로 전달된 지표에서 핵심 수치를 추출하는 파서"""
+        data = {"source": "Normal", "rsi": 50.0, "change": 0.0}
+        
+        if not ind_str or ind_str == "N/A":
+            return data
 
-    def analyze_stock(self, stock_context: dict):
+        # 정규표현식으로 수치 추출
+        if "Anomaly" in ind_str:
+            data["source"] = "Anomaly"
+        elif "Finviz Screened" in ind_str:
+            data["source"] = "Finviz"
+
+        rsi_match = re.search(r"RSI:\s*([\d\.]+)", ind_str)
+        if rsi_match:
+            data["rsi"] = float(rsi_match.group(1))
+
+        change_match = re.search(r"Change:\s*([\-\d\.]+)", ind_str)
+        if change_match:
+            data["change"] = float(change_match.group(1))
+
+        return data
+
+    async def analyze_stock(self, stock_context: Dict[str, Any]) -> Dict[str, Any]:
         """
-        수집된 지표와 뉴스를 바탕으로 AI 투자 의견 생성
+        규칙 기반 DNA 스코어링 및 동적 텍스트 생성 (비동기 처리 구조 유지)
         """
         ticker = stock_context.get("ticker", "UNKNOWN")
+        news_data = self._analyze_news_sentiment(stock_context.get("news", []))
+        ind_data = self._parse_indicators(stock_context.get("indicators", ""))
+        
+        # --- [1단계] DNA 스코어 산출 시스템 ---
+        base_score = 50
+        tags = []
+        bull_factors = []
+        bear_factors = []
 
-        prompt = f"""
-Analyze the following stock data for {ticker} and identify its "Multi-bagger Potential".
-Look for patterns of unusual accumulation, institutional interest, and technical setups that precede exponential growth.
+        # 1. 수급 탐지 소스 가점
+        if ind_data["source"] == "Anomaly":
+            base_score += 15
+            bull_factors.append("고립 숲(Isolation Forest) 비정상 수급 스퀴즈 포착.")
+            tags.append("🚨 Anomaly Detected")
+        elif ind_data["source"] == "Finviz":
+            base_score += 5
+            bull_factors.append("Finviz 퀀트 필터링 조건 충족.")
+            tags.append("🎯 Screened")
 
-Context:
-- Price: ${stock_context.get('price')}
-- Change: {stock_context.get('change')}
-- Technical Indicators: {stock_context.get('indicators')}
-- Recent News Summary:
-{self._summarize_news(stock_context.get('news', []))}
+        # 2. RSI 기반 기술적 분석
+        rsi = ind_data["rsi"]
+        if rsi < 30:
+            base_score += 15
+            bull_factors.append(f"RSI {rsi}로 극단적 과매도 구간 진입 (기술적 반등 유력).")
+            tags.append("🌊 Oversold")
+        elif rsi > 70:
+            base_score -= 15
+            bear_factors.append(f"RSI {rsi}로 과매수 구간 (단기 조정 리스크).")
+            tags.append("🔥 Overbought")
+        else:
+            bull_factors.append(f"RSI {rsi}로 안정적인 추세 유지 중.")
 
-Instructions:
-1. Provide a professional Bull Case (focus on potential) and Bear Case (focus on risks).
-2. Assign a DNA Score (0-100):
-   - 80+: Strong potential for explosive growth.
-   - 60-79: Solid trend, but requires confirmation.
-   - Below 60: High risk or lack of clear momentum.
-3. reasoning_ko must be deep, professional, and explain WHY this stock has potential.
-4. Output Format (Strict JSON):
-{{
-  "dna_score": 85,
-  "bull_case": "Summary focusing on growth potential",
-  "bear_case": "Summary focusing on critical risks",
-  "reasoning_ko": "잠재력의 근거와 향후 전망에 대한 전문적 분석"
-}}
-"""
+        # 3. 뉴스 감성 스코어 반영 (-20 ~ +20 점수 반영)
+        news_impact = int(news_data["score"] * 20)
+        base_score += news_impact
+        
+        if news_data["status"] == "Bullish":
+            bull_factors.append(f"뉴스 감성 분석 압도적 긍정 (Score: {news_data['score']:.2f}).")
+            tags.append("📈 Bullish News")
+        elif news_data["status"] == "Bearish":
+            bear_factors.append(f"부정적 미디어 센티먼트 감지 (Score: {news_data['score']:.2f}).")
+            tags.append("📉 Bearish News")
 
-        try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini",  # 가성비 모델 사용
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a top-tier institutional stock analyst specializing in identifying high-growth potential stocks using a combination of fundamental and technical 'Confluence'.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                response_format={"type": "json_object"},
-            )
+        # 최종 스코어 보정 (0 ~ 100)
+        final_score = max(0, min(100, base_score))
 
-            import json
+        # --- [2단계] 동적 리포트 생성 (String Formatting) ---
+        if not bull_factors:
+            bull_factors.append("뚜렷한 상승 모멘텀이 포착되지 않음.")
+        if not bear_factors:
+            bear_factors.append("현재 구간에서 특별한 하락 리스크 지표 없음.")
 
-            return json.loads(response.choices[0].message.content)
-        except Exception as e:
-            print(f"❌ AI Analysis Error for {ticker}: {e}")
-            return {
-                "dna_score": 50,
-                "bull_case": "Error during analysis",
-                "bear_case": "Error during analysis",
-                "reasoning_ko": "AI 분석 중 오류가 발생했습니다.",
-            }
+        reasoning = (
+            f"[{ind_data['source']} 트랙 기반 분석]\n"
+            f"해당 종목은 기술적, 수급적, 미디어 데이터를 종합한 결과 DNA Score {final_score}점을 기록했습니다. "
+            f"RSI 지표({rsi})와 NLTK 감성 점수({news_data['score']:.2f})를 바탕으로 산출된 확정적(Deterministic) 수치입니다."
+        )
 
+        return {
+            "dna_score": final_score,
+            "bull_case": " ".join(bull_factors),
+            "bear_case": " ".join(bear_factors),
+            "reasoning_ko": reasoning,
+            "tags": tags  # 프롬프트 대신 프론트엔드 UI 렌더링용 배열 추가
+        }
 
+# 비동기 테스트 블록
 if __name__ == "__main__":
-    analyzer = AIAnalyzer()
-    sample_context = {
-        "ticker": "TSLA",
-        "price": 250.0,
-        "change": "+2.5%",
-        "indicators": "RSI 65, MACD Bullish Cross",
-        "news": ["Tesla reports record deliveries"],
-    }
-    result = analyzer.analyze_stock(sample_context)
-    print(f"✅ AI Analysis for TSLA: {result}")
+    import asyncio
+    import json
+
+    async def run_test():
+        analyzer = AIAnalyzer()
+        sample_context = {
+            "ticker": "TSLA",
+            "price": 250.0,
+            "change": "+2.5%",
+            "indicators": "Detection Source: Anomaly. Price: $250, RSI: 28.5, Change: 2.5%",
+            "news": ["Tesla announces record breaking autonomous driving data", "Tesla factory upgrades completed"],
+        }
+        result = await analyzer.analyze_stock(sample_context)
+        print(f"✅ Fast Algorithmic Analysis for TSLA:\n{json.dumps(result, indent=2, ensure_ascii=False)}")
+
+    asyncio.run(run_test())

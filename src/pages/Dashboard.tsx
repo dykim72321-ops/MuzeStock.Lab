@@ -9,6 +9,8 @@ import { AnalysisResultCard } from '../components/ui/AnalysisResultCard'; // ui 
 import { PersonaLeaderboard } from '../components/dashboard/PersonaLeaderboard';
 import { WatchlistView } from '../components/dashboard/WatchlistView';
 import { SignalTicker } from '../components/dashboard/SignalTicker';
+import { usePulseSocket } from '../hooks/usePulseSocket';
+import { QuantSignalCard } from '../components/ui/QuantSignalCard';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -18,6 +20,9 @@ const supabase = createClient(
 export const Dashboard = () => {
   const [discoveries, setDiscoveries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // 실시간 펄스 데이터 수신
+  const { pulseData } = usePulseSocket();
 
   useEffect(() => {
     const fetchDiscoveries = async () => {
@@ -122,6 +127,21 @@ export const Dashboard = () => {
             </div>
             <span className="text-xs font-mono text-indigo-300/70 font-bold tracking-widest border border-indigo-500/20 px-3 py-1 rounded-full bg-indigo-500/5">최신 분석 결과</span>
           </div>
+
+          {/* 실시간 퀀트 시그널 카드 (WebSocket 수신 시 표시) */}
+          {pulseData && pulseData.strength === 'STRONG' && pulseData.ai_metadata && (
+            <div className="mb-8 animate-in slide-in-from-top duration-700">
+              <QuantSignalCard 
+                data={{
+                  dna_score: pulseData.ai_metadata.dna_score,
+                  bull_case: pulseData.ai_metadata.bull_case,
+                  bear_case: pulseData.ai_metadata.bear_case,
+                  reasoning_ko: pulseData.ai_metadata.reasoning_ko,
+                  tags: pulseData.ai_metadata.tags
+                }} 
+              />
+            </div>
+          )}
 
           {loading ? (
             <div className="flex justify-center py-32 relative">

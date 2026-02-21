@@ -1,10 +1,10 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, TrendingUp, TrendingDown } from 'lucide-react';
-import { useMarketPulse } from '../../hooks/useMarketPulse';
+import { Zap, TrendingUp, TrendingDown, Activity, Minus } from 'lucide-react';
+import { usePulseSocket } from '../../hooks/usePulseSocket';
 import clsx from 'clsx';
 
 export const SignalTicker = () => {
-    const lastSignal = useMarketPulse();
+    const { pulseData } = usePulseSocket();
 
     return (
         <div className="h-8 overflow-hidden bg-indigo-500/5 rounded-full border border-indigo-500/10 px-4 flex items-center gap-3">
@@ -14,23 +14,47 @@ export const SignalTicker = () => {
             </div>
 
             <AnimatePresence mode="wait">
-                {lastSignal ? (
+                {pulseData ? (
                     <motion.div
-                        key={lastSignal.ticker + lastSignal.value}
+                        key={pulseData.ticker + pulseData.timestamp}
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: -20, opacity: 0 }}
                         className="flex items-center gap-3"
                     >
-                        <span className="text-xs font-black text-white font-mono">{lastSignal.ticker}</span>
+                        <span className="text-xs font-black text-white font-mono">{pulseData.ticker}</span>
+                        
+                        {/* 신호 뱃지 */}
                         <div className={clsx(
-                            "flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold",
-                            lastSignal.signal === 'OVERSOLD' ? "bg-emerald-500/20 text-emerald-400" :
-                                lastSignal.signal === 'OVERBOUGHT' ? "bg-rose-500/20 text-rose-400" :
-                                    "bg-white/5 text-slate-400"
+                            "flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold border",
+                            pulseData.signal === 'BUY' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                            pulseData.signal === 'SELL' ? "bg-rose-500/10 text-rose-400 border-rose-500/20" :
+                            "bg-slate-500/10 text-slate-400 border-slate-500/20"
                         )}>
-                            {lastSignal.signal === 'OVERSOLD' ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
-                            RSI: {lastSignal.value}
+                            {pulseData.signal === 'BUY' ? <TrendingUp className="w-2.5 h-2.5" /> : 
+                             pulseData.signal === 'SELL' ? <TrendingDown className="w-2.5 h-2.5" /> : 
+                             <Minus className="w-2.5 h-2.5" />}
+                            {pulseData.signal}
+                        </div>
+
+                        {/* 상세 지표 */}
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono tracking-tighter">
+                            {pulseData.price !== null && <span>${pulseData.price.toFixed(2)}</span>}
+                            {pulseData.rsi !== null && (
+                                <>
+                                    <span className="text-slate-600">|</span>
+                                    <span>RSI: {pulseData.rsi}</span>
+                                </>
+                            )}
+                            {pulseData.macd_diff !== null && (
+                                <>
+                                    <span className="text-slate-600">|</span>
+                                    <span className="flex items-center gap-1">
+                                        <Activity className="w-2.5 h-2.5" /> 
+                                        {pulseData.macd_diff > 0 ? '+' : ''}{pulseData.macd_diff}
+                                    </span>
+                                </>
+                            )}
                         </div>
                     </motion.div>
                 ) : (
@@ -39,7 +63,7 @@ export const SignalTicker = () => {
                         animate={{ opacity: 1 }}
                         className="text-[10px] text-slate-600 font-medium italic"
                     >
-                        시장 신호 대기 중...
+                        데이터 수신 대기 중...
                     </motion.p>
                 )}
             </AnimatePresence>

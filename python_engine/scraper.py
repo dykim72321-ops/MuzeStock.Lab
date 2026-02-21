@@ -287,7 +287,7 @@ class FinvizHunter:
                 "indicators": ai_context_ext,
                 "news": headlines,
             }
-            ai_result = await asyncio.to_thread(self.ai.analyze_stock, ai_input)
+            ai_result = await self.ai.analyze_stock(ai_input)
 
             # 4. Auto Backtest (1년 RSI 전략)
             from backtester import run_backtest
@@ -305,6 +305,15 @@ class FinvizHunter:
                 )
 
             # 5. Save to DB
+            tags_str = " ".join(ai_result.get("tags", []))
+            ai_summary_text = (
+                f"{tags_str}\n\n" if tags_str else ""
+            ) + (
+                f"🐂 Bull: {ai_result.get('bull_case')}\n"
+                f"🐻 Bear: {ai_result.get('bear_case')}\n\n"
+                f"💡 {ai_result.get('reasoning_ko')}"
+            )
+            
             db_data = {
                 "ticker": ticker_symbol,
                 "sector": stock["sector"],
@@ -312,7 +321,7 @@ class FinvizHunter:
                 "volume": str(volume),
                 "change": f"{change:.2f}%",
                 "dna_score": ai_result.get("dna_score", 50),
-                "ai_summary": f"🐂 Bull: {ai_result.get('bull_case')}\n🐻 Bear: {ai_result.get('bear_case')}\n\n💡 {ai_result.get('reasoning_ko')}",
+                "ai_summary": ai_summary_text,
                 "backtest_return": backtest_return,
                 "updated_at": datetime.now().isoformat(),
             }
