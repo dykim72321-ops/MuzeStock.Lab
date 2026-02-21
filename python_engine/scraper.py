@@ -11,7 +11,6 @@ from sklearn.ensemble import IsolationForest
 import random
 
 
-
 class FinvizHunter:
     def __init__(self):
         self.db = DBManager()
