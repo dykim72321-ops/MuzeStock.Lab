@@ -7,7 +7,16 @@ import { Skeleton } from './components/ui/Skeleton';
 import { queryClient } from './lib/queryClient';
 
 // Lazy Loading 적용으로 초기 로딩 속도 개선
+// 역할 정의:
+//   /           → 작전 지휘소 (종합 대시보드: 펀드 + 오늘의 종목)
+//   /pulse      → 실시간 퀀트 펄스 (WebSocket 라이브 스트림)
+//   /scanner    → 마켓 스캐너 (심화 필터 탐색)
+//   /portfolio  → 알파 펀드 (포트폴리오 운용)
+//   /watchlist  → 관심 종목
+//   /backtesting→ 백테스팅 히스토리
+//   /settings   → 환경 설정
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const PulseDashboard = lazy(() => import('./pages/PulseDashboard'));
 const ScannerPage = lazy(() => import('./pages/ScannerPage').then(m => ({ default: m.ScannerPage })));
 const AlphaFundView = lazy(() => import('./pages/AlphaFundView').then(m => ({ default: m.AlphaFundView })));
 const DnaMatchView = lazy(() => import('./components/analysis/DnaMatchView').then(m => ({ default: m.DnaMatchView })));
@@ -16,7 +25,6 @@ const SimulatorView = lazy(() => import('./components/dashboard/SimulatorView').
 const PersonaPerformance = lazy(() => import('./components/dashboard/PersonaPerformance').then(m => ({ default: m.PersonaPerformance })));
 const BacktestingDashboard = lazy(() => import('./components/dashboard/BacktestingDashboard').then(m => ({ default: m.BacktestingDashboard })));
 const SettingsView = lazy(() => import('./components/dashboard/SettingsView').then(m => ({ default: m.SettingsView })));
-const PulseDashboard = lazy(() => import('./pages/PulseDashboard'));
 
 // 로딩 폴백 컴포넌트
 const PageLoadingFallback = () => (
@@ -38,31 +46,37 @@ function App() {
           <Suspense fallback={<PageLoadingFallback />}>
             <Routes>
               <Route path="/" element={<Layout />}>
-                {/* Step 1: Discovery - AI 기반 종목 발굴 */}
+                {/* 작전 지휘소 - 종합 요약 대시보드 */}
                 <Route index element={<Dashboard />} />
 
-                {/* Step 2: Exploration - 관심 종목 탐색 */}
-                <Route path="scanner" element={<ScannerPage />} />
-                <Route path="scan" element={<Navigate to="/scanner" replace />} />
-                <Route path="watchlist" element={<WatchlistView />} />
+                {/* 실시간 퀀트 펄스 */}
                 <Route path="pulse" element={<PulseDashboard />} />
 
-                {/* Step 3: Analysis - 심층 분석 */}
-                <Route path="analysis/:id" element={<DnaMatchView />} />
-                {/* 하위 호환성 유지 */}
-                <Route path="stock/:id" element={<Navigate to="/analysis/:id" replace />} />
+                {/* 마켓 스캐너 */}
+                <Route path="scanner" element={<ScannerPage />} />
+                <Route path="scan" element={<Navigate to="/scanner" replace />} />
 
+                {/* 알파 펀드 */}
                 <Route path="portfolio" element={<AlphaFundView />} />
 
-                {/* Tools - 전략 시뮬레이션 */}
-                <Route path="simulator" element={<SimulatorView />} />
+                {/* 관심 종목 */}
+                <Route path="watchlist" element={<WatchlistView />} />
+
+                {/* 백테스팅 */}
                 <Route path="backtesting" element={<BacktestingDashboard />} />
+
+                {/* 심층 분석 (내부 링크용) */}
+                <Route path="analysis/:id" element={<DnaMatchView />} />
+                <Route path="stock/:id" element={<Navigate to="/analysis/:id" replace />} />
+
+                {/* 기타 도구 */}
+                <Route path="simulator" element={<SimulatorView />} />
                 <Route path="personas" element={<PersonaPerformance />} />
 
-                {/* Settings */}
+                {/* 환경 설정 */}
                 <Route path="settings" element={<SettingsView />} />
 
-                {/* Fallback */}
+                {/* 404 → 홈 */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Routes>
@@ -74,3 +88,4 @@ function App() {
 }
 
 export default App;
+
