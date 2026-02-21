@@ -380,8 +380,12 @@ def run_pulse_engine(ticker: str, df_raw: pd.DataFrame):
 
 # --- REALTIME PULSE ENGINE (Start) ---
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_URL = os.getenv("VITE_SUPABASE_URL") or os.getenv("SUPABASE_URL")
+SUPABASE_KEY = (
+    os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    or os.getenv("SUPABASE_KEY")
+    or os.getenv("VITE_SUPABASE_SERVICE_ROLE_KEY")
+)
 try:
     supabase: Client = (
         create_client(SUPABASE_URL, SUPABASE_KEY)
