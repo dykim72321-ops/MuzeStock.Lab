@@ -1,4 +1,12 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Security, status, WebSocket, WebSocketDisconnect
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    BackgroundTasks,
+    Security,
+    status,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
@@ -31,6 +39,7 @@ app = FastAPI(
 API_KEY_NAME = "X-Admin-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
+
 # --- Connection Manager ---
 class ConnectionManager:
     def __init__(self):
@@ -50,6 +59,7 @@ class ConnectionManager:
                 await connection.send_json(message)
             except Exception:
                 pass
+
 
 manager = ConnectionManager()
 
@@ -112,6 +122,7 @@ class TechnicalIndicators(BaseModel):
 def root():
     return {"message": "MuzeStock Unified Python Platform is running!"}
 
+
 @app.websocket("/ws/pulse")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
@@ -123,6 +134,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 analyze_cache = TTLCache(maxsize=100, ttl=900)
+
 
 @app.post("/api/analyze", response_model=TechnicalIndicators)
 def analyze_stock(request: AnalyzeRequest):
@@ -224,6 +236,7 @@ class BacktestRequest(BaseModel):
 
 
 backtest_cache = TTLCache(maxsize=100, ttl=900)
+
 
 @app.post("/api/backtest")
 def backtest_strategy(request: BacktestRequest):
@@ -474,6 +487,7 @@ async def process_ticker_pulse(ticker_symbol: str):
                 )
     except Exception as e:
         print(f"❌ Pulse Error for {ticker_symbol}: {e}")
+
 
 async def market_pulse_check():
     """10초마다 여러 종목의 지표를 병렬로 체크하여 실시간 방출 (논블로킹 의사결정 엔진)"""

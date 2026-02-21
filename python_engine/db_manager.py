@@ -73,16 +73,16 @@ class DBManager:
                 .limit(limit * 2)
                 .execute()
             )
-            
+
             tickers = []
             for item in response.data:
                 ticker = item.get("ticker")
                 if ticker and ticker not in tickers:
                     tickers.append(ticker)
-                    
+
                 if len(tickers) >= limit:
                     break
-                    
+
             return tickers if tickers else ["TSLA", "AAPL"]
         except Exception as e:
             print(f"❌ DB Fetch Error (Active Tickers): {e}")

@@ -12,3 +12,4 @@ requests
 cachetools
 nltk
 websockets
+scikit-learn
