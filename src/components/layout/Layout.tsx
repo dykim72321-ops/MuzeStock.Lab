@@ -35,9 +35,10 @@ export const Layout = () => {
         <Sidebar />
       </aside>
 
-      {/* 메인 컨텐츠 영역: 사이드바 너비만큼 왼쪽 마진 부여 */}
-      <main className="flex-1 lg:ml-64 overflow-x-hidden pb-20 lg:pb-0 transition-all duration-300">
-        <div className="p-4 md:p-8 max-w-[2000px] mx-auto">
+      {/* 메인 콘텐츠 영역 (스크롤 가능) */}
+      <main className="flex-1 lg:ml-64 relative min-h-screen overflow-y-auto overflow-x-hidden pb-20 lg:pb-0 transition-all duration-300">
+        {/* 상단 여백 및 좌우 패딩을 넉넉하게 주어 데이터에 집중하게 함 */}
+        <div className="w-full max-w-[2000px] mx-auto p-4 md:p-8 lg:p-10">
           <Outlet />
         </div>
       </main>
