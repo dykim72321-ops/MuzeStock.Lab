@@ -8,17 +8,27 @@ import {
     List,
     Settings,
     Dna,
-    LifeBuoy
+    LifeBuoy,
+    Folder
 } from 'lucide-react';
 import clsx from 'clsx';
+import type { LucideIcon } from 'lucide-react';
+
+interface NavItem {
+    name: string;
+    icon: LucideIcon;
+    path: string;
+    isHot?: boolean;
+}
 import { motion, AnimatePresence } from 'framer-motion';
 import { HelpModal } from '../components/ui/HelpModal';
 
 // 1. 라우팅 데이터 구조 단순화 및 명확화
-const NAVIGATION = [
+const NAVIGATION: { section: string; items: NavItem[] }[] = [
     {
         section: 'MAIN OPERATION',
         items: [
+            { name: '퀀트 펄스 (Pulse)', icon: Zap, path: '/pulse', isHot: true },
             { name: '시장 발굴 (Discovery)', icon: LayoutDashboard, path: '/' },
             { name: '마켓 스캐너 (Scanner)', icon: Search, path: '/scanner' },
         ]
@@ -26,7 +36,7 @@ const NAVIGATION = [
     {
         section: 'ANALYSIS & FUND',
         items: [
-            { name: '알파 펀드 (Alpha Fund)', icon: Zap, path: '/portfolio', isHot: true },
+            { name: '알파 펀드 (Alpha Fund)', icon: Folder, path: '/portfolio' },
             { name: '백테스팅 (Backtest)', icon: History, path: '/backtesting' },
         ]
     },
