@@ -306,14 +306,12 @@ class FinvizHunter:
 
             # 5. Save to DB
             tags_str = " ".join(ai_result.get("tags", []))
-            ai_summary_text = (
-                f"{tags_str}\n\n" if tags_str else ""
-            ) + (
+            ai_summary_text = (f"{tags_str}\n\n" if tags_str else "") + (
                 f"🐂 Bull: {ai_result.get('bull_case')}\n"
                 f"🐻 Bear: {ai_result.get('bear_case')}\n\n"
                 f"💡 {ai_result.get('reasoning_ko')}"
             )
-            
+
             db_data = {
                 "ticker": ticker_symbol,
                 "sector": stock["sector"],

@@ -16,6 +16,7 @@ const SimulatorView = lazy(() => import('./components/dashboard/SimulatorView').
 const PersonaPerformance = lazy(() => import('./components/dashboard/PersonaPerformance').then(m => ({ default: m.PersonaPerformance })));
 const BacktestingDashboard = lazy(() => import('./components/dashboard/BacktestingDashboard').then(m => ({ default: m.BacktestingDashboard })));
 const SettingsView = lazy(() => import('./components/dashboard/SettingsView').then(m => ({ default: m.SettingsView })));
+const PulseDashboard = lazy(() => import('./pages/PulseDashboard'));
 
 // 로딩 폴백 컴포넌트
 const PageLoadingFallback = () => (
@@ -44,6 +45,7 @@ function App() {
                 <Route path="scanner" element={<ScannerPage />} />
                 <Route path="scan" element={<Navigate to="/scanner" replace />} />
                 <Route path="watchlist" element={<WatchlistView />} />
+                <Route path="pulse" element={<PulseDashboard />} />
 
                 {/* Step 3: Analysis - 심층 분석 */}
                 <Route path="analysis/:id" element={<DnaMatchView />} />

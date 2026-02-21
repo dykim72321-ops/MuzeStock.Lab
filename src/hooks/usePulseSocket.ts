@@ -27,7 +27,11 @@ export interface PulseData {
 }
 
 export const usePulseSocket = (url: string = 'ws://127.0.0.1:8000/ws/pulse') => {
+  // 최신 수신된 단일 결과 (기존 컴포넌트 호환용)
   const [pulseData, setPulseData] = useState<PulseData | null>(null);
+  // 전체 종목별 최신 상태 맵 (Live Dashboard용)
+  const [pulseMap, setPulseMap] = useState<Record<string, PulseData>>({});
+  
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -49,7 +53,16 @@ export const usePulseSocket = (url: string = 'ws://127.0.0.1:8000/ws/pulse') => 
       ws.onmessage = (event) => {
         try {
           const data: PulseData = JSON.parse(event.data);
+          
+          // 1. 단일 최신 데이터 업데이트
           setPulseData(data);
+          
+          // 2. 종목 맵 업데이트
+          setPulseMap((prev) => ({
+            ...prev,
+            [data.ticker]: data
+          }));
+          
           console.log(`💓 Pulse received for ${data.ticker}:`, data);
 
           // 강한 시그널일 경우 전역 알림(Toast) 발생
@@ -80,7 +93,7 @@ export const usePulseSocket = (url: string = 'ws://127.0.0.1:8000/ws/pulse') => 
       ws.onclose = () => {
         console.warn('⚠️ WebSocket Disconnected');
         setIsConnected(false);
-        // 연결이 끊어지면 자동 재연결 시도 (선택 사항)
+        // 연결이 끊어지면 자동 재연결 시도
         setTimeout(connect, 3000); 
       };
 
@@ -109,5 +122,5 @@ export const usePulseSocket = (url: string = 'ws://127.0.0.1:8000/ws/pulse') => 
     connect();
   };
 
-  return { pulseData, isConnected, error, reconnect };
+  return { pulseData, pulseMap, isConnected, error, reconnect };
 };

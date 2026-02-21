@@ -342,26 +342,32 @@ def generate_ai_investment_report(data: dict):
     """
     규칙 기반(Deterministic) 동적 리포트 생성 엔진. (OpenAI API 완전 분리)
     """
-    rsi = data.get('rsi', 50.0)
-    signal = data.get('signal', 'HOLD')
-    vol = data.get('volatility_ann', 0.0)
-    rec_weight = data.get('recommended_weight', 0.0)
+    rsi = data.get("rsi", 50.0)
+    signal = data.get("signal", "HOLD")
+    vol = data.get("volatility_ann", 0.0)
+    rec_weight = data.get("recommended_weight", 0.0)
 
     report = []
-    
+
     # 1. 시그널 요약
-    if signal == 'BUY':
-        report.append(f"📈 [초강력 매수 시그널] RSI {rsi} 및 MACD 상향 돌파가 확인되었습니다.")
-    elif signal == 'SELL':
+    if signal == "BUY":
+        report.append(
+            f"📈 [초강력 매수 시그널] RSI {rsi} 및 MACD 상향 돌파가 확인되었습니다."
+        )
+    elif signal == "SELL":
         report.append(f"📉 [위험 구간] RSI {rsi} 및 MACD 하방 압력 가중.")
     else:
         report.append(f"⚖️ [관망] 뚜렷한 추세가 관찰되지 않습니다 (RSI: {rsi}).")
 
     # 2. 리스크 관리 조언
-    report.append(f"현재 타겟의 연율화 변동성은 {vol}% 수준이며, 켈리 공식(Kelly Criterion) 기반 최대 안전 권장 비중은 {rec_weight}%입니다.")
-    
+    report.append(
+        f"현재 타겟의 연율화 변동성은 {vol}% 수준이며, 켈리 공식(Kelly Criterion) 기반 최대 안전 권장 비중은 {rec_weight}%입니다."
+    )
+
     # 3. 추가 조언 및 면책 조항
-    report.append("※ 본 리포트는 순수 수학적 알고리즘 기반 분석 결과일 뿐, 투자의 절대적 권유가 아님을 명시합니다.")
+    report.append(
+        "※ 본 리포트는 순수 수학적 알고리즘 기반 분석 결과일 뿐, 투자의 절대적 권유가 아님을 명시합니다."
+    )
 
     return "\n".join(report)
 
@@ -419,14 +425,26 @@ def run_pulse_engine(ticker: str, df_raw: pd.DataFrame):
         payload["ai_report"] = generate_ai_investment_report(payload)
         # 프론트엔드 QuantSignalCard를 위한 구조화된 데이터 추가
         payload["ai_metadata"] = {
-            "dna_score": 85 if signal_type == "BUY" else (40 if signal_type == "SELL" else 60),
-            "bull_case": "수학적 지표상 반등 모멘텀 임계치 도달" if signal_type == "BUY" else "현재 구간 하방 방어선 구축 중",
-            "bear_case": "매물 출회 가능성 및 시장 변동성 리스크" if signal_type == "SELL" else "상단 저항선 돌파 에너지 필요",
+            "dna_score": (
+                85 if signal_type == "BUY" else (40 if signal_type == "SELL" else 60)
+            ),
+            "bull_case": (
+                "수학적 지표상 반등 모멘텀 임계치 도달"
+                if signal_type == "BUY"
+                else "현재 구간 하방 방어선 구축 중"
+            ),
+            "bear_case": (
+                "매물 출회 가능성 및 시장 변동성 리스크"
+                if signal_type == "SELL"
+                else "상단 저항선 돌파 에너지 필요"
+            ),
             "reasoning_ko": payload["ai_report"],
-            "tags": [ticker.upper(), signal_type, strength]
+            "tags": [ticker.upper(), signal_type, strength],
         }
     else:
-        payload["ai_report"] = "시장 신호 강도가 보통(NORMAL)이며, 정밀 AI 분석 조건에 도달하지 않았습니다."
+        payload["ai_report"] = (
+            "시장 신호 강도가 보통(NORMAL)이며, 정밀 AI 분석 조건에 도달하지 않았습니다."
+        )
         payload["ai_metadata"] = None
 
     return payload
