@@ -4,7 +4,7 @@ import clsx from 'clsx';
 
 // TypeScript 인터페이스 정의
 export interface QuantSignalData {
-    dna_score: number;
+    dna_score: number | null;
     bull_case: string;
     bear_case: string;
     reasoning_ko: string;
@@ -26,13 +26,15 @@ export const QuantSignalCard: React.FC<QuantSignalCardProps> = ({ data }) => {
     const { dna_score, bull_case, bear_case, reasoning_ko, tags } = data;
 
     // DNA 스코어에 따른 동적 컬러 및 상태 결정
-    const getScoreColor = (score: number) => {
+    const getScoreColor = (score: number | null) => {
+        if (score === null || score === 0) return 'text-slate-500 bg-slate-800/50 border-slate-700/50';
         if (score >= 80) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
         if (score >= 60) return 'text-amber-400 bg-amber-500/10 border-amber-500/20';
         return 'text-rose-400 bg-rose-500/10 border-rose-500/20';
     };
 
-    const getProgressBarColor = (score: number) => {
+    const getProgressBarColor = (score: number | null) => {
+        if (score === null || score === 0) return 'bg-slate-700';
         if (score >= 80) return 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]';
         if (score >= 60) return 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]';
         return 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]';
@@ -73,16 +75,18 @@ export const QuantSignalCard: React.FC<QuantSignalCardProps> = ({ data }) => {
                     `flex flex-col items-center justify-center w-16 h-16 rounded-full border-2 shrink-0 transition-colors duration-500`,
                     getScoreColor(dna_score)
                 )}>
-                    <span className="text-2xl font-black tracking-tighter">{dna_score}</span>
+                    <span className="text-2xl font-black tracking-tighter">
+                        {dna_score !== null && dna_score > 0 ? dna_score : '—'}
+                    </span>
                     <span className="text-[9px] uppercase font-black tracking-widest opacity-80 mt-[-2px]">DNA</span>
                 </div>
             </div>
 
-            {/* DNA 스코어 프로그레스 바 */}
+            {/* DNA 스코어 프로그레스 바 — 점수가 없으면 비활성 표시 */}
             <div className="w-full bg-slate-800 rounded-full h-1.5 mb-8 overflow-hidden relative z-10">
                 <div
                     className={clsx(`h-1.5 rounded-full transition-all duration-1000 ease-out`, getProgressBarColor(dna_score))}
-                    style={{ width: `${Math.max(0, Math.min(100, dna_score))}%` }}
+                    style={{ width: dna_score ? `${Math.max(0, Math.min(100, dna_score))}%` : '0%' }}
                 ></div>
             </div>
 
