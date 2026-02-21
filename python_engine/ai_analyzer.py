@@ -67,17 +67,19 @@ class AIAnalyzer:
         if not ind_str or ind_str == "N/A":
             return data
 
-        # 정규표현식으로 수치 추출
+        # 정규표현식으로 수치 추출 ([\d\.]+ 대신 \d+(?:\.\d+)? 사용 — 후행 마침표 방지)
         if "Anomaly" in ind_str:
             data["source"] = "Anomaly"
         elif "Finviz Screened" in ind_str:
             data["source"] = "Finviz"
 
-        rsi_match = re.search(r"RSI:\s*([\d\.]+)", ind_str)
+        rsi_match = re.search(r"RSI:\s*(\d+(?:\.\d+)?)", ind_str)
         if rsi_match:
             data["rsi"] = float(rsi_match.group(1))
 
-        change_match = re.search(r"Change:\s*([\-\d\.]+)", ind_str)
+        change_match = re.search(
+            r"(?:Vol Change|Change):\s*([-\d]+(?:\.\d+)?)", ind_str
+        )
         if change_match:
             data["change"] = float(change_match.group(1))
 
