@@ -10,6 +10,8 @@ import type { Stock } from '../types';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import { StockTerminalModal } from '../components/dashboard/StockTerminalModal';
+import { addToWatchlist } from '../services/watchlistService';
+import { addToPortfolio } from '../services/portfolioService';
 
 export const ScannerPage = () => {
   const [stocks, setStocks] = useState<Stock[]>([]);
@@ -345,6 +347,14 @@ export const ScannerPage = () => {
           isOpen={!!terminalData}
           onClose={() => setTerminalData(null)}
           data={terminalData}
+          onSimulation={async () => {
+            const res = await addToPortfolio(terminalData.ticker, terminalData.price || 0);
+            alert(res.message);
+          }}
+          onAddToWatchlist={async () => {
+            await addToWatchlist(terminalData.ticker);
+            alert(`${terminalData.ticker}가 관심 종목에 추가되었습니다.`);
+          }}
         />
       )}
     </div>

@@ -1,8 +1,8 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Security, status
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Security, status, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import yfinance as yf
 import ta
 import os
@@ -15,6 +15,7 @@ from supabase import create_client, Client
 from openai import OpenAI
 import pandas as pd
 import numpy as np
+from cachetools import TTLCache
 
 # .env 파일에서 환경변수 로드
 # .env 파일에서 환경변수 로드 (Updated for Realtime Pulse) (Verified)
@@ -29,6 +30,28 @@ app = FastAPI(
 # Security Configuration
 API_KEY_NAME = "X-Admin-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+# --- Connection Manager ---
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                pass
+
+manager = ConnectionManager()
 
 
 async def get_api_key(header_value: str = Security(api_key_header)):
@@ -89,10 +112,25 @@ class TechnicalIndicators(BaseModel):
 def root():
     return {"message": "MuzeStock Unified Python Platform is running!"}
 
+@app.websocket("/ws/pulse")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+
+analyze_cache = TTLCache(maxsize=100, ttl=900)
 
 @app.post("/api/analyze", response_model=TechnicalIndicators)
 def analyze_stock(request: AnalyzeRequest):
-    """지표 계산 API (기본 기능)"""
+    """지표 계산 API (기본 기능 - 인메모리 캐시)"""
+    cache_key = f"{request.ticker}_{request.period}"
+    if cache_key in analyze_cache:
+        return analyze_cache[cache_key]
+
     try:
         ticker = yf.Ticker(request.ticker)
         df = ticker.history(period=request.period)
@@ -139,7 +177,7 @@ def analyze_stock(request: AnalyzeRequest):
         elif rsi and rsi > 70:
             signal, reasoning.append("RSI 과매수")
 
-        return TechnicalIndicators(
+        result = TechnicalIndicators(
             ticker=request.ticker.upper(),
             period=request.period,
             current_price=round(current_price, 2),
@@ -153,6 +191,8 @@ def analyze_stock(request: AnalyzeRequest):
             signal=signal,
             reasoning=" ".join(reasoning) if reasoning else "지표 분석 완료",
         )
+        analyze_cache[cache_key] = result
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -183,9 +223,15 @@ class BacktestRequest(BaseModel):
     initial_capital: float = 10000.0
 
 
+backtest_cache = TTLCache(maxsize=100, ttl=900)
+
 @app.post("/api/backtest")
 def backtest_strategy(request: BacktestRequest):
     """RSI 역추세 전략 백테스팅 실행"""
+    cache_key = f"{request.ticker}_{request.period}_{request.initial_capital}"
+    if cache_key in backtest_cache:
+        return backtest_cache[cache_key]
+
     try:
         result = run_backtest(
             ticker=request.ticker,
@@ -194,6 +240,7 @@ def backtest_strategy(request: BacktestRequest):
         )
         if "error" in result:
             raise HTTPException(status_code=404, detail=result["error"])
+        backtest_cache[cache_key] = result
         return result
     except HTTPException:
         # HTTPException은 그대로 전달 (404 등)
@@ -396,37 +443,51 @@ except:
     supabase = None
 
 
+async def process_ticker_pulse(ticker_symbol: str):
+    try:
+        # 1. 1분봉 데이터로 실시간성 확보 (충분한 계산을 위해 1일치 로드) - 별도 스레드에서 I/O 실행
+        tk = yf.Ticker(ticker_symbol)
+        hist = await asyncio.to_thread(tk.history, period="1d", interval="1m")
+
+        if not hist.empty and len(hist) > 30:  # MACD 26+9를 위해 충분한 데이터 필요
+            # 2. 고도화된 페이로드 생성 (수학적 및 AI 로직을 스레드로 분리하여 이벤트 루프 보호)
+            payload = await asyncio.to_thread(run_pulse_engine, ticker_symbol, hist)
+
+            # 3. WebSocket 프론트엔드 실시간 전송
+            await manager.broadcast(payload)
+
+            # 4. Supabase DB 전송 (비동기 I/O 오프로드)
+            if supabase:
+                try:
+                    await asyncio.to_thread(
+                        supabase.table("realtime_signals").insert(payload).execute
+                    )
+                    print(
+                        f"📡 Pulse Sent: {ticker_symbol} RSI={payload.get('rsi')} "
+                        f"({payload.get('signal')} - {payload.get('strength')})"
+                    )
+                except Exception as db_err:
+                    print(f"⚠️ DB Push Error (Realtime Signal): {db_err}")
+            else:
+                print(
+                    f"⚠️ Supabase credentials missing (Pulse Engine). Pulse simulated for {ticker_symbol}"
+                )
+    except Exception as e:
+        print(f"❌ Pulse Error for {ticker_symbol}: {e}")
+
 async def market_pulse_check():
-    """10초마다 지표를 체크하여 Supabase Realtime으로 쏘는 심장박동 (의사결정 최적화 엔진)"""
+    """10초마다 여러 종목의 지표를 병렬로 체크하여 실시간 방출 (논블로킹 의사결정 엔진)"""
     print("💓 Advanced Market Pulse Engine Started...")
-    ticker_symbol = "TSLA"
 
     while True:
         try:
-            tk = yf.Ticker(ticker_symbol)
-            # 1분봉 데이터로 실시간성 확보 (충분한 계산을 위해 1일치 로드)
-            hist = tk.history(period="1d", interval="1m")
+            # DB에서 관리중인 리스트 로드 (별도 스레드 오프로드)
+            active_tickers = await asyncio.to_thread(db.get_active_tickers, limit=5)
 
-            if not hist.empty and len(hist) > 30:  # MACD 26+9를 위해 충분한 데이터 필요
-                # 고도화된 페이로드 생성
-                payload = run_pulse_engine(ticker_symbol, hist)
-
-                # 3. Supabase에 Push
-                if supabase:
-                    try:
-                        # kelly_f 컬럼 누락 등 스키마 오류 발생 가능성 대비
-                        supabase.table("realtime_signals").insert(payload).execute()
-                        print(
-                            f"📡 Pulse Sent: {ticker_symbol} RSI={payload['rsi']} "
-                            f"MACD_Diff={payload['macd_diff']} ({payload['signal']} - {payload['strength']})"
-                        )
-                    except Exception as db_err:
-                        # 스키마 불일치(PGRST204) 등의 에러를 로그만 찍고 엔진을 멈추지 않음
-                        print(f"⚠️ DB Push Error (Realtime Signal): {db_err}")
-                else:
-                    print(
-                        f"⚠️ Supabase credentials missing (Pulse Engine). Pulse simulated: {payload}"
-                    )
+            # 티커들을 동시에 비동기 처리
+            tasks = [process_ticker_pulse(ticker) for ticker in active_tickers]
+            if tasks:
+                await asyncio.gather(*tasks)
 
         except Exception as e:
             print(f"❌ Pulse Engine Core Error: {e}")

@@ -91,10 +91,10 @@ export const Sidebar = () => {
                                         to={item.path}
                                         className={({ isActive }) =>
                                             clsx(
-                                                'group relative flex items-center gap-3.5 px-4 py-3 rounded-2xl transition-all duration-500 overflow-hidden',
+                                                "group relative flex items-center gap-3.5 px-4 py-3.5 rounded-2xl transition-all duration-300 overflow-hidden font-medium text-sm",
                                                 isActive
-                                                    ? 'text-white bg-white/5 shadow-[0_4px_12px_rgba(0,0,0,0.1)]'
-                                                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                                                    ? "text-white bg-gradient-to-r from-indigo-500/10 to-cyan-500/10 border border-white/10 shadow-[0_0_20px_rgba(99,102,241,0.1)]"
+                                                    : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
                                             )
                                         }
                                     >

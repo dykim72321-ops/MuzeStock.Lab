@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Target, Zap } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { StockTerminalModal } from '../dashboard/StockTerminalModal';
+import { addToWatchlist } from '../../services/watchlistService';
+import { addToPortfolio } from '../../services/portfolioService';
 import clsx from 'clsx';
 
 interface AnalysisResultCardProps {
@@ -53,10 +55,10 @@ export const AnalysisResultCard = ({
                 )}
 
                 <div className={clsx(
-                    "relative h-full flex flex-col p-5 bg-slate-900/60 backdrop-blur-xl border rounded-[2rem] overflow-hidden transition-all duration-300",
-                    isSTier ? "border-indigo-500/40 bg-indigo-500/5" :
-                        isATier ? "border-emerald-500/30 bg-emerald-500/5" :
-                            "border-white/10 hover:border-white/20"
+                    "relative h-full min-h-[220px] flex flex-col p-5 bg-slate-900/40 backdrop-blur-2xl border rounded-[2rem] overflow-hidden transition-all duration-300",
+                    isSTier ? "border-indigo-500/20 bg-indigo-500/5 hover:border-indigo-500/40" :
+                        isATier ? "border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/40" :
+                            "border-white/5 hover:border-white/10"
                 )}>
                     {/* Shimmer Effect for S-tier */}
                     {isSTier && <div className="absolute inset-0 shimmer pointer-events-none" />}
@@ -111,23 +113,25 @@ export const AnalysisResultCard = ({
                         </div>
                     </div>
 
-                    {/* AI Narrative Hook: Compacted */}
-                    <div className="flex-1">
-                        <p className="text-[12px] text-slate-400 font-medium leading-relaxed line-clamp-2 italic opacity-80 group-hover:opacity-100 transition-opacity">
+                    {/* AI Narrative Hook: Compacted & Clamped */}
+                    <div className="flex-1 flex flex-col justify-center min-h-[48px] mt-2 mb-4">
+                        <p className="text-[12px] text-slate-400 font-medium leading-relaxed line-clamp-3 italic opacity-80 group-hover:opacity-100 transition-opacity">
                             "{(aiSummary || bullPoints[0] || "").split(';')[0]}..."
                         </p>
                     </div>
 
-                    {/* Footer Info: Conditional "Matched" */}
-                    {(matchedLegend && matchedLegend.ticker !== 'N/A') && (
-                        <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Target className="w-3 h-3 text-indigo-400/70" />
-                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">과거 패턴 일치 {matchedLegend.ticker}</span>
+                    {/* Footer Info: Conditional "Matched" - Always pushed to bottom */}
+                    <div className="mt-auto">
+                        {(matchedLegend && matchedLegend.ticker !== 'N/A') && (
+                            <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Target className="w-3 h-3 text-indigo-400/70" />
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">과거 패턴 일치 {matchedLegend.ticker}</span>
+                                </div>
+                                <span className="text-[9px] font-mono font-bold text-indigo-300/70">{matchedLegend.similarity}% 일치</span>
                             </div>
-                            <span className="text-[9px] font-mono font-bold text-indigo-300/70">{matchedLegend.similarity}% 일치</span>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -138,11 +142,20 @@ export const AnalysisResultCard = ({
                     ticker,
                     dnaScore,
                     popProbability,
-                    bullPoints,
-                    bearPoints,
-                    matchedLegend,
+                    bullPoints: bullPoints.length > 0 ? bullPoints : ["모멘텀 지표 분석 중", "거래량 추이 확인 중"],
+                    bearPoints: bearPoints.length > 0 ? bearPoints : ["리스크 요인 스캔 중", "시장 변동성 확인 중"],
+                    matchedLegend: matchedLegend || { ticker: 'N/A', similarity: 0 },
                     riskLevel,
-                    aiSummary: aiSummary || ""
+                    aiSummary: aiSummary || `${ticker}는 현재 DNA 점수 ${dnaScore}점으로 분석되고 있으며, 상세 리포트를 생성 중입니다.`
+                }}
+                onSimulation={async () => {
+                    const price = 0; // In a real scenario, we'd fetch the latest price or use the one from props
+                    const res = await addToPortfolio(ticker, price);
+                    alert(res.message);
+                }}
+                onAddToWatchlist={async () => {
+                    await addToWatchlist(ticker);
+                    alert(`${ticker}가 관심 종목에 추가되었습니다.`);
                 }}
             />
         </>

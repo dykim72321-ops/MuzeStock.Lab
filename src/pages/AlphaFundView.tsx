@@ -1,6 +1,7 @@
 import { Zap, ShieldCheck, TrendingUp, History, Info } from 'lucide-react';
 import { PortfolioDashboard } from '../components/dashboard/PortfolioDashboard';
 import { PersonaLeaderboard } from '../components/dashboard/PersonaLeaderboard';
+import { AlphaFundPositions } from '../components/dashboard/AlphaFundPositions';
 
 export const AlphaFundView = () => {
     return (
@@ -53,6 +54,9 @@ export const AlphaFundView = () => {
                     <PortfolioDashboard />
                 </div>
             </section>
+
+            {/* Active Positions List */}
+            <AlphaFundPositions />
 
             {/* Sub Content Grid */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">

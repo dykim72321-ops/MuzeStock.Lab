@@ -60,6 +60,34 @@ class DBManager:
             print(f"❌ DB Fetch Error: {e}")
             return []
 
+    def get_active_tickers(self, limit=5):
+        """
+        Supabase에서 가장 최근 발견된 N개의 고유 티커 목록을 가져옵니다.
+        만약 데이터가 없거나 에러가 발생하면 Fallback 티커 목록을 반환합니다.
+        """
+        try:
+            response = (
+                self.supabase.table("daily_discovery")
+                .select("ticker")
+                .order("updated_at", desc=True)
+                .limit(limit * 2)
+                .execute()
+            )
+            
+            tickers = []
+            for item in response.data:
+                ticker = item.get("ticker")
+                if ticker and ticker not in tickers:
+                    tickers.append(ticker)
+                    
+                if len(tickers) >= limit:
+                    break
+                    
+            return tickers if tickers else ["TSLA", "AAPL"]
+        except Exception as e:
+            print(f"❌ DB Fetch Error (Active Tickers): {e}")
+            return ["TSLA", "AAPL"]
+
 
 if __name__ == "__main__":
     db = DBManager()

@@ -9,3 +9,6 @@ supabase
 openai
 python-dotenv
 requests
+cachetools
+nltk
+websockets

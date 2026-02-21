@@ -74,7 +74,7 @@ export const Dashboard = () => {
   }, []);
 
   return (
-    <div className="max-w-[2000px] mx-auto p-4 md:p-6 space-y-6 animate-in fade-in duration-1000">
+    <div className="max-w-[2000px] mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-1000">
 
       {/* 1. Header Section (Floating Glass) */}
       <header className="flex flex-col md:flex-row justify-between items-end gap-4 pb-6 relative z-10">
@@ -111,10 +111,10 @@ export const Dashboard = () => {
       </section>
 
       {/* 3. Main Content Grid (Bento Layout) */}
-      <div className="grid grid-cols-1 2xl:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 2xl:grid-cols-12 gap-6 md:gap-8">
 
         {/* Left Column: Daily Discoveries (Main Feed) */}
-        <div className="2xl:col-span-8 space-y-6">
+        <div className="2xl:col-span-8 space-y-6 md:space-y-8">
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-3">
               <div className="h-8 w-1 bg-gradient-to-b from-indigo-400 to-cyan-400 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.6)]" />
@@ -151,7 +151,7 @@ export const Dashboard = () => {
         </div>
 
         {/* Right Column: Leaderboard & Watchlist (Vertical Stack) */}
-        <div className="2xl:col-span-4 space-y-6 flex flex-col h-full">
+        <div className="2xl:col-span-4 space-y-6 md:space-y-8 flex flex-col h-full">
 
           {/* Persona Leaderboard */}
           <div className="bento-card p-6 flex-1 min-h-[400px]">
