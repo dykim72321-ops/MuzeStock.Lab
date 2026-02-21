@@ -29,11 +29,10 @@ from webhook_manager import WebhookManager
 from paper_engine import PaperTradingManager
 
 # Realtime Engine용 캐시 세션 (15초 만료: 불필요한 중복 요청 방지)
-yf_session = requests_cache.CachedSession('yfinance_main.cache', expire_after=15)
+yf_session = requests_cache.CachedSession("yfinance_main.cache", expire_after=15)
 webhook = WebhookManager()
 # PaperTradingManager 인스턴스 (Supabase가 초기화된 후 설정)
 paper_engine = None
-
 
 
 # .env 파일에서 환경변수 로드
@@ -152,26 +151,33 @@ async def get_portfolio():
     """가상 계좌 잔고 및 보유 포지션 데이터 반환"""
     if not supabase:
         raise HTTPException(status_code=500, detail="DB connection not initialized")
-    
+
     try:
-        acc_task = asyncio.to_thread(supabase.table("paper_account").select("*").limit(1).execute)
-        pos_task = asyncio.to_thread(supabase.table("paper_positions").select("*").execute)
-        
+        acc_task = asyncio.to_thread(
+            supabase.table("paper_account").select("*").limit(1).execute
+        )
+        pos_task = asyncio.to_thread(
+            supabase.table("paper_positions").select("*").execute
+        )
+
         acc_res, pos_res = await asyncio.gather(acc_task, pos_task)
-        
-        acc = acc_res.data[0] if acc_res.data else {"total_assets": 100000.0, "cash_available": 100000.0}
+
+        acc = (
+            acc_res.data[0]
+            if acc_res.data
+            else {"total_assets": 100000.0, "cash_available": 100000.0}
+        )
         positions = pos_res.data
-        
+
         invested_capital = sum([p["current_price"] * p["units"] for p in positions])
         # DB의 total_assets는 수동 업데이트 전까지 구식일 수 있으므로 여기서 동적으로 계산
         current_total = acc["cash_available"] + invested_capital
-        
+
         return {
             "totalAssets": round(float(current_total), 2),
             "cashAvailable": round(float(acc["cash_available"]), 2),
             "investedCapital": round(float(invested_capital), 2),
-
-            "dailyPnL": 0.0, # TODO: 실시간 손익 계산 로직 추가 가능
+            "dailyPnL": 0.0,  # TODO: 실시간 손익 계산 로직 추가 가능
             "dailyPnLPct": 0.0,
             "positions": [
                 {
@@ -181,10 +187,12 @@ async def get_portfolio():
                     "entryPrice": p["entry_price"],
                     "currentPrice": p["current_price"],
                     "tsThreshold": p["ts_threshold"],
-                    "pnlPct": round((p["current_price"] / p["entry_price"] - 1) * 100, 2)
+                    "pnlPct": round(
+                        (p["current_price"] / p["entry_price"] - 1) * 100, 2
+                    ),
                 }
                 for p in positions
-            ]
+            ],
         }
     except Exception as e:
         print(f"❌ Portfolio Fetch Error: {e}")
@@ -527,17 +535,18 @@ except:
     supabase = None
 
 
-
 async def process_ticker_pulse(ticker_symbol: str):
     try:
-        # 지터(Jitter): 실시간 병렬 요청 분산 
+        # 지터(Jitter): 실시간 병렬 요청 분산
         await asyncio.sleep(random.uniform(0.1, 1.0))
 
         # 1. 1분봉 데이터로 실시간성 확보 (충분한 계산을 위해 1일치 로드) - 별도 스레드에서 I/O 실행
         tk = yf.Ticker(ticker_symbol, session=yf_session)
         hist = await asyncio.to_thread(tk.history, period="1d", interval="1m")
 
-        if hist is not None and not hist.empty and len(hist) > 30:  # MACD 26+9를 위해 충분한 데이터 필요
+        if (
+            hist is not None and not hist.empty and len(hist) > 30
+        ):  # MACD 26+9를 위해 충분한 데이터 필요
             # 2. 고도화된 페이로드 생성 (수학적 및 AI 로직을 스레드로 분리하여 이벤트 루프 보호)
             payload = await asyncio.to_thread(run_pulse_engine, ticker_symbol, hist)
 
@@ -557,11 +566,17 @@ async def process_ticker_pulse(ticker_symbol: str):
 
                     # 5. Discord Webhook 전송 (강력한 신호일 때만 모바일 알림 푸시)
                     if payload.get("strength") == "STRONG":
-                        color = 0x2ecc71 if payload.get("signal") == "BUY" else 0xe74c3c
-                        action = "🟢 STRONG BUY" if payload.get("signal") == "BUY" else "🔴 STRONG SELL / SCALE_OUT"
+                        color = 0x2ECC71 if payload.get("signal") == "BUY" else 0xE74C3C
+                        action = (
+                            "🟢 STRONG BUY"
+                            if payload.get("signal") == "BUY"
+                            else "🔴 STRONG SELL / SCALE_OUT"
+                        )
                         title = f"[MuzeStock Pulse] {ticker_symbol} {action}"
                         desc = f"현재가: ${payload.get('price'):.2f} | RSI: {payload.get('rsi')}\n\n💡 {payload.get('ai_report', '')}"
-                        await webhook.send_alert(title=title, description=desc, color=color)
+                        await webhook.send_alert(
+                            title=title, description=desc, color=color
+                        )
 
                     # 6. Paper Trading 자동 실행 (v2.0)
                     if paper_engine:
@@ -571,7 +586,7 @@ async def process_ticker_pulse(ticker_symbol: str):
                             signal_type=payload.get("signal"),
                             strength=payload.get("strength"),
                             rsi=payload.get("rsi"),
-                            ai_report=payload.get("ai_report", "")
+                            ai_report=payload.get("ai_report", ""),
                         )
 
                 except Exception as db_err:
