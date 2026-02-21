@@ -1,7 +1,7 @@
 require('dotenv').config({ path: '.env.local' });
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const { YahooFinance } = require('yahoo-finance2');
+const YahooFinance = require('yahoo-finance2').default;
 const yahooFinance = new YahooFinance();
 
 

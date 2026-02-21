@@ -60,7 +60,9 @@ class FinvizHunter:
                 page = await context.new_page()
 
                 print(f"🌐 Navigating to {mode['url']}")
-                await page.goto(mode["url"], wait_until="domcontentloaded", timeout=60000)
+                await page.goto(
+                    mode["url"], wait_until="domcontentloaded", timeout=60000
+                )
 
                 try:
                     await page.wait_for_selector(
@@ -107,9 +109,7 @@ class FinvizHunter:
                         volume = int(df["Volume"].iloc[-1])
 
                         rsi = ta.momentum.RSIIndicator(close=df["Close"]).rsi().iloc[-1]
-                        indicators_summary = (
-                            f"Price: ${price:.2f}, RSI: {rsi:.1f}, Change: {change:.2f}%"
-                        )
+                        indicators_summary = f"Price: ${price:.2f}, RSI: {rsi:.1f}, Change: {change:.2f}%"
                     except Exception as e:
                         print(f"⚠️ Failed to get technicals for {ticker_symbol}: {e}")
                         continue

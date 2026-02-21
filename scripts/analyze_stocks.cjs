@@ -92,7 +92,27 @@ async function masterAnalysis(ticker) {
       console.log(`      ✅ Analysis memorized.`);
     }
 
+    // --- ALPHA FUND AUTOMATION ---
+    if (analysis.dnaScore >= 85) {
+      console.log(`🚀 [Alpha Fund] High Conviction Detected: ${ticker} (${analysis.dnaScore}pts). Adding to portfolio...`);
+      const { error: alphaError } = await supabase
+        .from('paper_portfolio')
+        .upsert({
+          ticker: ticker,
+          status: 'OPEN',
+          entry_price: quote.price,
+          current_price: quote.price,
+          pnl_percent: 0,
+          updated_at: new Date().toISOString()
+        }, { on_conflict: 'ticker' });
+
+      if (alphaError) console.error(`      ⚠️ Alpha Fund Entry Error [${ticker}]:`, alphaError.message);
+      else console.log(`      ✅ Alpha Fund Entry Success: ${ticker}`);
+    }
+    // ----------------------------
+
     return { ticker, analysis };
+
 
   } catch (err) {
     console.error(`   ❌ Error analyzed ${ticker}:`, err.message);
