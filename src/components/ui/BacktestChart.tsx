@@ -61,7 +61,10 @@ export const BacktestChart: React.FC<BacktestChartProps> = ({ ticker }) => {
       <div className="flex justify-between items-end mb-6 relative z-10">
         <h3 className="text-lg font-black text-slate-100 flex items-center gap-2 tracking-tight">
           <Activity className="w-5 h-5 text-indigo-400" />
-          과거 1년 백테스트 성과 (RSI 역추세)
+          과거 1년 백테스트 성과
+          <span className="text-xs font-bold px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 ml-1">
+            v4 MOMENTUM
+          </span>
         </h3>
         
         {/* 성과 요약 뱃지 */}

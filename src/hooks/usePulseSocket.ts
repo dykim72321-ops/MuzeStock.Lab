@@ -31,9 +31,12 @@ export const usePulseSocket = (url: string = 'ws://127.0.0.1:8000/ws/pulse') => 
   const [pulseData, setPulseData] = useState<PulseData | null>(null);
   // 전체 종목별 최신 상태 맵 (Live Dashboard용)
   const [pulseMap, setPulseMap] = useState<Record<string, PulseData>>({});
+  // Live Flash: 마지막으로 업데이트된 티커 (2초 후 자동 초기화)
+  const [lastUpdatedTicker, setLastUpdatedTicker] = useState<string | null>(null);
   
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
   
   // 상태 변경 없이 WebSocket 인스턴스를 유지하기 위해 useRef 사용
   const socketRef = useRef<WebSocket | null>(null);
@@ -62,6 +65,10 @@ export const usePulseSocket = (url: string = 'ws://127.0.0.1:8000/ws/pulse') => 
             ...prev,
             [data.ticker]: data
           }));
+
+          // 3. Live Flash: 방금 수신된 티커 설정 → 2초 후 자동 초기화
+          setLastUpdatedTicker(data.ticker);
+          setTimeout(() => setLastUpdatedTicker(null), 2000);
           
           console.log(`💓 Pulse received for ${data.ticker}:`, data);
 
@@ -122,5 +129,5 @@ export const usePulseSocket = (url: string = 'ws://127.0.0.1:8000/ws/pulse') => 
     connect();
   };
 
-  return { pulseData, pulseMap, isConnected, error, reconnect };
+  return { pulseData, pulseMap, isConnected, error, reconnect, lastUpdatedTicker };
 };

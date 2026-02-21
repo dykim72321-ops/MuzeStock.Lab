@@ -1,203 +1,207 @@
-import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { Loader2, Rocket, Zap } from 'lucide-react';
-import { Link } from 'react-router-dom';
-
-import { SystemStatus } from '../components/dashboard/SystemStatus';
-import { PortfolioDashboard } from '../components/dashboard/PortfolioDashboard';
-import { PersonaLeaderboard } from '../components/dashboard/PersonaLeaderboard';
-import { WatchlistView } from '../components/dashboard/WatchlistView';
-import { SignalTicker } from '../components/dashboard/SignalTicker';
-import { QuantSignalCard, type QuantSignalData } from '../components/ui/QuantSignalCard';
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
-
-// Supabase 레코드 → QuantSignalCard 인터페이스 변환
-const mapToSignalData = (item: any): QuantSignalData & { ticker: string } => {
-  const analysis = item.stock_analysis_cache?.[0]?.analysis || {};
-  const aiSummary: string = item.ai_summary || '';
-
-  // ai_summary에서 bull/bear/tags를 추출 (JSON 형식이면 파싱 시도)
-  let bull_case = '분석 데이터 수집 중...';
-  let bear_case = '리스크 스캔 중...';
-  let tags: string[] = [item.ticker || ''];
-  let reasoning_ko = aiSummary || '분석 결과 동기화 중...';
-
-  try {
-    const parsed = typeof aiSummary === 'string' ? JSON.parse(aiSummary) : aiSummary;
-    if (parsed?.bull_case) bull_case = parsed.bull_case;
-    if (parsed?.bear_case) bear_case = parsed.bear_case;
-    if (parsed?.tags) tags = parsed.tags;
-    if (parsed?.reasoning_ko) reasoning_ko = parsed.reasoning_ko;
-  } catch {
-    // ai_summary가 일반 텍스트인 경우 → reasoning으로 활용
-    if (aiSummary && aiSummary.length > 10) {
-      reasoning_ko = aiSummary;
-    }
-    // AnalysisResultCard 포맷으로 저장된 배열 데이터 변환
-    const bullPoints: string[] = analysis.bullCase || [];
-    const bearPoints: string[] = analysis.bearCase || [];
-    if (bullPoints.length) bull_case = bullPoints.join(' '); 
-    if (bearPoints.length) bear_case = bearPoints.join(' ');
-  }
-
-  return {
-    ticker: item.ticker,
-    dna_score: item.dna_score || analysis.dnaScore || 0,
-    bull_case,
-    bear_case,
-    reasoning_ko,
-    tags,
-  };
-};
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Activity, Rocket, Server, ShieldCheck, 
+  Crosshair, Loader2, CheckCircle, BarChart3
+} from 'lucide-react';
+import clsx from 'clsx';
+import { usePulseSocket } from '../hooks/usePulseSocket';
+import { QuantSignalCard } from '../components/ui/QuantSignalCard';
+import { BacktestChart } from '../components/ui/BacktestChart';
 
 export const Dashboard = () => {
-  const [discoveries, setDiscoveries] = useState<(QuantSignalData & { ticker: string })[]>([]);
-  const [loading, setLoading] = useState(true);
+  // 1. WebSocket을 통한 v4 펄스 엔진 실시간 데이터 수신
+  // pulseMap: 전체 종목의 최신 상태 맵, lastUpdatedTicker: Live Flash 트리거
+  const { pulseMap, isConnected, lastUpdatedTicker } = usePulseSocket('ws://localhost:8000/ws/pulse');
+  // 전체 종목 맵 중 BUY 시그널만 필터링 (HOLD/NORMAL은 작전 지휘소에 불필요)
+  const buyTickers = Object.keys(pulseMap).filter(
+    (t) => pulseMap[t].signal === 'BUY'
+  );
+  // Live Signals 카운터: BUY 신호 수만 표시
+  const allTickers = Object.keys(pulseMap);
 
-  useEffect(() => {
-    const fetchDiscoveries = async () => {
-      setLoading(true);
+  // 2. 하이브리드 수동 탐색(Hunting) 상태 관리
+  const [isHunting, setIsHunting] = useState(false);
+  const [huntStatus, setHuntStatus] = useState<'success' | 'error' | null>(null);
 
-      let { data, error } = await supabase
-        .from('daily_discovery')
-        .select('*, ai_predictions(*), stock_analysis_cache(analysis)')
-        .order('updated_at', { ascending: false })
-        .limit(6);
-
-      if (error) {
-        const { data: simple } = await supabase
-          .from('daily_discovery')
-          .select('*')
-          .order('updated_at', { ascending: false })
-          .limit(6);
-        data = simple;
-      }
-
-      if (data) setDiscoveries(data.map(mapToSignalData));
-      setLoading(false);
-    };
-
-    fetchDiscoveries();
-  }, []);
+  const handleTriggerHunt = async () => {
+    setIsHunting(true);
+    setHuntStatus(null);
+    try {
+      const adminKey = import.meta.env.VITE_ADMIN_SECRET_KEY || "your_dev_secret_key";
+      const response = await fetch('http://localhost:8000/api/hunt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+      });
+      if (!response.ok) throw new Error("API Error");
+      setHuntStatus('success');
+      setTimeout(() => setHuntStatus(null), 3000);
+    } catch (error) {
+      console.error("Hunting Error:", error);
+      setHuntStatus('error');
+      setTimeout(() => setHuntStatus(null), 3000);
+    } finally {
+      setIsHunting(false);
+    }
+  };
 
   return (
-    <div className="max-w-[2000px] mx-auto space-y-8 animate-in fade-in duration-1000">
-
-      {/* ─── 1. Header ─────────────────────────────────────────────── */}
-      <header className="flex flex-col md:flex-row justify-between items-end gap-4 pb-6 relative z-10">
+    <div className="space-y-8 animate-in fade-in duration-700">
+      
+      {/* 1. Dashboard Header & Status Control */}
+      <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-indigo-400 tracking-tighter mb-2 drop-shadow-[0_0_15px_rgba(99,102,241,0.5)]">
-            작전 지휘소
-          </h1>
-          <p className="text-slate-400 text-sm font-medium tracking-tight">
-            폰드 수익률 요약 •{' '}
-            <Link to="/pulse" className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors">
-              퀀트 펄스 실시간 피드 →
-            </Link>
-          </p>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-black text-slate-100 tracking-tight">작전 지휘소</h1>
+            <div className="px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 rounded-md flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-blue-400 animate-pulse' : 'bg-red-500'}`}></span>
+              <span className="text-xs font-bold text-blue-400">PULSE ENGINE v4</span>
+            </div>
+          </div>
+          <p className="text-sm text-slate-400">실시간 시장 감시 및 AI 퀀트 발굴 시스템</p>
         </div>
-        <div className="flex flex-col gap-2">
-          <SystemStatus />
-          <SignalTicker />
+
+        {/* Action Button */}
+        <div className="flex items-center gap-3">
+          {huntStatus === 'success' && (
+            <span className="flex items-center gap-1 text-xs font-semibold text-emerald-400">
+              <CheckCircle className="w-4 h-4" /> 탐색기 가동됨
+            </span>
+          )}
+          <button
+            onClick={handleTriggerHunt}
+            disabled={isHunting}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg ${
+              isHunting 
+                ? 'bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700' 
+                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white border border-blue-500/50 shadow-blue-500/20 hover:shadow-blue-500/40'
+            }`}
+          >
+            {isHunting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
+            {isHunting ? '딥 헌팅 진행 중...' : '하이브리드 헌팅 트리거'}
+          </button>
         </div>
       </header>
 
-      {/* ─── 2. Alpha Fund Section ──────────────────────────────────── */}
-      <section className="bento-card p-1 group">
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 via-transparent to-emerald-500/10 opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
-        <div className="relative z-10 p-6">
-          <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 mb-4">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse" />
-            알파 펀드 운용 현황
-          </h2>
-          <PortfolioDashboard />
-        </div>
-      </section>
-
-      {/* ─── 3. Main Content Grid ──────────────────────────────────── */}
-      <div className="grid grid-cols-1 2xl:grid-cols-12 gap-6 md:gap-8">
-
-        {/* Left Column: Today's AI Discoveries */}
-        <div className="2xl:col-span-8 space-y-6">
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-3">
-              <div className="h-7 w-1 bg-gradient-to-b from-indigo-400 to-cyan-400 rounded-full" />
-              <h2 className="text-xl font-black text-white tracking-tight">오늘의 AI 포착 종목</h2>
+      {/* 2. Quick Stats Bento Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="quant-panel p-5 flex items-center gap-4">
+          <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+            <ShieldCheck className="w-6 h-6 text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">시스템 방어력 (MDD)</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-slate-100 tabular-nums">-2.95%</span>
+              <span className="text-xs font-semibold text-emerald-400">Market: -29.1%</span>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-mono text-indigo-300/70 font-bold tracking-widest border border-indigo-500/20 px-3 py-1 rounded-full bg-indigo-500/5">
-                최신 분석 결과
+            <p className="text-[10px] text-slate-600 mt-1">소하이 5년 백테스트 기준</p>
+          </div>
+        </div>
+
+        <div className="quant-panel p-5 flex items-center gap-4">
+          <div className="p-3 bg-purple-500/10 rounded-xl border border-purple-500/20">
+            <Crosshair className="w-6 h-6 text-purple-400" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">엔진 승률 (Win Rate)</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-slate-100 tabular-nums">68.7%</span>
+              <span className="text-xs font-semibold text-purple-400">PF: 1.14x</span>
+            </div>
+            <p className="text-[10px] text-slate-600 mt-1">소하이 5년 백테스트 기준</p>
+          </div>
+        </div>
+
+        <div className="quant-panel p-5 flex items-center gap-4">
+          <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20">
+            <Activity className="w-6 h-6 text-blue-400" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">실시간 포착 종목</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-slate-100 tabular-nums">{buyTickers.length}</span>
+              <span className="text-xs font-semibold text-blue-400">
+                BUY Signals
+                {allTickers.length > 0 && (
+                  <span className="ml-1 text-slate-500">/ {allTickers.length} 관측</span>
+                )}
               </span>
-              <Link
-                to="/pulse"
-                className="flex items-center gap-1.5 text-xs font-bold text-blue-400 hover:text-blue-300 border border-blue-500/20 px-3 py-1 rounded-full bg-blue-500/5 hover:bg-blue-500/10 transition-colors"
-              >
-                <Zap className="w-3 h-3" />
-                실시간 펄스 보기
-              </Link>
             </div>
           </div>
+        </div>
+      </div>
 
-          {loading ? (
-            <div className="flex justify-center py-32">
-              <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
-            </div>
-          ) : discoveries.length === 0 ? (
-            <div className="bento-card p-16 flex flex-col items-center justify-center text-center gap-4">
-              <Rocket className="w-10 h-10 text-slate-600" />
-              <p className="text-white font-bold">활성 시그널 없음</p>
-              <p className="text-slate-500 text-sm">
-                사이드바의 <span className="text-blue-400 font-bold">퀀트 펄스</span> 메뉴에서 딥 헌팅을 실행하세요.
-              </p>
-            </div>
-          ) : (
-            /* QuantSignalCard 그리드 — ticker를 헤더 뱃지로 표시 */
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-              {discoveries.map((stock) => (
-                <div key={stock.ticker} className="relative group">
-                  {/* 종목 티커 헤더 뱃지 */}
-                  <div className="absolute -top-3 left-4 z-20 px-3 py-1 bg-slate-800 border border-slate-700 rounded-full text-xs font-black text-slate-200 tracking-widest shadow-lg">
-                    {stock.ticker}
+      {/* 3. Live Signal Feed */}
+      <div className="pt-4">
+        <h2 className="text-lg font-bold text-slate-200 mb-6 flex items-center gap-2">
+          <BarChart3 className="w-5 h-5 text-indigo-400" />
+          오늘의 AI 포착 종목 및 백테스트 검증
+        </h2>
+
+        {buyTickers.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 quant-panel border-dashed border-slate-700 text-slate-500">
+            <Server className="w-8 h-8 mb-4 opacity-50" />
+            {allTickers.length > 0 ? (
+              <>
+                <p className="font-medium">
+                  현재 BUY 시그널 없음
+                  <span className="ml-2 px-2 py-0.5 text-xs bg-slate-800 rounded">
+                    {allTickers.length}개 관측 중
+                  </span>
+                </p>
+                <p className="text-xs mt-1 text-slate-600">
+                  v4 엔진이 RSI &lt; 45 + MACD 기울기 개선 진입 조건을 스캔 중입니다
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-medium">수신된 펄스 시그널이 없습니다.</p>
+                <p className="text-xs mt-1">상단의 '하이브리드 헌팅 트리거'를 눌러 시장 스캔을 시작하세요.</p>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            {buyTickers.map((ticker) => {
+              const rawData = pulseMap[ticker];
+              const cardData = {
+                dna_score: rawData.ai_metadata?.dna_score || 50,
+                bull_case: rawData.ai_metadata?.bull_case || "데이터 분석 중...",
+                bear_case: rawData.ai_metadata?.bear_case || "데이터 분석 중...",
+                reasoning_ko: rawData.ai_metadata?.reasoning_ko || rawData.ai_report,
+                tags: rawData.ai_metadata?.tags || [ticker, rawData.signal]
+              };
+
+              return (
+                <motion.div 
+                  key={ticker} 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={clsx(
+                    "flex flex-col gap-4 rounded-2xl p-2 transition-all",
+                    lastUpdatedTicker === ticker && "animate-flash-blue"
+                  )}
+                >
+                  <div className="flex items-center gap-3 pl-2 border-l-4 border-blue-500">
+                    <h3 className="text-2xl font-black tracking-tighter text-white">{ticker}</h3>
+                    <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-800 text-slate-300">
+                      RSI: {rawData.rsi || '-'}
+                    </span>
                   </div>
-                  <QuantSignalCard
-                    data={{
-                      dna_score: stock.dna_score,
-                      bull_case: stock.bull_case,
-                      bear_case: stock.bear_case,
-                      reasoning_ko: stock.reasoning_ko,
-                      tags: stock.tags,
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Right Column */}
-        <div className="2xl:col-span-4 space-y-6 flex flex-col">
-          <div className="bento-card p-6 flex-1 min-h-[380px]">
-            <div className="flex items-center gap-3 mb-5 border-b border-white/5 pb-4">
-              <span className="w-1.5 h-1.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
-              <h2 className="text-base font-bold text-white tracking-tight uppercase">모델 정확도</h2>
-            </div>
-            <PersonaLeaderboard />
+                  
+                  {/* 시그널 렌더링 카드 */}
+                  <QuantSignalCard data={cardData} />
+                  
+                  {/* v4 엔진이 적용된 백테스트 차트 */}
+                  <div className="h-72 w-full mt-2">
+                    <BacktestChart ticker={ticker} />
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
-
-          <div className="bento-card p-6 flex-1 min-h-[380px]">
-            <div className="flex items-center gap-3 mb-5 border-b border-white/5 pb-4">
-              <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
-              <h2 className="text-base font-bold text-white tracking-tight uppercase">퀵 워치</h2>
-            </div>
-            <WatchlistView />
-          </div>
-        </div>
-
+        )}
       </div>
     </div>
   );
-};
+}

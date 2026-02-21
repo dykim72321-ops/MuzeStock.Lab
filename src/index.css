@@ -33,6 +33,15 @@
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
   }
+
+  /* Live Flash: WebSocket 데이터 인입 시 파란 펄스 */
+  @keyframes flashBlue {
+    0%   { background-color: rgba(59, 130, 246, 0.18); border-color: rgba(59, 130, 246, 0.6); }
+    60%  { background-color: rgba(59, 130, 246, 0.06); border-color: rgba(59, 130, 246, 0.3); }
+    100% { background-color: transparent;              border-color: transparent; }
+  }
+
+  --animate-flash-blue: flashBlue 1.8s ease-out forwards;
 }
 
 @layer base {
@@ -73,6 +82,28 @@
   .bento-card:hover {
     @apply border-white/20;
     box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+  }
+
+  /* ── Reactive Glow Card ──────────────────────────────────
+     사용법: <div class="quant-panel-glow"><div class="quant-panel-content p-6">...</div></div>
+     호버 시 파란-사이안-인디고 그라데이션 테두리 + 빛 번짐 효과 */
+  .quant-panel-glow {
+    @apply relative rounded-2xl p-[1px] overflow-hidden transition-all duration-500;
+    background: #1e293b; /* 기본: 어두운 단색 테두리 */
+  }
+  .quant-panel-glow:hover {
+    background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 50%, #6366f1 100%);
+    box-shadow: 0 0 24px -4px rgba(59, 130, 246, 0.35), 0 0 48px -8px rgba(99, 102, 241, 0.2);
+  }
+  .quant-panel-content {
+    @apply bg-slate-900/95 backdrop-blur-md rounded-[calc(1rem-1px)] h-full w-full;
+  }
+
+  /* Live Flash 유틸리티 (animate-flash-blue) */
+  .animate-flash-blue {
+    animation: flashBlue 1.8s ease-out forwards;
+    border-width: 1px;
+    border-style: solid;
   }
 }
 
