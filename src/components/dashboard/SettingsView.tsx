@@ -109,19 +109,7 @@ export const SettingsView = () => {
               </div>
               
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">OpenAI API Key</label>
-                    <span className="text-[10px] text-indigo-400 font-mono">ENCRYPTED</span>
-                  </div>
-                  <input 
-                    type="password" 
-                    value="sk-••••••••••••••••••••••••••••"
-                    readOnly
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-400 font-mono"
-                  />
-                </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Alpha Vantage Key</label>

@@ -2,7 +2,6 @@ import asyncio
 from playwright.async_api import async_playwright
 from datetime import datetime
 from db_manager import DBManager
-from ai_analyzer import AIAnalyzer
 from news_manager import NewsManager
 import yfinance as yf
 import ta
@@ -14,7 +13,6 @@ import random
 class FinvizHunter:
     def __init__(self):
         self.db = DBManager()
-        self.ai = AIAnalyzer()
         self.news = NewsManager()
         self.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
 
@@ -293,8 +291,12 @@ class FinvizHunter:
                 "indicators": ai_context_ext,
                 "news": headlines,
             }
-            ai_result = await self.ai.analyze_stock(ai_input)
-
+            ai_result = {
+                "tags": [ticker_symbol, "QUANT"],
+                "bull_case": "자동 분석 기능 비활성화 (순수 퀀트 모드)",
+                "bear_case": "자동 분석 기능 비활성화 (순수 퀀트 모드)",
+                "reasoning_ko": "OpenAI 모듈이 제거되어 퀀트 지표 기반으로만 탐지되었습니다."
+            }
             # 4. Auto Backtest (1년 RSI 전략)
             from backtester import run_backtest
 

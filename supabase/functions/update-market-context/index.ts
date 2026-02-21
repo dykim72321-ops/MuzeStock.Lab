@@ -17,8 +17,8 @@ serve(async (req) => {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!OPENAI_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error('Missing environment variables: OPENAI_API_KEY, SUPABASE_URL, or SUPABASE_SERVICE_ROLE_KEY');
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('Missing environment variables: SUPABASE_URL, or SUPABASE_SERVICE_ROLE_KEY');
     }
 
     // 1. Fetch Top Headlines (Politics, Business)
@@ -44,24 +44,8 @@ serve(async (req) => {
        }
     }
 
-    // 2. Summarize with OpenAI
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: "You are a specialized macro-economic analyst. Summarize the following news headlines into a SINGLE paragraph (approx 200 words) describing the current global market sentiment, key risks, and opportunities. Focus on factors affecting stock markets (Rates, Geopolitics, Tech trends). Language: Korean." },
-          { role: 'user', content: newsText },
-        ],
-      }),
-    });
-
-    const aiData = await response.json();
-    const summary = aiData.choices[0].message.content;
+    // 2. Summarize with OpenAI (제거됨 - 하드코딩된 써머리 반환)
+    const summary = "현재 시장 환경 분석: 글로벌 금리 인하 기대감과 기술주/AI 섹터의 강세, 중동 지정학적 리스크 혼재 상황으로 변동성 장세가 지속 중입니다. (기본 모드 분석 결과)";
 
     // 3. Store in Supabase
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);

@@ -6,7 +6,6 @@ yfinance
 urllib3<2.0
 playwright
 supabase
-openai
 python-dotenv
 requests
 cachetools

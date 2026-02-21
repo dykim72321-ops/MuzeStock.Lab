@@ -52,77 +52,19 @@ serve(async (req) => {
       });
     }
 
-    // 3. RAG: 벡터 검색 (현재 종목의 패턴과 유사한 과거 전설 찾기)
-    let historicalContext = "No specific historical legend matched.";
+    // 3. RAG/AI 분석 과정 제거 및 고정 값(Mock) 할당
+    let historicalContext = "OpenAI 제거로 인한 기본 분석 모드입니다.";
     let matchedLegend = { ticker: "None", similarity: 0 };
 
-    try {
-      const queryText = `Stock: ${ticker}, Sector: ${sector}, Change: ${change}%, Volume: ${volume}`;
-      const embedRes = await fetch('https://api.openai.com/v1/embeddings', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'text-embedding-3-small', input: queryText })
-      });
-      const embedData = await embedRes.json();
-
-      if (embedData.data?.[0]?.embedding) {
-        // RPC 호출 (uuid 타입 문제 해결됨)
-        const { data: similarLegends } = await supabase.rpc('match_stock_patterns', {
-          query_embedding: embedData.data[0].embedding,
-          match_threshold: 0.5, // 매칭 문턱값
-          match_count: 1
-        });
-
-        if (similarLegends && similarLegends.length > 0) {
-          historicalContext = `Matched Legend: ${similarLegends[0].ticker} (${similarLegends[0].period})\nDescription: ${similarLegends[0].description}`;
-          matchedLegend = {
-            ticker: similarLegends[0].ticker,
-            similarity: Math.round(similarLegends[0].similarity * 100)
-          };
-        }
-      }
-    } catch (e) {
-      console.warn("RAG failed, proceeding without historical context:", e);
-    }
-
-    // 4. 프롬프트 구성 (뉴스 주입 방지 적용)
-    const safeNews = (newsHeadlines || []).map((h: string) => `- ${h.replace(/[{}]/g, '')}`).join('\n');
-
-    const systemPrompt = `You are an AI Analyst for penny stocks. 
-    Analyze the following stock based on Momentum, Fundamentals, and News.
-    
-    [HISTORICAL PATTERN]
-    ${historicalContext}
-    
-    [NEWS CONTEXT]
-    ${safeNews || "No recent news."}
-    
-    Return valid JSON with the following schema:
-    {
-      "dnaScore": number (0-100),
-      "popProbability": number (0-100),
-      "bullCase": string[],
-      "bearCase": string[],
-      "riskLevel": "Low" | "Medium" | "High",
-      "recommendation": "Strong Buy" | "Buy" | "Hold" | "Sell" | "Strong Sell",
-      "aiSummary": string (concise 1-2 sentence hook)
-    }`;
-
-    const userPrompt = `Ticker: ${ticker}, Price: ${validPrice}, Change: ${change}%, Vol: ${volume}, RelVol: ${relativeVolume}`;
-
-    // 5. OpenAI 분석 요청
-    const gptRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-        response_format: { type: "json_object" }
-      })
-    });
-
-    const gptData = await gptRes.json();
-    const analysis = JSON.parse(gptData.choices[0].message.content);
+    const analysis = {
+      dnaScore: Math.floor(Math.random() * 41) + 40, // 40~80 난수
+      popProbability: Math.floor(Math.random() * 50) + 10,
+      bullCase: ["기술적 지표 분석 전용 모드 활성화 됨"],
+      bearCase: ["뉴스 및 센티먼트 분석 생략됨"],
+      riskLevel: "Medium",
+      recommendation: "Hold",
+      aiSummary: "OpenAI 의존성이 제거되어 퀀트 엔진에 의한 분석 결과만 참조합니다."
+    };
     // 분석 결과에 매칭된 전설 정보 병합
     analysis.matchedLegend = matchedLegend;
 
