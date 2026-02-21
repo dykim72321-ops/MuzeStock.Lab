@@ -1,7 +1,7 @@
 import React from 'react';
 import {
     X, HelpCircle, LayoutDashboard, Search,
-    Target, List, Zap, ArrowRight
+    Target, Zap, ArrowRight
 } from 'lucide-react';
 import { Card } from './Card';
 import clsx from 'clsx';
@@ -16,32 +16,32 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
 
     const steps = [
         {
-            title: '1. 종목 발굴 (Discovery)',
-            description: 'AI가 수집한 방대한 데이터를 바탕으로 현재 가장 유망한 종목들을 한눈에 확인하세요.',
-            icon: LayoutDashboard,
+            title: '1. 핵심 시그널 포착 (Quant Pulse)',
+            description: '[퀀트 펄스] 메뉴에서 "🚀 딥 헌팅 실행" 버튼을 누르세요. 시스템이 실시간으로 추세 하단 및 변동성 이상 종목을 스캔하고 강력 매수(STRONG BUY) 시그널을 찾아냅니다.',
+            icon: Zap,
             color: 'text-indigo-400',
             bg: 'bg-indigo-500/10'
         },
         {
-            title: '2. 시장 탐색 (Scanner)',
-            description: 'DNA 점수와 실시간 데이터 필터를 사용하여 당신의 투자 스타일에 완벽히 부합하는 종목을 골라내세요.',
-            icon: Search,
+            title: '2. 종목 검증 및 보관 (Backtest & Watchlist)',
+            description: '스캔된 유망 종목의 1년 수익률을 [백테스팅]에서 검증하거나, [관심 종목] 보드에 추가하여 실시간 가격 변동을 디테일하게 모니터링하세요.',
+            icon: Target,
             color: 'text-sky-400',
             bg: 'bg-sky-500/10'
         },
         {
-            title: '3. 전략 검증 (Backtesting)',
-            description: '선별된 종목이 실제 과거 시장에서 어떤 성적을 냈는지 AI 백테스팅으로 검증하세요.',
-            icon: Target,
-            color: 'text-rose-400',
-            bg: 'bg-rose-500/10'
-        },
-        {
-            title: '4. 포트폴리오 관리 (Watchlist)',
-            description: '검증된 종목을 관심 목록에 추가하고, 최적의 매수/매도 타이밍을 실시간으로 추적하세요.',
-            icon: List,
+            title: '3. 가상 포트폴리오 운용 (Alpha Fund)',
+            description: '[알파 펀드] 메뉴는 STRONG BUY 시그널에 따라 자동으로 매수/매도(부분 익절)를 진행하는 가상 매매 현황판입니다. 나의 자산 추이를 감시하세요.',
+            icon: LayoutDashboard,
             color: 'text-emerald-400',
             bg: 'bg-emerald-500/10'
+        },
+        {
+            title: '4. 시장 흐름 읽기 (Command & Scanner)',
+            description: '[작전 지휘소]에서 거시적 시스템 상태를 요약해 보고, [마켓 스캐너]에서 과거 누적된 우량 퀀트 분석 데이터의 패턴을 확인하여 트레이딩 뷰를 넓히세요.',
+            icon: Search,
+            color: 'text-amber-400',
+            bg: 'bg-amber-500/10'
         }
     ];
 
@@ -61,8 +61,8 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                             <HelpCircle className="w-5 h-5 text-indigo-400" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white">MuzeStock.Lab 가이드</h2>
-                            <p className="text-xs text-slate-500 font-medium">효율적인 퀀트 투자를 위한 4단계 워크플로우</p>
+                            <h2 className="text-xl font-bold text-white">MuzeStock.Lab 터미널 가이드</h2>
+                            <p className="text-xs text-slate-500 font-medium">실전 퀀트 시스템 핵심 활용 4단계 튜토리얼</p>
                         </div>
                     </div>
                     <button
@@ -95,8 +95,10 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                             <Zap className="w-5 h-5 text-indigo-400 animate-pulse" />
                         </div>
                         <div className="flex-1">
-                            <p className="text-xs font-bold text-indigo-300">Pro Tip</p>
-                            <p className="text-[11px] text-slate-400">오른쪽 상단의 실시간 펄스 지표를 통해 현재 시장의 과매수/과매도 종목을 즉시 확인하실 수 있습니다.</p>
+                            <p className="text-xs font-bold text-indigo-300">💡 핵심 활용 루틴</p>
+                            <p className="text-[11px] text-slate-400 mt-1">
+                            장 시작 시 [퀀트 펄스] 우상단의 **"딥 헌팅 실행"** 버튼을 눌러 스캔 루프를 동작시키는 것이 오퍼레이션의 시작입니다.
+                            </p>
                         </div>
                     </div>
                 </div>
