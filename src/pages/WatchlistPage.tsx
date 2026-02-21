@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Trash2, Activity, TrendingUp, TrendingDown, Clock, Search,
-  Filter, ArrowLeft, MoreHorizontal, LayoutGrid, List
+  LayoutGrid, List
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
