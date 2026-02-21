@@ -42,17 +42,13 @@ def run_backtest(ticker: str, period: str = "1y", initial_capital: float = 10000
     # 3. 전략 시그널 (MOMENTUM 모드)
     #    매수: RSI < 45 (우량주 눌림목) + MACD 기울기 개선 시작
     #    매도: RSI > 65 AND MACD 기울기 꺾임 (추세 홀딩 후 과열 청산)
-    df["Strong_Buy"] = (df["RSI"] < 45) & (
-        df["MACD_Diff"] > df["MACD_Diff"].shift(1)
-    )
-    df["Strong_Sell"] = (df["RSI"] > 65) & (
-        df["MACD_Diff"] < df["MACD_Diff"].shift(1)
-    )
+    df["Strong_Buy"] = (df["RSI"] < 45) & (df["MACD_Diff"] > df["MACD_Diff"].shift(1))
+    df["Strong_Sell"] = (df["RSI"] > 65) & (df["MACD_Diff"] < df["MACD_Diff"].shift(1))
 
     # 4. 포지션 사이징 파라미터 (Target Vol 0.30 + 3/4 Kelly)
     TARGET_VOL = 0.30
     KELLY_FRACTION = 0.75
-    BASE_KELLY = (2.0 * 0.55 - 0.45) / 2.0          # = 0.325
+    BASE_KELLY = (2.0 * 0.55 - 0.45) / 2.0  # = 0.325
     OPTIMAL_KELLY = max(0.0, BASE_KELLY) * KELLY_FRACTION  # = 0.24375
 
     df["log_return"] = np.log(df["Close"] / df["Close"].shift(1))
@@ -146,12 +142,14 @@ def run_backtest(ticker: str, period: str = "1y", initial_capital: float = 10000
     for date, row in df.iterrows():
         if pd.isna(row["Strategy_Equity"]):
             continue
-        chart_data.append({
-            "date": date.strftime("%Y-%m-%d"),
-            "benchmark": round(float(row["Benchmark_Equity"]), 2),
-            "strategy": round(float(row["Strategy_Equity"]), 2),
-            "rsi": round(float(row["RSI"]), 2) if not pd.isna(row["RSI"]) else 0,
-        })
+        chart_data.append(
+            {
+                "date": date.strftime("%Y-%m-%d"),
+                "benchmark": round(float(row["Benchmark_Equity"]), 2),
+                "strategy": round(float(row["Strategy_Equity"]), 2),
+                "rsi": round(float(row["RSI"]), 2) if not pd.isna(row["RSI"]) else 0,
+            }
+        )
 
     total_return_pct = (
         (df["Strategy_Equity"].iloc[-1] - initial_capital) / initial_capital * 100

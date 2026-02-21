@@ -22,7 +22,9 @@ class EngineValidator:
         # 켈리 공식 및 리스크 관리 파라미터 (main.py와 동일하게 설정)
         self.win_rate = 0.55
         self.profit_ratio = 2.0
-        self.target_vol = 0.30  # 개별 주식 변동성 현실화 (0.15 → 0.30, 자본 투입량 ~2배)
+        self.target_vol = (
+            0.30  # 개별 주식 변동성 현실화 (0.15 → 0.30, 자본 투입량 ~2배)
+        )
         self.kelly_fraction = 0.75  # 3/4 Kelly: State Machine 검증 후 자본 투입량 확대
         self.base_kelly = (
             self.profit_ratio * self.win_rate - (1 - self.win_rate)
@@ -59,9 +61,7 @@ class EngineValidator:
 
         # 1. 기술적 지표 계산 (main.py의 calculate_advanced_signals)
         df["RSI"] = ta.momentum.RSIIndicator(df["Close"], window=14).rsi()
-        macd = ta.trend.MACD(
-            df["Close"], window_slow=26, window_fast=12, window_sign=9
-        )
+        macd = ta.trend.MACD(df["Close"], window_slow=26, window_fast=12, window_sign=9)
         df["MACD_Diff"] = macd.macd_diff()
 
         # 2. 매수/매도 시그널 생성
@@ -79,26 +79,18 @@ class EngineValidator:
             )
         elif mode == "relaxed":
             # RELAXED: RSI < 40 + MACD Diff 양수 구간 전체  (중빈도)
-            df["Strong_Buy"] = (
-                (df["RSI"] < 40)
-                & (df["MACD_Diff"] > 0)
-            )
-            df["Strong_Sell"] = (
-                (df["RSI"] > 60)
-                & (df["MACD_Diff"] < 0)
-            )
+            df["Strong_Buy"] = (df["RSI"] < 40) & (df["MACD_Diff"] > 0)
+            df["Strong_Sell"] = (df["RSI"] > 60) & (df["MACD_Diff"] < 0)
         else:  # momentum
             # MOMENTUM (v2): RSI < 45 눌림목 + MACD 모멘텀 회복 시작
             # 매수: RSI 45 이하 & MACD 히스토그램 기울기 개선 (낙폭 둔화 시작)
-            df["Strong_Buy"] = (
-                (df["RSI"] < 45)
-                & (df["MACD_Diff"] > df["MACD_Diff"].shift(1))
+            df["Strong_Buy"] = (df["RSI"] < 45) & (
+                df["MACD_Diff"] > df["MACD_Diff"].shift(1)
             )
             # 매도: RSI 과열 AND MACD 기울기 꺾임 — 둘 다 동시 충족 시만 청산 (추세 홀딩)
             # OR → AND 변경: 가짜 청산(휩쏘) 제거, 수익 구간 길게 보유
-            df["Strong_Sell"] = (
-                (df["RSI"] > 65)
-                & (df["MACD_Diff"] < df["MACD_Diff"].shift(1))
+            df["Strong_Sell"] = (df["RSI"] > 65) & (
+                df["MACD_Diff"] < df["MACD_Diff"].shift(1)
             )
 
         # -----------------------------------------------------------------
@@ -115,15 +107,15 @@ class EngineValidator:
         df["vol_weight"] = self.target_vol / (df["ann_vol"] + 1e-9)
         optimal_kelly = max(0.0, self.base_kelly) * self.kelly_fraction
 
-        positions = []          # 매 봉 포지션 비중 (0.0 / 0.5 / 1.0)
-        weights = []            # 매 봉 켈리 비중
-        strategy_returns = []   # 매 봉 전략 수익률
-        trades = []             # 완결된 거래의 P&L
+        positions = []  # 매 봉 포지션 비중 (0.0 / 0.5 / 1.0)
+        weights = []  # 매 봉 켈리 비중
+        strategy_returns = []  # 매 봉 전략 수익률
+        trades = []  # 완결된 거래의 P&L
 
-        position = 0.0          # 현재 보유 비중
-        entry_price = 0.0       # 진입 가격
-        highest_price = 0.0     # 진입 후 최고가 (트레일링 기준)
-        scaled_out = False      # 분할 익절(50%) 실행 여부
+        position = 0.0  # 현재 보유 비중
+        entry_price = 0.0  # 진입 가격
+        highest_price = 0.0  # 진입 후 최고가 (트레일링 기준)
+        scaled_out = False  # 분할 익절(50%) 실행 여부
 
         close_arr = df["Close"].values
         rsi_arr = df["RSI"].values
@@ -275,17 +267,23 @@ class EngineValidator:
         bm_mdd = bm_drawdown.min() * 100
 
         # ── 샤프 비율 (무위험 수익률 0% 가정)
-        sharpe = (port_df.mean() / port_df.std()) * np.sqrt(252) if port_df.std() > 0 else 0
+        sharpe = (
+            (port_df.mean() / port_df.std()) * np.sqrt(252) if port_df.std() > 0 else 0
+        )
 
         # ── 승률
         winning_trades = [t for t in all_trades if t > 0]
-        win_rate = (
-            (len(winning_trades) / len(all_trades)) * 100 if all_trades else 0
-        )
+        win_rate = (len(winning_trades) / len(all_trades)) * 100 if all_trades else 0
 
         # ── 평균 손익비
-        avg_win = np.mean([t for t in all_trades if t > 0]) * 100 if winning_trades else 0
-        avg_loss = abs(np.mean([t for t in all_trades if t < 0]) * 100) if [t for t in all_trades if t < 0] else 0
+        avg_win = (
+            np.mean([t for t in all_trades if t > 0]) * 100 if winning_trades else 0
+        )
+        avg_loss = (
+            abs(np.mean([t for t in all_trades if t < 0]) * 100)
+            if [t for t in all_trades if t < 0]
+            else 0
+        )
         profit_factor = (avg_win / avg_loss) if avg_loss > 0 else float("inf")
 
         # ── 결과 출력
@@ -293,7 +291,9 @@ class EngineValidator:
         print(f"\n{sep}")
         print("  📊  MuzeStock.Lab  |  펄스 엔진 대규모 백테스트")
         print(sep)
-        print(f"  유니버스    : 미국 우량주 {len(self.tickers)}개 (실제 분석: {len(portfolio_returns)}개)")
+        print(
+            f"  유니버스    : 미국 우량주 {len(self.tickers)}개 (실제 분석: {len(portfolio_returns)}개)"
+        )
         print(f"  테스트 기간 : {self.start_date} ~ {self.end_date}  ({years:.1f}년)")
         print(f"  총 거래 횟수 : {len(all_trades):,}회")
         print("-" * 55)
@@ -301,11 +301,15 @@ class EngineValidator:
         print(header)
         print("-" * 55)
         print(f"  {'📈  승률 (Win Rate)':<28} {win_rate:>9.2f}%  {'—':>9}")
-        print(f"  {'🚀  총 누적 수익률':<28} {total_return_pct:>9.2f}%  {benchmark_total:>8.2f}%")
+        print(
+            f"  {'🚀  총 누적 수익률':<28} {total_return_pct:>9.2f}%  {benchmark_total:>8.2f}%"
+        )
         print(f"  {'⚡  CAGR (연평균 수익률)':<26} {cagr:>9.2f}%  {bm_cagr:>8.2f}%")
         print(f"  {'🛡️   MDD (최대 낙폭)':<28} {mdd:>9.2f}%  {bm_mdd:>8.2f}%")
         print(f"  {'📐  샤프 비율':<29} {sharpe:>9.2f}   {'—':>9}")
-        print(f"  {'💰  평균 손익비 (Profit Factor)':<25} {profit_factor:>9.2f}x  {'—':>9}")
+        print(
+            f"  {'💰  평균 손익비 (Profit Factor)':<25} {profit_factor:>9.2f}x  {'—':>9}"
+        )
         print(f"  {'📊  평균 수익 거래':<29} {avg_win:>9.2f}%  {'—':>9}")
         print(f"  {'📊  평균 손실 거래':<29} {-avg_loss:>9.2f}%  {'—':>9}")
         print(sep)
@@ -317,7 +321,9 @@ class EngineValidator:
 
         stat_note = ""
         if len(all_trades) < 30:
-            stat_note = f"  ⚠️  거래 횟수 {len(all_trades)}회 → 통계적 유의성 낮음 (목표: 30회+)"
+            stat_note = (
+                f"  ⚠️  거래 횟수 {len(all_trades)}회 → 통계적 유의성 낮음 (목표: 30회+)"
+            )
             print(stat_note)
 
         judgements = []
@@ -403,23 +409,48 @@ class EngineValidator:
         print("-" * W)
 
         def row(label, key, fmt=".2f", suffix=""):
-            v1 = getattr(r1[key], "__format__", lambda f: format(r1[key], f))(fmt) + suffix
-            v2 = getattr(r2[key], "__format__", lambda f: format(r2[key], f))(fmt) + suffix
-            v3 = getattr(r3[key], "__format__", lambda f: format(r3[key], f))(fmt) + suffix
+            v1 = (
+                getattr(r1[key], "__format__", lambda f: format(r1[key], f))(fmt)
+                + suffix
+            )
+            v2 = (
+                getattr(r2[key], "__format__", lambda f: format(r2[key], f))(fmt)
+                + suffix
+            )
+            v3 = (
+                getattr(r3[key], "__format__", lambda f: format(r3[key], f))(fmt)
+                + suffix
+            )
             print(f"  {label:<24} {v1:>12} {v2:>12} {v3:>12}")
 
-        print(f"  {'총 거래 횟수':<24} {r1['total_trades']:>11}회 {r2['total_trades']:>11}회 {r3['total_trades']:>11}회")
-        print(f"  {'승률 (Win Rate)':<24} {r1['win_rate']:>10.2f}%  {r2['win_rate']:>10.2f}%  {r3['win_rate']:>10.2f}%")
-        print(f"  {'CAGR':<24} {r1['cagr']:>10.2f}%  {r2['cagr']:>10.2f}%  {r3['cagr']:>10.2f}%")
-        print(f"  {'MDD':<24} {r1['mdd']:>10.2f}%  {r2['mdd']:>10.2f}%  {r3['mdd']:>10.2f}%")
-        print(f"  {'샤프 비율':<24} {r1['sharpe']:>11.2f}  {r2['sharpe']:>11.2f}  {r3['sharpe']:>11.2f}")
-        print(f"  {'손익비':<24} {r1['profit_factor']:>10.2f}x  {r2['profit_factor']:>10.2f}x  {r3['profit_factor']:>10.2f}x")
-        print(f"  {'Alpha (vs Buy&Hold)':<24} {r1['alpha']:>+10.2f}%  {r2['alpha']:>+10.2f}%  {r3['alpha']:>+10.2f}%")
+        print(
+            f"  {'총 거래 횟수':<24} {r1['total_trades']:>11}회 {r2['total_trades']:>11}회 {r3['total_trades']:>11}회"
+        )
+        print(
+            f"  {'승률 (Win Rate)':<24} {r1['win_rate']:>10.2f}%  {r2['win_rate']:>10.2f}%  {r3['win_rate']:>10.2f}%"
+        )
+        print(
+            f"  {'CAGR':<24} {r1['cagr']:>10.2f}%  {r2['cagr']:>10.2f}%  {r3['cagr']:>10.2f}%"
+        )
+        print(
+            f"  {'MDD':<24} {r1['mdd']:>10.2f}%  {r2['mdd']:>10.2f}%  {r3['mdd']:>10.2f}%"
+        )
+        print(
+            f"  {'샤프 비율':<24} {r1['sharpe']:>11.2f}  {r2['sharpe']:>11.2f}  {r3['sharpe']:>11.2f}"
+        )
+        print(
+            f"  {'손익비':<24} {r1['profit_factor']:>10.2f}x  {r2['profit_factor']:>10.2f}x  {r3['profit_factor']:>10.2f}x"
+        )
+        print(
+            f"  {'Alpha (vs Buy&Hold)':<24} {r1['alpha']:>+10.2f}%  {r2['alpha']:>+10.2f}%  {r3['alpha']:>+10.2f}%"
+        )
         print("=" * W)
 
         # ── 종합 판정
         best = max(results, key=lambda k: results[k]["cagr"])
-        print(f"\n  🏆  CAGR 기준 최우수 모드: {best.upper()} ({results[best]['cagr']:.2f}% / 연)")
+        print(
+            f"\n  🏆  CAGR 기준 최우수 모드: {best.upper()} ({results[best]['cagr']:.2f}% / 연)"
+        )
         print()
         print("  📌 해석 가이드:")
         print("  • STRICT  : 캐피털 보존 극대화 — 거의 안 들어가지만 들어가면 이김")
@@ -432,10 +463,46 @@ class EngineValidator:
 if __name__ == "__main__":
     # 나스닥 및 S&P 500 대표 우량주 40개
     sample_universe = [
-        "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "BRK-B", "JNJ", "V",
-        "JPM", "PG", "UNH", "HD", "MA", "DIS", "PYPL", "VZ", "ADBE", "NFLX",
-        "INTC", "CMCSA", "PFE", "CSCO", "PEP", "KO", "MRK", "ABT", "CRM", "AVGO",
-        "COST", "T", "WMT", "MCD", "MDT", "NKE", "TXN", "HON", "UNP", "QCOM",
+        "AAPL",
+        "MSFT",
+        "GOOGL",
+        "AMZN",
+        "NVDA",
+        "META",
+        "TSLA",
+        "BRK-B",
+        "JNJ",
+        "V",
+        "JPM",
+        "PG",
+        "UNH",
+        "HD",
+        "MA",
+        "DIS",
+        "PYPL",
+        "VZ",
+        "ADBE",
+        "NFLX",
+        "INTC",
+        "CMCSA",
+        "PFE",
+        "CSCO",
+        "PEP",
+        "KO",
+        "MRK",
+        "ABT",
+        "CRM",
+        "AVGO",
+        "COST",
+        "T",
+        "WMT",
+        "MCD",
+        "MDT",
+        "NKE",
+        "TXN",
+        "HON",
+        "UNP",
+        "QCOM",
     ]
 
     # 2019~2024: COVID 폭락 + 2022 금리인상 하락장 모두 포함한 혹독한 5년 검증
