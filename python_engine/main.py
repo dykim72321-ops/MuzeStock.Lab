@@ -8,7 +8,6 @@ import ta
 import os
 from dotenv import load_dotenv
 from scraper import FinvizHunter
-from scraper import FinvizHunter
 from db_manager import DBManager
 import asyncio
 from datetime import datetime
