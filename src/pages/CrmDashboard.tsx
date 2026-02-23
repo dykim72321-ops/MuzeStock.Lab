@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getCrmProjects, getCallPlans } from '../services/crmService';
-import type { CrmProject, CallPlan } from '../types/crm';
 import { format } from 'date-fns';
 import clsx from 'clsx';
 

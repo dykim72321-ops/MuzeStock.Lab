@@ -1,4 +1,3 @@
-import React from 'react';
 import { ContactsPanel } from '../components/crm/ContactsPanel';
 import { Users, Filter } from 'lucide-react';
 

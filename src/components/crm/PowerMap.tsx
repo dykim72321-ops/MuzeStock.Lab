@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Network, UserCircle2, ShieldCheck, ShieldAlert, Info } from 'lucide-react';
 import type { CrmContact } from '../../types/crm';
 import { getCrmContacts } from '../../services/crmService';
-import clsx from 'clsx';
 import { motion } from 'framer-motion';
 
 export const PowerMap = ({ companyId }: { companyId?: string }) => {

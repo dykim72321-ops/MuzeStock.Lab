@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, Search, Plus, Mail, Phone, Building2, UserCircle2 } from 'lucide-react';
 import { getCrmContacts, createCrmContact, getCrmCompanies } from '../../services/crmService';
 import type { CrmContact, CrmCompany, InfluenceLevel } from '../../types/crm';
@@ -7,7 +7,6 @@ import clsx from 'clsx';
 export const ContactsPanel = () => {
   const [contacts, setContacts] = useState<CrmContact[]>([]);
   const [companies, setCompanies] = useState<CrmCompany[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   

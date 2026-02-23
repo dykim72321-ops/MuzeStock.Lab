@@ -1,16 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  KanbanSquare, 
-  ArrowRight, 
-  MoreVertical, 
   Plus, 
-  Search,
   ChevronRight,
   Target
 } from 'lucide-react';
 import { getCrmProjects, updateCrmProjectStage } from '../../services/crmService';
-import type { CrmProject, ProjectStage } from '../../types/crm';
-import { motion, Reorder } from 'framer-motion';
+import type { ProjectStage } from '../../types/crm';
+import { motion } from 'framer-motion';
 import clsx from 'clsx';
 
 const STAGES: { id: ProjectStage; label: string; color: string }[] = [
@@ -24,7 +20,6 @@ const STAGES: { id: ProjectStage; label: string; color: string }[] = [
 
 export const ProjectPipeline = () => {
   const [projects, setProjects] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchProjects();

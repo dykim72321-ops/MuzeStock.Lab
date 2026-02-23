@@ -17,7 +17,7 @@ export const BacktestChart: React.FC<BacktestChartProps> = ({ ticker }) => {
     const fetchBacktestData = async () => {
       setLoading(true);
       try {
-        const response = await fetch('http://localhost:8000/api/backtest', {
+        const response = await fetch('/py-api/api/backtest', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ticker: ticker, period: '1y', initial_capital: 10000 })

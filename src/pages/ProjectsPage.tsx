@@ -1,4 +1,3 @@
-import React from 'react';
 import { ProjectPipeline } from '../components/crm/ProjectPipeline';
 import { KanbanSquare, Filter, Plus } from 'lucide-react';
 

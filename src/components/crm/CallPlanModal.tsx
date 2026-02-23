@@ -1,18 +1,16 @@
 import { useState } from 'react';
 import { 
   X, 
-  Search, 
-  Plus, 
   History, 
   FileText, 
   Mic, 
   ShieldCheck, 
   Zap,
-  CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Search
 } from 'lucide-react';
-import { createCallPlan, searchSimilarTechLogs, syncSourcedPart } from '../../services/crmService';
-import type { CallPlan, TechnicalLogItem, RiskLevel } from '../../types/crm';
+import { createCallPlan } from '../../services/crmService';
+import type { CallPlan, TechnicalLogItem } from '../../types/crm';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -32,13 +30,12 @@ export const CallPlanModal = ({ isOpen, onClose, companyId, contactId }: Props) 
 
   // Form State
   const [technicalLogs, setTechnicalLogs] = useState<TechnicalLogItem[]>([]);
-  const [checklist, setChecklist] = useState<string[]>([
+  const [checklist] = useState<string[]>([
     '아이스브레이킹 주식 정보 준비 완료',
     '경쟁사 제품 대비 우위 포인트 숙지',
     '고객사 과거 미팅 히스토리 검토'
   ]);
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
-  const [sourcedParts, setSourcedParts] = useState<{ partNumber: string; risk: RiskLevel }[]>([]);
   const [notes, setNotes] = useState('');
 
   const [currentQuestion, setCurrentQuestion] = useState('');
@@ -72,7 +69,7 @@ export const CallPlanModal = ({ isOpen, onClose, companyId, contactId }: Props) 
         contact_id: contactId,
         visit_date: new Date().toISOString(),
         technical_log: technicalLogs,
-        checklist: checklist.filter((_, i) => checkedItems[i]),
+        checklist: checklist.filter((_: string, i: number) => checkedItems[i]),
         notes: notes,
         is_quick_log: isQuickLog,
       };
@@ -191,7 +188,7 @@ export const CallPlanModal = ({ isOpen, onClose, companyId, contactId }: Props) 
                       <h3 className="text-lg font-bold text-slate-100">미팅 전 체크리스트</h3>
                     </div>
                     <div className="space-y-3">
-                      {checklist.map((item, i) => (
+                      {checklist.map((item: string, i: number) => (
                         <div key={i} className="flex items-center gap-3 p-4 rounded-xl bg-slate-800/30 border border-slate-700/50">
                           <input 
                             type="checkbox" 

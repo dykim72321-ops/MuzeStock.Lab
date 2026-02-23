@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Sparkles, MessageSquare, Copy, Check, TrendingUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Sparkles, MessageSquare, Check, TrendingUp } from 'lucide-react';
 import { getTopStocks } from '../../services/stockService';
 import type { Stock } from '../../types';
-import { motion } from 'framer-motion';
 
 export const IceBreakingPanel = ({ contactName }: { contactName?: string }) => {
   const [recommendations, setRecommendations] = useState<Stock[]>([]);
