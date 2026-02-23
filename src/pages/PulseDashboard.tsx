@@ -57,7 +57,7 @@ const NormalSignalMiniCard = ({ rawData }: { rawData: PulseData }) => {
 // 메인 대시보드 컴포넌트
 // ─────────────────────────────────────────────────────────
 const PulseDashboard: React.FC = () => {
-  const { pulseMap, isConnected } = usePulseSocket('ws://localhost:8000/ws/pulse');
+  const { pulseMap, isConnected } = usePulseSocket(`ws://${window.location.host}/py-api/ws/pulse`);
 
   // STRONG / NORMAL 분류
   const allTickers = Object.keys(pulseMap);
@@ -72,7 +72,7 @@ const PulseDashboard: React.FC = () => {
     setHuntStatus(null);
     try {
       const adminKey = import.meta.env.VITE_ADMIN_SECRET_KEY || 'muze_secret_key_2024';
-      const response = await fetch('http://localhost:8000/api/hunt', {
+      const response = await fetch('/py-api/api/hunt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
       });

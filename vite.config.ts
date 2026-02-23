@@ -10,6 +10,7 @@ export default defineConfig({
       '/py-api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
+        ws: true,
         rewrite: (path) => path.replace(/^\/py-api/, ''),
       },
     },

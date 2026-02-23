@@ -22,6 +22,9 @@ const AlphaFundView = lazy(() => import('./pages/AlphaFundView').then(m => ({ de
 const DnaMatchView = lazy(() => import('./components/analysis/DnaMatchView').then(m => ({ default: m.DnaMatchView })));
 const WatchlistPage = lazy(() => import('./pages/WatchlistPage').then(m => ({ default: m.WatchlistPage })));
 const MuzepartSearchPage = lazy(() => import('./pages/MuzepartSearchPage').then(m => ({ default: m.MuzepartSearchPage })));
+const CrmDashboard = lazy(() => import('./pages/CrmDashboard').then(m => ({ default: m.CrmDashboard })));
+const ContactsPage = lazy(() => import('./pages/ContactsPage').then(m => ({ default: m.ContactsPage })));
+const ProjectsPage = lazy(() => import('./pages/ProjectsPage').then(m => ({ default: m.ProjectsPage })));
 
 const SimulatorView = lazy(() => import('./components/dashboard/SimulatorView').then(m => ({ default: m.SimulatorView })));
 const PersonaPerformance = lazy(() => import('./components/dashboard/PersonaPerformance').then(m => ({ default: m.PersonaPerformance })));
@@ -78,6 +81,11 @@ function App() {
                 {/* 기타 도구 */}
                 <Route path="simulator" element={<SimulatorView />} />
                 <Route path="personas" element={<PersonaPerformance />} />
+
+                {/* B2B Intelligence (CRM) */}
+                <Route path="crm" element={<CrmDashboard />} />
+                <Route path="crm/contacts" element={<ContactsPage />} />
+                <Route path="crm/projects" element={<ProjectsPage />} />
 
                 {/* 환경 설정 */}
                 <Route path="settings" element={<SettingsView />} />

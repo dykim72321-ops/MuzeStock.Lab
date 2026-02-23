@@ -28,7 +28,7 @@ export const Dashboard = () => {
     setHuntStatus(null);
     try {
       const adminKey = import.meta.env.VITE_ADMIN_SECRET_KEY || "your_dev_secret_key";
-      const response = await fetch('http://localhost:8000/api/hunt', {
+      const response = await fetch('/py-api/api/hunt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
       });

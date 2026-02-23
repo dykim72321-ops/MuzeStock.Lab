@@ -10,7 +10,10 @@ import {
     Dna,
     LifeBuoy,
     Folder,
-    Server
+    Server,
+    Briefcase,
+    Users,
+    KanbanSquare
 } from 'lucide-react';
 import clsx from 'clsx';
 import type { LucideIcon } from 'lucide-react';
@@ -46,6 +49,14 @@ const NAVIGATION: { section: string; items: NavItem[] }[] = [
         section: 'ASSETS',
         items: [
             { name: '관심 종목 (Watchlist)', icon: List, path: '/watchlist' },
+        ]
+    },
+    {
+        section: 'B2B INTELLIGENCE',
+        items: [
+            { name: 'CRM 허브 (Hub)', icon: Briefcase, path: '/crm' },
+            { name: '고객/담당자 (Contacts)', icon: Users, path: '/crm/contacts' },
+            { name: '프로젝트 파이프라인', icon: KanbanSquare, path: '/crm/projects' },
         ]
     },
     {

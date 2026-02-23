@@ -100,7 +100,7 @@ export const AlphaFundView = () => {
   useEffect(() => {
     const fetchPortfolio = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/portfolio');
+        const response = await fetch('/py-api/api/portfolio');
         if (!response.ok) throw new Error('Failed to fetch portfolio');
         const json = await response.json();
         setData(json);
