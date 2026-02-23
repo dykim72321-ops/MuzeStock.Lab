@@ -21,6 +21,7 @@ const ScannerPage = lazy(() => import('./pages/ScannerPage').then(m => ({ defaul
 const AlphaFundView = lazy(() => import('./pages/AlphaFundView').then(m => ({ default: m.AlphaFundView })));
 const DnaMatchView = lazy(() => import('./components/analysis/DnaMatchView').then(m => ({ default: m.DnaMatchView })));
 const WatchlistPage = lazy(() => import('./pages/WatchlistPage').then(m => ({ default: m.WatchlistPage })));
+const MuzepartSearchPage = lazy(() => import('./pages/MuzepartSearchPage').then(m => ({ default: m.MuzepartSearchPage })));
 
 const SimulatorView = lazy(() => import('./components/dashboard/SimulatorView').then(m => ({ default: m.SimulatorView })));
 const PersonaPerformance = lazy(() => import('./components/dashboard/PersonaPerformance').then(m => ({ default: m.PersonaPerformance })));
@@ -56,6 +57,9 @@ function App() {
                 {/* 마켓 스캐너 */}
                 <Route path="scanner" element={<ScannerPage />} />
                 <Route path="scan" element={<Navigate to="/scanner" replace />} />
+
+                {/* 부품 스캐너 */}
+                <Route path="parts-search" element={<MuzepartSearchPage />} />
 
                 {/* 알파 펀드 */}
                 <Route path="portfolio" element={<AlphaFundView />} />

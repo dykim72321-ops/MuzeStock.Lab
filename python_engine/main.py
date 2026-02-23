@@ -1,18 +1,20 @@
-from fastapi import (
-    FastAPI,
-    HTTPException,
-    BackgroundTasks,
-    Security,
-    status,
-    WebSocket,
-    WebSocketDisconnect,
-)
+from fastapi import FastAPI, BackgroundTasks, Security, status, WebSocket, WebSocketDisconnect, Query, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
 from typing import Optional, List
 import yfinance as yf
 import ta
+import os
+from dotenv import load_dotenv
+
+# --- Rare Source Imports ---
+from cache_manager import get_cache_manager
+from inventory_service import inventory_service
+from scraper_examples import aggregate_from_multiple_sources
+import uuid
+import re
+from cachetools import TTLCache
 import os
 from dotenv import load_dotenv
 from scraper import FinvizHunter
@@ -130,6 +132,122 @@ class TechnicalIndicators(BaseModel):
 def root():
     return {"message": "MuzeStock Unified Python Platform is running!"}
 
+# --- Rare Source Schemas & Engine ---
+class StandardPart(BaseModel):
+    id: str
+    mpn: str
+    manufacturer: str
+    distributor: str
+    source_type: str
+    stock: int
+    price: float
+    price_history: List[float]
+    currency: str
+    delivery: str
+    condition: str
+    date_code: str
+    is_eol: bool
+    risk_level: str
+    updated_at: datetime
+    datasheet: Optional[str] = ""
+    description: Optional[str] = ""
+    product_url: Optional[str] = ""
+    package: Optional[str] = "N/A"
+    voltage: Optional[str] = "N/A"
+    temperature: Optional[str] = "N/A"
+    rohs: Optional[bool] = True
+
+class SourcingEngine:
+    def __init__(self):
+        self.exchange_rate = 1450.0
+
+    def _generate_price_history(self, current_price: float):
+        if current_price > 0:
+            return [current_price]
+        return []
+
+    async def aggregate_intel(self, query: str) -> List[StandardPart]:
+        external_results, internal_results = await asyncio.gather(
+            aggregate_from_multiple_sources(query),
+            inventory_service.search_inventory(query)
+        )
+        raw_results = external_results + internal_results
+        standard_parts = []
+
+        for item in raw_results:
+            try:
+                part = StandardPart(
+                    id=item.get('id', str(uuid.uuid4())[:12]),
+                    mpn=item.get('mpn', 'N/A'),
+                    manufacturer=item.get('manufacturer', 'Unknown'),
+                    distributor=item.get('distributor', 'Unknown'),
+                    source_type=item.get('source_type', 'Aggregator'),
+                    stock=item.get('stock', 0),
+                    price=item.get('price', 0.0),
+                    price_history=self._generate_price_history(item.get('price', 0.0)),
+                    currency=item.get('currency', 'USD'),
+                    delivery=item.get('delivery', 'Unknown'),
+                    condition=item.get('condition', 'New'),
+                    date_code=item.get('date_code', 'N/A'),
+                    is_eol=item.get('is_eol', False),
+                    risk_level=item.get('risk_level', 'Low'),
+                    updated_at=datetime.now(),
+                    datasheet=item.get('datasheet', ''),
+                    description=item.get('description', ''),
+                    product_url=item.get('product_url', ''),
+                    package=item.get('specs', {}).get('Package', 'N/A'),
+                    voltage=item.get('specs', {}).get('Voltage', 'N/A'),
+                    temperature=item.get('specs', {}).get('Temperature', 'N/A'),
+                    rohs=item.get('specs', {}).get('RoHS', True)
+                )
+                standard_parts.append(part)
+            except Exception as e:
+                pass
+        return sorted(standard_parts, key=lambda x: x.price if x.price > 0 else float('inf'))
+
+sourcing_engine = SourcingEngine()
+
+
+@app.get("/api/parts/search", response_model=List[StandardPart])
+async def search_parts(
+    q: str = Query(..., min_length=1),
+    category: Optional[str] = None,
+    package: Optional[str] = None,
+    min_voltage: Optional[float] = None,
+    max_voltage: Optional[float] = None,
+    rohs_compliant: Optional[bool] = None
+):
+    """부품 통합 검색 및 지능형 필터링"""
+    cache_manager = get_cache_manager()
+    cache_key = f"{q}_{category}_{package}_{min_voltage}_{max_voltage}_{rohs_compliant}"
+    cached_results = await cache_manager.get_cached_results(cache_key)
+    if cached_results:
+        return [StandardPart(**item) for item in cached_results]
+
+    results = await sourcing_engine.aggregate_intel(q)
+
+    if package:
+        results = [r for r in results if package.lower() in r.package.lower()]
+
+    if min_voltage is not None:
+        def extract_v(v_str):
+            try: return float(re.findall(r"[-+]?\d*\.\d+|\d+", v_str)[0])
+            except: return None
+        results = [r for r in results if (v := extract_v(r.voltage)) is not None and v >= min_voltage]
+
+    if max_voltage is not None:
+        def extract_v(v_str):
+            try: return float(re.findall(r"[-+]?\d*\.\d+|\d+", v_str)[0])
+            except: return None
+        results = [r for r in results if (v := extract_v(r.voltage)) is not None and v <= max_voltage]
+
+    if rohs_compliant is not None:
+        results = [r for r in results if r.rohs == rohs_compliant]
+
+    results_dict = [item.model_dump(mode='json') for item in results]
+    await cache_manager.set_cache(cache_key, results_dict)
+    return results
+
 
 @app.websocket("/ws/pulse")
 async def websocket_endpoint(websocket: WebSocket):
@@ -139,6 +257,8 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
+
 
 
 analyze_cache = TTLCache(maxsize=100, ttl=900)
@@ -628,7 +748,11 @@ async def start_pulse():
 
 # --- REALTIME PULSE ENGINE (End) ---
 
+
+
+
+
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="127.0.0.1", port=8000)
+

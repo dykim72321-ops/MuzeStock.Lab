@@ -9,7 +9,8 @@ import {
     Settings,
     Dna,
     LifeBuoy,
-    Folder
+    Folder,
+    Server
 } from 'lucide-react';
 import clsx from 'clsx';
 import type { LucideIcon } from 'lucide-react';
@@ -31,6 +32,7 @@ const NAVIGATION: { section: string; items: NavItem[] }[] = [
             { name: '작전 지휘소 (Command)', icon: LayoutDashboard, path: '/' },
             { name: '퀀트 펄스 (Live Feed)', icon: Zap, path: '/pulse', isHot: true },
             { name: '마켓 스캐너 (Scanner)', icon: Search, path: '/scanner' },
+            { name: '부품 조회 (Parts)', icon: Server, path: '/parts-search' },
         ]
     },
     {
