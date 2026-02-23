@@ -31,8 +31,6 @@ export const ProjectPipeline = () => {
       setProjects(data);
     } catch (error) {
       console.error('Failed to fetch projects:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -85,9 +83,6 @@ export const ProjectPipeline = () => {
                   <h4 className="text-sm font-bold text-slate-100 line-clamp-2 leading-tight group-hover:text-blue-400 transition-colors">
                     {project.title}
                   </h4>
-                  <button className="p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <MoreVertical className="w-3 h-3 text-slate-500" />
-                  </button>
                 </div>
                 
                 <div className="space-y-2">

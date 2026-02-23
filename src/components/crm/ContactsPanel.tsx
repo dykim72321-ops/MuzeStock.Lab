@@ -31,8 +31,6 @@ export const ContactsPanel = () => {
         setCompanies(companiesData);
       } catch (error) {
         console.error('Failed to fetch contacts:', error);
-      } finally {
-        setLoading(false);
       }
     };
     fetchData();
