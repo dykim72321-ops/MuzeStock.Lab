@@ -34,11 +34,11 @@ jobs:
       - name: Run Unified Hunter
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           VITE_FINNHUB_API_KEY: ${{ secrets.VITE_FINNHUB_API_KEY }}
-          
+
         run: python scraper.py
 
       - name: Summary
