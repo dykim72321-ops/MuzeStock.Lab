@@ -14,12 +14,6 @@ import {
     Loader2
 } from 'lucide-react';
 import clsx from 'clsx';
-import {
-    ResponsiveContainer,
-    AreaChart,
-    Area,
-    Tooltip
-} from 'recharts';
 
 interface StockTerminalModalProps {
     isOpen: boolean;
@@ -35,6 +29,15 @@ interface StockTerminalModalProps {
         aiSummary: string;
         price?: number;
         change?: string;
+        quantData?: {
+            math_mode: boolean;
+            ma20_distance_pct: number;
+            rsi_14: number;
+            historical_win_rate_pct: number;
+            similar_historical_cases: number;
+            volatility_20d_pct: number;
+            volume_surge_multiplier: number;
+        };
     };
     onSimulation?: () => Promise<void>;
     onAddToWatchlist?: () => Promise<void>;
@@ -50,15 +53,6 @@ export const StockTerminalModal = ({
     const [isSimulating, setIsSimulating] = useState(false);
     const [isAddingWatchlist, setIsAddingWatchlist] = useState(false);
 
-    // Mock data for the chart (could be replaced with real history later)
-    const chartData = [
-        { name: '10:00', value: 40 },
-        { name: '11:00', value: 35 },
-        { name: '12:00', value: 55 },
-        { name: '13:00', value: 45 },
-        { name: '14:00', value: 70 },
-        { name: '15:00', value: data.dnaScore },
-    ];
 
     return (
         <AnimatePresence>
@@ -115,33 +109,32 @@ export const StockTerminalModal = ({
 
                             {/* DNA Gauge Visualization (Simplified for Terminal) */}
                             <div className="flex-1 flex flex-col justify-center min-h-[200px] md:min-h-[300px]">
-                                <div className="h-32 md:h-48 w-full relative mb-8 md:mb-12">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={chartData}>
-                                            <defs>
-                                                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                                                </linearGradient>
-                                            </defs>
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                                                itemStyle={{ color: '#818cf8', fontWeight: 'bold' }}
-                                            />
-                                            <Area
-                                                type="monotone"
-                                                dataKey="value"
-                                                stroke="#818cf8"
-                                                strokeWidth={4}
-                                                fillOpacity={1}
-                                                fill="url(#colorValue)"
-                                                animationDuration={1500}
-                                            />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                    <div className="absolute inset-x-0 bottom-0 py-2 flex justify-between text-[10px] font-mono text-slate-500 tracking-widest uppercase border-t border-white/5">
-                                        <span>스캔 시작</span>
-                                        <span>데이터 통합 완료</span>
+                                <div className="h-32 md:h-48 w-full relative mb-8 md:mb-12 flex flex-col justify-center px-4 md:px-8 bg-black/20 rounded-3xl border border-white/5">
+                                    <div className="flex justify-between items-end mb-4">
+                                        <span className="text-slate-400 font-black text-xs tracking-widest uppercase flex items-center gap-2">
+                                            <Target className="w-4 h-4 text-indigo-400" />
+                                            DNA Power System
+                                        </span>
+                                        <span className="text-4xl md:text-5xl font-black text-white">{data.dnaScore}</span>
+                                    </div>
+                                    <div className="w-full h-4 md:h-6 bg-white/5 rounded-full overflow-hidden border border-white/10 relative shadow-inner">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${data.dnaScore}%` }}
+                                            transition={{ duration: 1.5, ease: "circOut" }}
+                                            className={clsx(
+                                                "h-full rounded-full relative overflow-hidden",
+                                                data.dnaScore >= 70 ? "bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.5)]" : 
+                                                data.dnaScore >= 50 ? "bg-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.5)]" : 
+                                                "bg-rose-500 shadow-[0_0_20px_rgba(243,62,62,0.5)]"
+                                            )}
+                                        >
+                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 translate-x-[-100%] animate-[shimmer_2s_infinite]" />
+                                        </motion.div>
+                                    </div>
+                                    <div className="flex justify-between text-[10px] items-center text-slate-500 font-mono mt-3">
+                                        <span>0 (Weak)</span>
+                                        <span>100 (Strong)</span>
                                     </div>
                                 </div>
 
@@ -177,7 +170,7 @@ export const StockTerminalModal = ({
                                 <div>
                                     <h3 className="text-[10px] md:text-xs font-black text-indigo-400 uppercase tracking-[0.2em] mb-3 md:mb-4 flex items-center gap-2">
                                         <Zap className="w-4 h-4 fill-indigo-400" />
-                                        인공지능 분석 요약
+                                        {data.quantData ? "수학적 역산 통계 분석" : "인공지능 분석 요약"}
                                     </h3>
                                     <p className="text-sm sm:text-base md:text-lg lg:text-xl text-slate-200 font-medium leading-relaxed tracking-tight">
                                         {data.aiSummary || "해당 자산에 대한 최신 시장 Narrative를 분석 중입니다..."}
@@ -189,7 +182,7 @@ export const StockTerminalModal = ({
                                     <div className="space-y-3 md:space-y-4">
                                         <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
                                             <TrendingUp className="w-3 h-3" />
-                                            강세 요인 (Bullish)
+                                            {data.quantData ? '수치 기반 강세 지표' : '강세 요인 (Bullish)'}
                                         </h4>
                                         <ul className="space-y-3">
                                             {data.bullPoints.map((point, i) => (
@@ -203,7 +196,7 @@ export const StockTerminalModal = ({
                                     <div className="space-y-4">
                                         <h4 className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-2">
                                             <TrendingDown className="w-3 h-3" />
-                                            약세 요인 (Bearish)
+                                            {data.quantData ? '수치 기반 약세/변동성 지표' : '약세 요인 (Bearish)'}
                                         </h4>
                                         <ul className="space-y-3">
                                             {data.bearPoints.map((point, i) => (

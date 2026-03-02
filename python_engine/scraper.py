@@ -281,25 +281,53 @@ class FinvizHunter:
             # 2. Fetch News
             headlines = self.news.fetch_company_news(ticker_symbol)
 
-            # 3. AI Deep Analysis
-            ai_context_ext = (
-                f"Detection Source: {stock.get('reason', 'Unknown')}. \n"
-                + indicators_summary
-            )
+            # 3. Mathematical Quant Analysis (Replacing AI)
+            ma20 = df["Close"].rolling(window=20).mean().iloc[-1]
+            ma20_dist = ((price / ma20) - 1) * 100 if not pd.isna(ma20) else 0.0
 
-            ai_input = {
-                "ticker": ticker_symbol,
-                "price": price,
-                "change": f"{change:.2f}%",
-                "indicators": ai_context_ext,
-                "news": headlines,
+            # Simple historical win rate simulation (if similar RSI and MA dist occurred)
+            # Find past instances in the 3mo data
+            hist_df = df.copy()
+            hist_df["MA20"] = hist_df["Close"].rolling(20).mean()
+            hist_df["MA20_Dist"] = (hist_df["Close"] / hist_df["MA20"] - 1) * 100
+            hist_df["RSI"] = ta.momentum.RSIIndicator(close=hist_df["Close"]).rsi()
+
+            # Define "similar" conditions: RSI within +/- 5, MA20_Dist within +/- 2%
+            similar_cases = hist_df[
+                (hist_df["RSI"] >= rsi - 5)
+                & (hist_df["RSI"] <= rsi + 5)
+                & (hist_df["MA20_Dist"] >= ma20_dist - 2)
+                & (hist_df["MA20_Dist"] <= ma20_dist + 2)
+            ]
+
+            # Calculate win rate after 5 days
+            wins = 0
+            valid_cases = 0
+            for idx in similar_cases.index[:-5]:  # exclude last 5 days
+                loc = hist_df.index.get_loc(idx)
+                if loc + 5 < len(hist_df):
+                    future_price = hist_df["Close"].iloc[loc + 5]
+                    current_price = hist_df["Close"].iloc[loc]
+                    if future_price > current_price:
+                        wins += 1
+                    valid_cases += 1
+
+            win_rate = (wins / valid_cases * 100) if valid_cases > 0 else 0.0
+
+            quant_data = {
+                "math_mode": True,
+                "ma20_distance_pct": round(ma20_dist, 2),
+                "rsi_14": round(rsi, 2),
+                "historical_win_rate_pct": round(win_rate, 1),
+                "similar_historical_cases": valid_cases,
+                "volatility_20d_pct": round(
+                    df["Close"].pct_change().tail(20).std() * 100, 2
+                ),
+                "volume_surge_multiplier": round(
+                    volume / (df["Volume"].tail(20).mean() + 1), 2
+                ),
             }
-            ai_result = {
-                "tags": [ticker_symbol, "QUANT"],
-                "bull_case": "자동 분석 기능 비활성화 (순수 퀀트 모드)",
-                "bear_case": "자동 분석 기능 비활성화 (순수 퀀트 모드)",
-                "reasoning_ko": "OpenAI 모듈이 제거되어 퀀트 지표 기반으로만 탐지되었습니다.",
-            }
+
             # 4. Auto Backtest (1년 RSI 전략)
             from backtester import run_backtest
 
@@ -315,13 +343,10 @@ class FinvizHunter:
                     f"⚠️ Backtest skipped for {ticker_symbol}: {backtest_result.get('error')}"
                 )
 
-            # 5. Save to DB
-            tags_str = " ".join(ai_result.get("tags", []))
-            ai_summary_text = (f"{tags_str}\n\n" if tags_str else "") + (
-                f"🐂 Bull: {ai_result.get('bull_case')}\n"
-                f"🐻 Bear: {ai_result.get('bear_case')}\n\n"
-                f"💡 {ai_result.get('reasoning_ko')}"
-            )
+            # 5. Save to DB (Save as JSON string for frontend to parse)
+            import json
+
+            ai_summary_text = json.dumps(quant_data)
 
             db_data = {
                 "ticker": ticker_symbol,
@@ -329,7 +354,9 @@ class FinvizHunter:
                 "price": round(price, 2),
                 "volume": str(volume),
                 "change": f"{change:.2f}%",
-                "dna_score": ai_result.get("dna_score", 50),
+                "dna_score": (
+                    int(rsi) if not pd.isna(rsi) else 50
+                ),  # Map RSI to DNA for quant mode
                 "ai_summary": ai_summary_text,
                 "backtest_return": backtest_return,
                 "updated_at": datetime.now().isoformat(),

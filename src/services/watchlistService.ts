@@ -7,6 +7,7 @@ export interface WatchlistItem {
   addedAt: string;
   notes?: string;
   status: WatchlistStatus;
+  entryPrice?: number;
 }
 
 /**
@@ -28,6 +29,7 @@ export async function getWatchlist(): Promise<WatchlistItem[]> {
     addedAt: item.created_at,
     notes: item.notes,
     status: (item.status as WatchlistStatus) || 'WATCHING',
+    entryPrice: item.entry_price,
   }));
 }
 
@@ -51,17 +53,23 @@ export async function isInWatchlist(ticker: string): Promise<boolean> {
 /**
  * Add a stock to the watchlist
  */
-export async function addToWatchlist(ticker: string, notes?: string, status: WatchlistStatus = 'WATCHING'): Promise<void> {
+export async function addToWatchlist(ticker: string, notes?: string, status: WatchlistStatus = 'WATCHING', entryPrice?: number): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   
-  const { error } = await supabase
-    .from('watchlist')
-    .upsert({
+  const payload: any = {
       ticker: ticker.toUpperCase(),
       user_id: user?.id,
       notes,
       status,
-    });
+  };
+  
+  if (entryPrice !== undefined) {
+      payload.entry_price = entryPrice;
+  }
+
+  const { error } = await supabase
+    .from('watchlist')
+    .upsert(payload);
 
   if (error) {
     console.error('Error adding to watchlist:', error);
@@ -99,13 +107,13 @@ export async function removeFromWatchlist(ticker: string): Promise<void> {
 /**
  * Toggle a stock in/out of the watchlist
  */
-export async function toggleWatchlist(ticker: string): Promise<boolean> {
+export async function toggleWatchlist(ticker: string, entryPrice?: number): Promise<boolean> {
   const inWatchlist = await isInWatchlist(ticker);
   if (inWatchlist) {
     await removeFromWatchlist(ticker);
     return false;
   } else {
-    await addToWatchlist(ticker);
+    await addToWatchlist(ticker, undefined, 'WATCHING', entryPrice);
     return true;
   }
 }

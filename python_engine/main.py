@@ -1,4 +1,15 @@
-from fastapi import FastAPI, BackgroundTasks, Security, status, WebSocket, WebSocketDisconnect, Query, HTTPException, File, UploadFile
+from fastapi import (
+    FastAPI,
+    BackgroundTasks,
+    Security,
+    status,
+    WebSocket,
+    WebSocketDisconnect,
+    Query,
+    HTTPException,
+    File,
+    UploadFile,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
@@ -131,6 +142,7 @@ class TechnicalIndicators(BaseModel):
 def root():
     return {"message": "MuzeStock Unified Python Platform is running!"}
 
+
 # --- Rare Source Schemas & Engine ---
 class StandardPart(BaseModel):
     id: str
@@ -156,6 +168,7 @@ class StandardPart(BaseModel):
     temperature: Optional[str] = "N/A"
     rohs: Optional[bool] = True
 
+
 class SourcingEngine:
     def __init__(self):
         self.exchange_rate = 1450.0
@@ -168,7 +181,7 @@ class SourcingEngine:
                 round(current_price * 1.05, 2),
                 round(current_price * 0.98, 2),
                 round(current_price * 1.10, 2),
-                round(current_price, 2)
+                round(current_price, 2),
             ]
         return []
 
@@ -177,66 +190,71 @@ class SourcingEngine:
         Aggregates results from local inventory and real external sources (Mouser)
         """
         standard_parts = []
-        
+
         # 1. Search local member inventory
         local_results = await inventory_service.search_inventory(q)
         for item in local_results:
             try:
                 part = StandardPart(
-                    id=item.get('id', str(uuid.uuid4())[:12]),
-                    mpn=item.get('mpn', q.upper()),
-                    manufacturer=item.get('manufacturer', 'Unknown'),
-                    distributor=item.get('distributor', 'Internal'),
-                    source_type=item.get('source_type', 'Member Inventory'),
-                    stock=item.get('stock', 0),
-                    price=item.get('price', 0.0),
-                    price_history=self._generate_price_history(item.get('price', 0.0)),
-                    currency=item.get('currency', 'USD'),
-                    delivery=item.get('delivery', 'Direct'),
-                    condition=item.get('condition', 'New'),
-                    date_code=item.get('date_code', 'N/A'),
-                    is_eol=item.get('is_eol', False),
-                    risk_level=item.get('risk_level', 'Low'),
+                    id=item.get("id", str(uuid.uuid4())[:12]),
+                    mpn=item.get("mpn", q.upper()),
+                    manufacturer=item.get("manufacturer", "Unknown"),
+                    distributor=item.get("distributor", "Internal"),
+                    source_type=item.get("source_type", "Member Inventory"),
+                    stock=item.get("stock", 0),
+                    price=item.get("price", 0.0),
+                    price_history=self._generate_price_history(item.get("price", 0.0)),
+                    currency=item.get("currency", "USD"),
+                    delivery=item.get("delivery", "Direct"),
+                    condition=item.get("condition", "New"),
+                    date_code=item.get("date_code", "N/A"),
+                    is_eol=item.get("is_eol", False),
+                    risk_level=item.get("risk_level", "Low"),
                     updated_at=datetime.now(),
-                    datasheet=item.get('datasheet', ''),
-                    description=item.get('description', ''),
-                    product_url=item.get('product_url', '')
+                    datasheet=item.get("datasheet", ""),
+                    description=item.get("description", ""),
+                    product_url=item.get("product_url", ""),
                 )
                 standard_parts.append(part)
-            except Exception: pass
+            except Exception:
+                pass
 
         # 2. Search Real External Data (Mouser)
         try:
             mouser = MouserHunter()
             external_results = await mouser.search_mpn(q)
-            
+
             for ext in external_results:
                 try:
-                    price = ext['price']
+                    price = ext["price"]
                     part = StandardPart(
                         id=f"ext-mouser-{uuid.uuid4().hex[:6]}",
-                        mpn=ext['mpn'],
-                        manufacturer=ext['manufacturer'],
-                        distributor=ext['distributor'],
-                        source_type=ext['source_type'],
-                        stock=ext['stock'],
+                        mpn=ext["mpn"],
+                        manufacturer=ext["manufacturer"],
+                        distributor=ext["distributor"],
+                        source_type=ext["source_type"],
+                        stock=ext["stock"],
                         price=price,
                         price_history=self._generate_price_history(price),
                         currency="USD",
                         delivery="3-5 Days",
                         condition="New",
                         date_code="2023+",
-                        is_eol=ext['risk_level'] == 'High',
-                        risk_level=ext['risk_level'],
+                        is_eol=ext["risk_level"] == "High",
+                        risk_level=ext["risk_level"],
                         updated_at=datetime.now(),
-                        datasheet="" # PDD/Search table doesn't always have datasheet link directly accessible without extra clicks
+                        datasheet="",  # PDD/Search table doesn't always have datasheet link directly accessible without extra clicks
                     )
                     standard_parts.append(part)
-                except Exception: pass
+                except Exception:
+                    pass
         except Exception as e:
             print(f"⚠️ External Intel Aggregation Error: {e}")
 
-        return sorted(standard_parts, key=lambda x: x.price if x.price > 0 else float('inf'))
+        return sorted(
+            standard_parts, key=lambda x: x.price if x.price > 0 else float("inf")
+        )
+
 
 sourcing_engine = SourcingEngine()
 
@@ -248,7 +266,7 @@ async def search_parts(
     package: Optional[str] = None,
     min_voltage: Optional[float] = None,
     max_voltage: Optional[float] = None,
-    rohs_compliant: Optional[bool] = None
+    rohs_compliant: Optional[bool] = None,
 ):
     """부품 통합 검색 및 지능형 필터링"""
     cache_manager = get_cache_manager()
@@ -263,21 +281,37 @@ async def search_parts(
         results = [r for r in results if package.lower() in r.package.lower()]
 
     if min_voltage is not None:
+
         def extract_v(v_str):
-            try: return float(re.findall(r"[-+]?\d*\.\d+|\d+", v_str)[0])
-            except: return None
-        results = [r for r in results if (v := extract_v(r.voltage)) is not None and v >= min_voltage]
+            try:
+                return float(re.findall(r"[-+]?\d*\.\d+|\d+", v_str)[0])
+            except:
+                return None
+
+        results = [
+            r
+            for r in results
+            if (v := extract_v(r.voltage)) is not None and v >= min_voltage
+        ]
 
     if max_voltage is not None:
+
         def extract_v(v_str):
-            try: return float(re.findall(r"[-+]?\d*\.\d+|\d+", v_str)[0])
-            except: return None
-        results = [r for r in results if (v := extract_v(r.voltage)) is not None and v <= max_voltage]
+            try:
+                return float(re.findall(r"[-+]?\d*\.\d+|\d+", v_str)[0])
+            except:
+                return None
+
+        results = [
+            r
+            for r in results
+            if (v := extract_v(r.voltage)) is not None and v <= max_voltage
+        ]
 
     if rohs_compliant is not None:
         results = [r for r in results if r.rohs == rohs_compliant]
 
-    results_dict = [item.model_dump(mode='json') for item in results]
+    results_dict = [item.model_dump(mode="json") for item in results]
     await cache_manager.set_cache(cache_key, results_dict)
     return results
 
@@ -291,7 +325,9 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
+
 # --- Procurement and Market Stats Endpoints ---
+
 
 @app.get("/api/market/stats")
 async def get_market_stats():
@@ -299,17 +335,20 @@ async def get_market_stats():
     Returns market statistics based on global search aggregates
     """
     from datetime import datetime
+
     return {
         "market_temperature": 78,
         "global_stock_index": 1250000,
         "active_brokers": 145,
         "price_drift": "+2.4%",
-        "last_sync": datetime.now().isoformat()
+        "last_sync": datetime.now().isoformat(),
     }
+
 
 class ProcurementLockRequest(BaseModel):
     part_id: str
     quantity: int
+
 
 @app.post("/procurement/lock")
 async def create_procurement_lock(req: ProcurementLockRequest):
@@ -317,11 +356,12 @@ async def create_procurement_lock(req: ProcurementLockRequest):
     Locks a procurement attempt for a specific part.
     """
     import uuid
+
     return {
         "tracking_id": f"LOCK-{uuid.uuid4().hex[:8].upper()}",
         "status": "locked",
         "part_id": req.part_id,
-        "quantity": req.quantity
+        "quantity": req.quantity,
     }
 
 
@@ -813,10 +853,7 @@ async def start_pulse():
 # --- REALTIME PULSE ENGINE (End) ---
 
 
-
-
-
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
 
+    uvicorn.run(app, host="127.0.0.1", port=8000)

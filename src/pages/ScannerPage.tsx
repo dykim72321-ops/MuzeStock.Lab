@@ -89,8 +89,24 @@ export const ScannerPage = () => {
     let bullPoints = ["No details available"];
     let bearPoints = ["No details available"];
     let aiSummaryStr = "해당 자산에 대한 최신 시장 Narrative를 분석 중입니다...";
+    let quantData = undefined;
 
-    if (cache && Object.keys(cache).length > 0) {
+    if (rawSummary && rawSummary.trim().startsWith('{')) {
+      try {
+        quantData = JSON.parse(rawSummary);
+        aiSummaryStr = "순수 퀀트(수학적) 알고리즘 분석 결과가 적용되었습니다.";
+        bullPoints = [
+          `이동평균선(20일) 이격도: ${quantData.ma20_distance_pct}%`,
+          `RSI (14일): ${quantData.rsi_14}`
+        ];
+        bearPoints = [
+          `최근 20일 변동성: ${quantData.volatility_20d_pct}%`,
+          `거래량 급증 배수: ${quantData.volume_surge_multiplier}x`
+        ];
+      } catch (e) {
+        // Fallback
+      }
+    } else if (cache && Object.keys(cache).length > 0) {
       bullPoints = cache.bullCase || bullPoints;
       bearPoints = cache.bearCase || bearPoints;
       aiSummaryStr = cache.aiSummary || aiSummaryStr;
@@ -108,14 +124,15 @@ export const ScannerPage = () => {
     setTerminalData({
       ticker: stock.ticker,
       dnaScore: stock.dnaScore,
-      popProbability: cache?.popProbability || 0,
+      popProbability: cache?.popProbability || quantData?.historical_win_rate_pct || 0,
       bullPoints,
       bearPoints,
       matchedLegend: cache?.matchedLegend || { ticker: 'None', similarity: 0 },
       riskLevel: cache?.riskLevel || 'Medium',
       aiSummary: aiSummaryStr,
       price: stock.price,
-      change: `${stock.changePercent.toFixed(2)}%`
+      change: `${stock.changePercent.toFixed(2)}%`,
+      quantData
     });
   };
 
@@ -447,7 +464,7 @@ export const ScannerPage = () => {
             alert(res.message);
           }}
           onAddToWatchlist={async () => {
-            await addToWatchlist(terminalData.ticker);
+            await addToWatchlist(terminalData.ticker, undefined, 'WATCHING', terminalData.price);
             alert(`${terminalData.ticker}가 관심 종목에 추가되었습니다.`);
           }}
         />
