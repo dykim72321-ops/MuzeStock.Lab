@@ -15,7 +15,6 @@ import { queryClient } from './lib/queryClient';
 //   /watchlist  → 관심 종목
 //   /backtesting→ 백테스팅 히스토리
 //   /settings   → 환경 설정
-const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const PulseDashboard = lazy(() => import('./pages/PulseDashboard'));
 const ScannerPage = lazy(() => import('./pages/ScannerPage').then(m => ({ default: m.ScannerPage })));
 const AlphaFundView = lazy(() => import('./pages/AlphaFundView').then(m => ({ default: m.AlphaFundView })));
@@ -51,17 +50,21 @@ function App() {
           <Suspense fallback={<PageLoadingFallback />}>
             <Routes>
               <Route path="/" element={<Layout />}>
-                {/* 작전 지휘소 - 종합 요약 대시보드 */}
-                <Route index element={<Dashboard />} />
+                {/* 1. 홈: CRM 허브 */}
+                <Route index element={<CrmDashboard />} />
+
+                {/* CRM 부속 라우트 */}
+                <Route path="crm/contacts" element={<ContactsPage />} />
+                <Route path="crm/projects" element={<ProjectsPage />} />
 
                 {/* 실시간 퀀트 펄스 */}
                 <Route path="pulse" element={<PulseDashboard />} />
 
-                {/* 마켓 스캐너 */}
+                {/* 2. 퀀트 핫 아이템 (마켓 스캐너) */}
                 <Route path="scanner" element={<ScannerPage />} />
                 <Route path="scan" element={<Navigate to="/scanner" replace />} />
 
-                {/* 부품 스캐너 */}
+                {/* 3. 부품 재고 검색 */}
                 <Route path="parts-search" element={<MuzepartSearchPage />} />
 
                 {/* 알파 펀드 */}
@@ -82,11 +85,7 @@ function App() {
                 <Route path="simulator" element={<SimulatorView />} />
                 <Route path="personas" element={<PersonaPerformance />} />
 
-                {/* B2B Intelligence (CRM) */}
-                <Route path="crm" element={<CrmDashboard />} />
-                <Route path="crm/contacts" element={<ContactsPage />} />
-                <Route path="crm/projects" element={<ProjectsPage />} />
-
+                {/* 기타 백그라운드 라우트 (비공개/테스트용) */}
                 {/* 환경 설정 */}
                 <Route path="settings" element={<SettingsView />} />
 

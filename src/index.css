@@ -1,120 +1,81 @@
 /* src/index.css */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;700;800&display=swap");
 
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
-  
-  --color-quant-dark: #020617;
-  --color-quant-panel: #0f172a;
-  --color-quant-accent: #3b82f6;
 
-  --animate-fade-in-up: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  
-  --animate-s-tier: s-tier-glow 4s ease-in-out infinite;
-  --animate-float: float 6s ease-in-out infinite;
+  --color-sfdc-blue: #0176d3;
+  --color-sfdc-blue-dark: #014486;
+  --color-sfdc-gray: #747474;
+  --color-sfdc-border: #dddbda;
+  --color-sfdc-bg: #f3f3f3;
 
-  @keyframes fadeInUp {
-    0% { opacity: 0; transform: translateY(15px); }
-    100% { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes s-tier-glow {
-    0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.2), 0 0 40px rgba(99, 102, 241, 0.1); }
-    50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.4), 0 0 80px rgba(99, 102, 241, 0.2); }
-  }
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-6px); }
-  }
-  @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-  }
-
-  /* Live Flash: WebSocket 데이터 인입 시 파란 펄스 */
-  @keyframes flashBlue {
-    0%   { background-color: rgba(59, 130, 246, 0.18); border-color: rgba(59, 130, 246, 0.6); }
-    60%  { background-color: rgba(59, 130, 246, 0.06); border-color: rgba(59, 130, 246, 0.3); }
-    100% { background-color: transparent;              border-color: transparent; }
-  }
-
-  --animate-flash-blue: flashBlue 1.8s ease-out forwards;
+  --animate-fade-in-up: fadeInUp 0.4s ease-out forwards;
 }
 
 @layer base {
   body {
-    /* 심연의 다크 톤 배경 & 기본 폰트(Inter) 설정 */
-    @apply bg-[#020617] text-slate-50 antialiased font-sans overflow-x-hidden w-full m-0;
-    
-    /* 은은한 오로라 백그라운드 */
-    background-image:
-      radial-gradient(at 0% 0%, rgba(30, 58, 138, 0.15) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(6, 182, 212, 0.1) 0px, transparent 50%),
-      radial-gradient(at 50% 100%, rgba(139, 92, 246, 0.1) 0px, transparent 50%);
-    background-attachment: fixed;
+    /* Salesforce Light Theme: Clean & Professional */
+    @apply bg-slate-50 text-slate-900 antialiased font-sans overflow-x-hidden
+      w-full m-0 selection:bg-blue-100 selection:text-blue-900;
   }
 
-  /* 모든 숫자 데이터의 폭을 고정하여, 값이 바뀔 때 텍스트가 덜덜 떨리는 현상 방지 */
+  /* Enterprise Typography Improvement */
+  h1, h2, h3, h4 {
+    @apply font-bold tracking-tight text-slate-900;
+  }
+
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
 }
 
 @layer components {
-  /* 기관급 대시보드 카드 (Glassmorphism) */
-  .quant-panel {
-    @apply bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl shadow-xl transition-all duration-300 hover:border-slate-700/80;
+  /* Enterprise Form UI */
+  .sfdc-input {
+    @apply w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-sm
+      text-slate-900 transition-all outline-none focus:border-[#0176d3]
+      focus:ring-4 focus:ring-blue-100 placeholder:text-slate-400;
   }
 
-  /* 퀀트 터미널 전용 폰트 (수익률, 티커 등에 사용) */
+  .sfdc-label {
+    @apply block text-sm font-semibold text-slate-700 mb-1.5;
+  }
+
+  .sfdc-button-primary {
+    @apply px-4 py-2 bg-[#0176d3] hover:bg-[#014486] text-white rounded-md
+      transition-all text-sm font-bold shadow-sm active:scale-95
+      disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .sfdc-button-secondary {
+    @apply px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border
+      border-slate-300 rounded-md transition-all text-sm font-bold shadow-sm
+      active:scale-95;
+  }
+
+  /* Salesforce Style Card */
+  .sfdc-card {
+    @apply bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden
+      transition-shadow hover:shadow-md;
+  }
+
+  .sfdc-card-header {
+    @apply p-4 border-b border-slate-200 bg-slate-50/50 flex items-center
+      justify-between;
+  }
+
+  /* 퀀트 터미널 폰트 유지 */
   .font-mono {
-    font-family: 'JetBrains Mono', monospace;
-    font-feature-settings: "tnum" 1, "zero" 1; /* 고정폭 및 숫자 0 사선 처리 */
-  }
-
-  /* Bento Grid Utility Compatibility */
-  .bento-card {
-    @apply bg-slate-900/40 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden relative transition-all duration-300;
-  }
-  .bento-card:hover {
-    @apply border-white/20;
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
-  }
-
-  /* ── Reactive Glow Card ──────────────────────────────────
-     사용법: <div class="quant-panel-glow"><div class="quant-panel-content p-6">...</div></div>
-     호버 시 파란-사이안-인디고 그라데이션 테두리 + 빛 번짐 효과 */
-  .quant-panel-glow {
-    @apply relative rounded-2xl p-[1px] overflow-hidden transition-all duration-500;
-    background: #1e293b; /* 기본: 어두운 단색 테두리 */
-  }
-  .quant-panel-glow:hover {
-    background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 50%, #6366f1 100%);
-    box-shadow: 0 0 24px -4px rgba(59, 130, 246, 0.35), 0 0 48px -8px rgba(99, 102, 241, 0.2);
-  }
-  .quant-panel-content {
-    @apply bg-slate-900/95 backdrop-blur-md rounded-[calc(1rem-1px)] h-full w-full;
-  }
-
-  /* Live Flash 유틸리티 (animate-flash-blue) */
-  .animate-flash-blue {
-    animation: flashBlue 1.8s ease-out forwards;
-    border-width: 1px;
-    border-style: solid;
+    font-family: "JetBrains Mono", monospace;
+    font-feature-settings: "tnum" 1, "zero" 1;
   }
 }
 
 @layer utilities {
-  .shimmer {
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
-    background-size: 200% 100%;
-    animation: shimmer 2s infinite;
-  }
-
-  /* Hide Scrollbar but keep functionality */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -122,14 +83,31 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Salesforce Stepper Connector */
+  .stepper-line {
+    @apply h-px bg-slate-300 flex-1 mx-2;
+  }
 }
 
-/* 세련된 다크 스크롤바 커스텀 */
+/* Scrollbar Custom (Light Theme) */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #334155 transparent;
+  scrollbar-color: #cbd5e1 transparent;
 }
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

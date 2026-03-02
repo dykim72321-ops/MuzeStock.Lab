@@ -27,6 +27,20 @@
   --danger: #ef4444;
 
   /* Redesign Theme */
+  /* Premium Enhancement Theme */
+  --glass-white: rgba(255, 255, 255, 0.7);
+  --glass-blue: rgba(30, 58, 138, 0.03);
+  --glass-blur: blur(16px);
+  --glass-border-light: rgba(255, 255, 255, 0.4);
+
+  --skeleton-bg: #e2e8f0;
+  --skeleton-shimmer: linear-gradient(
+    90deg,
+    #e2e8f0 25%,
+    #f1f5f9 50%,
+    #e2e8f0 75%
+  );
+
   --bg-command: #020617; /* Ultra dark slate for command center feel */
   --glow-primary: rgba(30, 58, 138, 0.4);
   --glass-bg: rgba(255, 255, 255, 0.03);
@@ -43,7 +57,7 @@
 
 body {
   margin: 0;
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: "Outfit", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: var(--bg-app);
   color: var(--text-main);
   -webkit-font-smoothing: antialiased;
@@ -251,9 +265,89 @@ body {
 }
 
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--primary);
+  transform: translateY(-4px) scale(1.01);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border-color: var(--primary-light);
+}
+
+/* Skeleton Styles */
+.skeleton-card {
+  height: 380px;
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  position: relative;
+}
+
+.skeleton-item {
+  background: var(--skeleton-bg);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-title {
+  height: 24px;
+  width: 60%;
+}
+.skeleton-subtitle {
+  height: 16px;
+  width: 40%;
+}
+.skeleton-table {
+  height: 120px;
+  width: 100%;
+  margin: 1.5rem 0;
+}
+.skeleton-price {
+  height: 40px;
+  width: 50%;
+}
+
+/* Sparkline Styles */
+.sparkline-container {
+  width: 80px;
+  height: 30px;
+  margin-left: 0.5rem;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.sparkline-path {
+  fill: none;
+  stroke: var(--primary-light);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Brand Icon Helper */
+.brand-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: #64748b;
+  flex-shrink: 0;
 }
 
 .card-header {
@@ -449,7 +543,22 @@ body {
 }
 
 .glow-text {
-  text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+  text-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
+  background: linear-gradient(90deg, #fff, var(--neon-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.scout-container h2 {
+  font-size: 1.8rem;
+  font-weight: 900;
+  letter-spacing: -0.05em;
+}
+
+.terminal-feed {
+  border: 1px solid var(--glass-border);
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(8px);
 }
 
 .mono-stats {

@@ -1,24 +1,59 @@
 import { useState, useEffect } from 'react';
 import { 
+  LayoutDashboard, 
   Users, 
-  Briefcase, 
-  KanbanSquare, 
-  TrendingUp, 
-  ShieldAlert, 
-  Globe, 
-  CheckCircle2,
-  Calendar,
-  MessageSquare
+  Calendar, 
+  AlertCircle, 
+  CheckCircle2, 
+  FileText, 
+  Search, 
+  ChevronRight,
+  ClipboardList,
+  Cpu,
+  Zap,
+  ShieldCheck,
+  Plus,
+  Bell,
+  MessageSquare,
+  Target,
+  Lightbulb,
+  Settings,
+  LogOut,
+  Briefcase,
+  KanbanSquare,
+  TrendingUp,
+  Globe,
+  ArrowLeft
 } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { getCrmProjects, getCallPlans } from '../services/crmService';
-import { format } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
+import { getCrmProjects, getCallPlans, getProjectTimeline } from '../services/crmService';
+import { format, isValid } from 'date-fns';
 import clsx from 'clsx';
+import { SmartCallPlan } from '../components/crm/SmartCallPlan';
+import { OrgProfile } from '../components/crm/OrgProfile';
 
-export const CrmDashboard = () => {
+const safeFormatDate = (dateStr?: string | null) => {
+  if (!dateStr) return 'UNKNOWN DATE';
+  try {
+    const d = new Date(dateStr);
+    if (!isValid(d)) return 'INVALID DATE';
+    return format(d, 'yyyy. MM. dd');
+  } catch {
+    return 'INVALID DATE';
+  }
+};
+
+export function CrmDashboard() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeCallStep, setActiveCallStep] = useState('during');
   const [projects, setProjects] = useState<any[]>([]);
   const [callPlans, setCallPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Hierarchical view state
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [projectTimeline, setProjectTimeline] = useState<any>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -27,8 +62,8 @@ export const CrmDashboard = () => {
           getCrmProjects(),
           getCallPlans()
         ]);
-        setProjects(projData);
-        setCallPlans(callData);
+        setProjects(projData || []);
+        setCallPlans(callData || []);
       } catch (error) {
         console.error('Failed to load CRM data:', error);
       } finally {
@@ -38,163 +73,358 @@ export const CrmDashboard = () => {
     loadData();
   }, []);
 
-  const stats = [
-    { label: '활성 프로젝트', value: projects.length, icon: KanbanSquare, color: 'text-blue-400' },
-    { label: '이번 달 미팅', value: callPlans.length, icon: Calendar, color: 'text-cyan-400' },
-    { label: '성공 사례 (Design-in)', value: 0, icon: CheckCircle2, color: 'text-emerald-400' },
-    { label: '수주 예상 총액', value: `$${(projects.reduce((acc, p) => acc + (p.expected_value || 0), 0) / 1000).toFixed(1)}K`, icon: TrendingUp, color: 'text-amber-400' },
-  ];
+  const handleProjectClick = async (projectId: string) => {
+    setSelectedProjectId(projectId);
+    setTimelineLoading(true);
+    try {
+      const timeline = await getProjectTimeline(projectId);
+      setProjectTimeline(timeline);
+    } catch (error) {
+      console.error('Failed to load project timeline:', error);
+    } finally {
+      setTimelineLoading(false);
+    }
+  };
+
+  const totalExpectedValue = projects.reduce((acc, p) => acc + (Number(p?.expected_value) || 0), 0);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-600"></div>
+        <p className="text-slate-500 text-sm font-semibold">CRM 데이터를 분석하는 중입니다...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
-      {/* 🚀 Header Section */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-100 flex items-center gap-3">
-            <Briefcase className="w-8 h-8 text-blue-500" />
-            Sales War-Room <span className="text-blue-500/50">Hub</span>
+    <div className="flex h-[calc(100vh-100px)] bg-slate-50 text-slate-900 font-sans overflow-hidden rounded-2xl border border-slate-200 shadow-sm">
+      {/* 1. Sidebar Navigation */}
+      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0">
+        <div className="p-6 border-b border-slate-100 flex items-center gap-2">
+          <div className="bg-indigo-600 p-1.5 rounded-lg shadow-lg shadow-indigo-200">
+            <Zap size={20} className="text-white" fill="currentColor" />
+          </div>
+          <h1 className="text-xl font-black text-slate-800 tracking-tight">
+            Sales<span className="text-indigo-600">.Hub</span>
           </h1>
-          <p className="text-slate-400 mt-1 font-medium">B2B 영업 지능 및 프로젝트 통합 관리</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700 transition-colors flex items-center gap-2 text-sm font-bold">
-            <Users className="w-4 h-4" />
-            고객 관리
+        
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          <NavItem icon={<LayoutDashboard size={18}/>} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setSelectedProjectId(null); }} />
+          <NavItem icon={<ClipboardList size={18}/>} label="Smart Call Plan" active={activeTab === 'call-plan'} onClick={() => setActiveTab('call-plan')} />
+          <NavItem icon={<Users size={18}/>} label="Organization" active={activeTab === 'org'} onClick={() => setActiveTab('org')} />
+          <NavItem icon={<FileText size={18}/>} label="Minutes" active={activeTab === 'minutes'} onClick={() => setActiveTab('minutes')} />
+        </nav>
+
+        <div className="p-4 border-t border-slate-100">
+          <button className="w-full flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-slate-600 transition-colors text-sm font-medium mb-1">
+            <Settings size={18} /> Settings
           </button>
-          <button className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2 text-sm font-bold">
-            <span className="text-lg">+</span>
-            새 프로젝트 생성
+          <button className="w-full flex items-center gap-3 px-4 py-2 text-rose-400 hover:text-rose-600 transition-colors text-sm font-medium">
+            <LogOut size={18} /> Sign Out
           </button>
         </div>
-      </header>
+      </aside>
 
-      {/* 📊 Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800 backdrop-blur-xl"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className={clsx("p-2 rounded-lg bg-slate-800", stat.color)}>
-                <stat.icon className="w-6 h-6" />
-              </div>
-              <span className="text-xs font-bold text-emerald-400 font-mono tracking-widest">+12%</span>
+      {/* 2. Main Area */}
+      <main className="flex-1 flex flex-col min-w-0 bg-slate-50">
+        {/* Header */}
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+          <div className="flex items-center gap-4">
+            {selectedProjectId && (
+              <button 
+                onClick={() => setSelectedProjectId(null)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-indigo-600"
+              >
+                <ArrowLeft size={20} />
+              </button>
+            )}
+            <h2 className="font-bold text-slate-800">
+              {activeTab === 'dashboard' && !selectedProjectId && "전체 프로젝트 현황 (Design-Win Pipeline)"}
+              {activeTab === 'dashboard' && selectedProjectId && `${projectTimeline?.project?.title || 'Loading...'} - Project Timeline`}
+              {activeTab === 'call-plan' && "Strategic Discovery Planner"}
+              {activeTab === 'org' && "조직 관리 및 R&R"}
+              {activeTab === 'minutes' && "회의록 관리"}
+            </h2>
+          </div>
+          <div className="flex items-center gap-5">
+            <div className="relative group cursor-pointer">
+              <Bell className="text-slate-400 group-hover:text-indigo-600 transition-colors" size={20} />
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[10px] flex items-center justify-center rounded-full border-2 border-white font-bold">3</span>
             </div>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">{stat.label}</p>
-            <h3 className="text-2xl font-black text-slate-100 mt-1">{stat.value}</h3>
-          </motion.div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* 🗺️ Supply Chain Heatmap (Placeholder) */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="p-8 rounded-3xl bg-slate-900/60 border border-slate-800/50 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4">
-              <Globe className="w-32 h-32 text-blue-500/5 absolute -top-8 -right-8" />
-            </div>
-            <div className="relative z-10">
-              <h3 className="text-xl font-bold text-slate-100 flex items-center gap-2 mb-6">
-                <Globe className="w-5 h-5 text-cyan-400" />
-                Supply Chain Risk Heatmap
-              </h3>
-              <div className="h-64 flex items-center justify-center border-2 border-dashed border-slate-800 rounded-2xl bg-slate-950/30">
-                <div className="text-center">
-                  <p className="text-slate-500 font-bold mb-2 uppercase tracking-widest text-xs">Global Sourcing Scan in Progress...</p>
-                  <p className="text-slate-400 text-sm italic">"Rare Source 엔진을 통해 전 세계 브로커망을 실시간 스캐닝합니다."</p>
-                </div>
-              </div>
+            <div className="h-8 w-px bg-slate-200"></div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-bold text-slate-700">Admin</span>
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-sm shadow-md">OP</div>
             </div>
           </div>
+        </header>
 
-          {/* 📈 Active Projects */}
-          <div className="p-8 rounded-3xl bg-slate-900/60 border border-slate-800/50">
-            <h3 className="text-xl font-bold text-slate-100 flex items-center gap-2 mb-6">
-              <KanbanSquare className="w-5 h-5 text-indigo-400" />
-              진행 중인 핵심 프로젝트
-            </h3>
-            <div className="space-y-4">
-              {projects.length > 0 ? projects.map((project) => (
-                <div key={project.id} className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 hover:bg-slate-800 transition-colors group cursor-pointer">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-bold text-slate-100 group-hover:text-blue-400 transition-colors">{project.title}</h4>
-                      <p className="text-xs text-slate-400 flex items-center gap-2 mt-1">
-                        <Briefcase className="w-3 h-3" /> {project.crm_companies?.name}
-                      </p>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-8">
+          <div className="max-w-6xl mx-auto space-y-8">
+            <AnimatePresence mode="wait">
+              {activeTab === 'dashboard' && !selectedProjectId && (
+                <motion.div 
+                  key="dashboard-main"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-8"
+                >
+                  {/* Stats Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard label="활성 프로젝트" value={projects.length} icon={KanbanSquare} color="indigo" />
+                    <StatCard label="이번 달 미팅" value={callPlans.length} icon={Calendar} color="rose" />
+                    <StatCard label="성공 사례" value="0" icon={CheckCircle2} color="emerald" />
+                    <StatCard label="수주 예상 총액" value={`$${(totalExpectedValue / 1000).toFixed(1)}K`} icon={TrendingUp} color="blue" />
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Pipeline */}
+                    <div className="lg:col-span-2 space-y-6">
+                      <section className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+                          <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                             <TrendingUp size={18} className="text-indigo-600" /> Opportunity Pipeline
+                          </h3>
+                          <button className="text-xs font-bold text-indigo-600 hover:underline">View All</button>
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                          {projects.length > 0 ? projects.map(project => (
+                            <div 
+                              key={project.id} 
+                              onClick={() => handleProjectClick(project.id)}
+                              className="p-5 hover:bg-slate-50/50 transition-all flex items-center justify-between group cursor-pointer border-l-4 border-l-transparent hover:border-l-indigo-600"
+                            >
+                              <div>
+                                <h4 className="font-bold text-slate-800 group-hover:text-indigo-600">{project.title}</h4>
+                                <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-400 font-medium">
+                                  <span>{project.crm_companies?.name || 'Unknown Company'}</span>
+                                  <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+                                  <span className="font-bold text-slate-600">${((project.expected_value || 0) / 1000).toFixed(1)}K</span>
+                                </div>
+                              </div>
+                              <div className="text-right flex items-center gap-4">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 text-indigo-600 border border-indigo-100 uppercase">
+                                  {project.stage || 'NEEDS'}
+                                </span>
+                                <ChevronRight size={16} className="text-slate-200 group-hover:text-indigo-600 transition-colors" />
+                              </div>
+                            </div>
+                          )) : (
+                            <div className="p-12 text-center text-slate-400 italic">No active opportunities found.</div>
+                          )}
+                        </div>
+                      </section>
                     </div>
-                    <div className="text-right">
-                      <span className="px-2 py-1 rounded-md bg-indigo-500/10 text-indigo-400 text-[10px] font-bold uppercase tracking-widest border border-indigo-500/20">
-                        {project.stage}
-                      </span>
-                      <p className="text-xs font-mono font-bold text-slate-300 mt-2">${(project.expected_value / 1000).toFixed(1)}K</p>
+
+                    {/* Alerts & Actions */}
+                    <div className="space-y-6">
+                      <DashboardCard title="Intelligent Alerts" icon={<AlertCircle className="text-rose-500" size={18} />}>
+                        <div className="space-y-4">
+                          <AlertItem title="A사 부품 재고 급감" desc="센서 노드 EOL 리스크 감지됨" severity="high" />
+                          <AlertItem title="B사 팔로업 필요" desc="2주간 파이프라인 정체" severity="medium" />
+                        </div>
+                      </DashboardCard>
                     </div>
                   </div>
-                </div>
-              )) : (
-                <p className="text-center py-10 text-slate-500 italic">표시할 프로젝트가 없습니다.</p>
+                </motion.div>
               )}
-            </div>
+
+              {activeTab === 'dashboard' && selectedProjectId && (
+                <motion.div 
+                  key="project-timeline"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-8"
+                >
+                  {timelineLoading ? (
+                    <div className="p-12 text-center text-slate-400">Loading timeline...</div>
+                  ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      {/* Left: Project Info & History */}
+                      <div className="lg:col-span-2 space-y-6">
+                        <section className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
+                          <div className="flex items-center justify-between mb-8">
+                            <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                              <ClipboardList size={22} className="text-indigo-600" /> Activity History
+                            </h3>
+                            <button className="sfdc-button-primary scale-90">회의록 작성</button>
+                          </div>
+                          
+                          <div className="relative pl-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+                            {projectTimeline?.history && projectTimeline.history.length > 0 ? projectTimeline.history.map((log: any, idx: number) => (
+                              <div key={log.id || idx} className="mb-10 relative">
+                                <div className="absolute left-[-21px] top-1.5 w-3 h-3 rounded-full bg-white border-2 border-indigo-600 shadow-sm z-10"></div>
+                                <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-indigo-100 transition-all hover:shadow-md hover:shadow-indigo-50/50 group">
+                                  <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
+                                        {safeFormatDate(log.visit_date)}
+                                      </span>
+                                      <span className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                                        <Users size={14} className="text-slate-400" /> {log.crm_contacts?.name}
+                                      </span>
+                                    </div>
+                                    <ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-500" />
+                                  </div>
+                                  <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                                    {log.notes || '기술 미팅 및 샘플 제안 진행.'}
+                                  </p>
+                                </div>
+                              </div>
+                            )) : (
+                              <div className="py-20 text-center text-slate-400 italic">기록된 미팅 활동이 없습니다.</div>
+                            )}
+                          </div>
+                        </section>
+                      </div>
+
+                      {/* Right: Technical Context & Risk */}
+                      <div className="space-y-6">
+                        <DashboardCard title="Technical Specs (VOC)" icon={<Cpu className="text-slate-400" size={18} />}>
+                          <div className="space-y-4">
+                            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter mb-1.5">Main CPU</p>
+                              <p className="text-xs font-bold text-slate-800">Quad-Core 1.8GHz (i.MX8 Series)</p>
+                            </div>
+                            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter mb-1.5">OS / Kernel</p>
+                              <p className="text-xs font-bold text-slate-800">Linux Yocto v5.15</p>
+                            </div>
+                          </div>
+                        </DashboardCard>
+
+                        <DashboardCard title="Supply Chain Risk" icon={<ShieldCheck className="text-emerald-500" size={18} />}>
+                          <div className="p-6 bg-emerald-50/50 rounded-2xl border border-emerald-100 text-center">
+                            <Zap className="w-8 h-8 text-emerald-500 mx-auto mb-3" />
+                            <p className="text-sm font-bold text-emerald-700">No Risk Found</p>
+                            <p className="text-[10px] text-emerald-600 mt-1 uppercase font-black">Scanned: Just Now</p>
+                          </div>
+                        </DashboardCard>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {activeTab === 'call-plan' && (
+                <motion.div 
+                  key="call-plan"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="flex p-1.5 bg-slate-200/50 rounded-2xl w-fit shadow-inner">
+                    <StepButton label="Pre-Call (준비)" active={activeCallStep === 'pre'} onClick={() => setActiveCallStep('pre')} />
+                    <StepButton label="During Meeting (현장)" active={activeCallStep === 'during'} onClick={() => setActiveCallStep('during')} />
+                    <StepButton label="After Meeting (확약)" active={activeCallStep === 'after'} onClick={() => setActiveCallStep('after')} />
+                  </div>
+
+                  <SmartCallPlan activeStep={activeCallStep} />
+                </motion.div>
+              )}
+
+              {activeTab === 'org' && (
+                <motion.div 
+                  key="org"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="bg-white rounded-3xl border border-slate-200 p-12 shadow-sm text-center"
+                >
+                  <h3 className="text-xl font-black text-slate-800 mb-12">MuzeStock.Lab R&R Structure</h3>
+                  <div className="flex flex-col items-center gap-16">
+                    <OrgProfile name="최지휘" role="Lab Lead" desc="전략 수립 및 AI 모델 총괄" />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 w-full max-w-4xl">
+                      <OrgProfile name="김영업" role="Field Sales" desc="고객 상담 및 기회 발굴" />
+                      <OrgProfile name="이기술" role="FAE" desc="기술 검증 및 사양 최적화" />
+                      <OrgProfile name="박운영" role="Sales Ops" desc="견적 및 공급망 관리" />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
+      </main>
+    </div>
+  );
+}
 
-        {/* 🔔 Right Sidebar: Alerts & Insights */}
-        <div className="space-y-6">
-          {/* Risk Alerts */}
-          <div className="p-6 rounded-3xl bg-rose-950/10 border border-rose-500/20">
-            <h3 className="text-red-400 font-bold flex items-center gap-2 mb-4 text-sm tracking-tight">
-              <ShieldAlert className="w-4 h-4" />
-              Critical Insights & Risks
-            </h3>
-            <div className="space-y-3">
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20">
-                <p className="text-xs text-rose-300 font-bold leading-relaxed">
-                  [위험] A사 프로젝트용 센서 글로벌 재고 급감! 
-                  <span className="block mt-1 text-[10px] opacity-70 underline">Rare Source로 대체품 확인 권장</span>
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-orange-500/10 border border-orange-500/20">
-                <p className="text-xs text-orange-300 font-bold leading-relaxed">
-                  [넛지] B사 구매팀장 2주째 팔로업 부재. 
-                  <span className="block mt-1 text-[10px] opacity-70">오늘 안부 주식 메시지 발송 예정</span>
-                </p>
-              </div>
-            </div>
-          </div>
+// --- Internal Sub-components ---
 
-          {/* Recent Call Plans */}
-          <div className="p-6 rounded-3xl bg-slate-900/60 border border-slate-800/50">
-            <h3 className="text-slate-100 font-bold flex items-center gap-2 mb-4 text-sm">
-              <MessageSquare className="w-4 h-4 text-blue-400" />
-              최근 미팅 로그
-            </h3>
-            <div className="space-y-4">
-              {callPlans.slice(0, 3).map((plan) => (
-                <div key={plan.id} className="relative pl-4 border-l-2 border-slate-800 group cursor-pointer hover:border-blue-500 transition-colors">
-                  <p className="text-[10px] text-slate-500 font-bold font-mono uppercase">{format(new Date(plan.visit_date), 'MMM dd, yyyy')}</p>
-                  <p className="text-xs font-bold text-slate-200 mt-1 line-clamp-1">{plan.crm_contacts?.name} 미팅</p>
-                  <p className="text-[10px] text-slate-400 mt-1 line-clamp-2 italic">"{plan.notes || '기술 미팅 진행 및 샘플 제안'}"</p>
-                </div>
-              ))}
-              <button className="w-full py-2 text-[10px] font-black text-slate-500 hover:text-slate-300 uppercase tracking-widest border-t border-slate-800 mt-2">
-                미팅 전체 기록 보기
-              </button>
-            </div>
-          </div>
-        </div>
+const NavItem = ({ icon, label, active, onClick }: any) => (
+  <button 
+    onClick={onClick}
+    className={clsx(
+      "w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all",
+      active ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
+    )}
+  >
+    {icon} {label}
+  </button>
+);
+
+const StepButton = ({ label, active, onClick }: any) => (
+  <button 
+    onClick={onClick}
+    className={clsx(
+      "px-6 py-2 rounded-xl text-xs font-black transition-all",
+      active ? 'bg-white text-indigo-600 shadow-md ring-1 ring-slate-100' : 'text-slate-400 hover:text-slate-600'
+    )}
+  >
+    {label}
+  </button>
+);
+
+const StatCard = ({ label, value, icon: Icon, color }: any) => {
+  const colors: any = {
+    indigo: 'bg-indigo-600 shadow-indigo-100',
+    rose: 'bg-rose-500 shadow-rose-100',
+    emerald: 'bg-emerald-500 shadow-emerald-100',
+    blue: 'bg-blue-600 shadow-blue-100'
+  };
+  
+  return (
+    <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-5">
+      <div className={clsx("p-3.5 rounded-2xl text-white shadow-lg", colors[color])}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+        <h3 className="text-xl font-black text-slate-800 tabular-nums">{value}</h3>
       </div>
     </div>
   );
 };
+
+const DashboardCard = ({ title, icon, children }: any) => (
+  <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm overflow-hidden">
+    <div className="flex items-center gap-2 mb-6 border-b border-slate-50 pb-4">
+      {icon}
+      <h4 className="font-black text-slate-800 text-sm uppercase tracking-tight">{title}</h4>
+    </div>
+    {children}
+  </div>
+);
+
+const AlertItem = ({ title, desc, severity }: any) => (
+  <div className="flex items-center justify-between group cursor-pointer">
+    <div className="flex items-center gap-3">
+      <div className={clsx(
+        "w-2 h-2 rounded-full",
+        severity === 'high' ? 'bg-rose-500 animate-pulse' : 'bg-amber-400'
+      )}></div>
+      <div>
+        <p className="text-xs font-bold text-slate-700">{title}</p>
+        <p className="text-[10px] text-slate-400">{desc}</p>
+      </div>
+    </div>
+    <ChevronRight className="text-slate-200 group-hover:text-indigo-600 transition-colors" size={14} />
+  </div>
+);

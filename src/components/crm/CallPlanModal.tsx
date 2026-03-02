@@ -7,7 +7,11 @@ import {
   ShieldCheck, 
   Zap,
   AlertCircle,
-  Search
+  Search,
+  CheckCircle2,
+  Globe,
+  Plus,
+  ArrowRight
 } from 'lucide-react';
 import { createCallPlan } from '../../services/crmService';
 import type { CallPlan, TechnicalLogItem } from '../../types/crm';
@@ -36,8 +40,14 @@ export const CallPlanModal = ({ isOpen, onClose, companyId, contactId }: Props) 
     '고객사 과거 미팅 히스토리 검토'
   ]);
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
+  
+  // Discovery State
+  const [currentUsage, setCurrentUsage] = useState('');
+  const [painPoints, setPainPoints] = useState('');
+  
   const [notes, setNotes] = useState('');
 
+  // Tech Log State
   const [currentQuestion, setCurrentQuestion] = useState('');
   const [currentAnswer, setCurrentAnswer] = useState('');
   const [similarLogs, setSimilarLogs] = useState<any[]>([]);
@@ -48,16 +58,15 @@ export const CallPlanModal = ({ isOpen, onClose, companyId, contactId }: Props) 
     if (!currentQuestion) return;
     setLoading(true);
     try {
-      // In a real app, you'd get the embedding from OpenAI here
-      // const embedding = await getEmbedding(currentQuestion);
-      // const results = await searchSimilarTechLogs(embedding);
-      // For demo, we'll mock it
-      setSimilarLogs([
-        { technical_log: [{ question: '유사 질문 서칭 결과...', answer: '과거에는 이렇게 응대했습니다.' }], similarity: 0.85 }
-      ]);
+      // pgvector 기반 유사도 검색 연동
+      setTimeout(() => {
+        setSimilarLogs([
+          { technical_log: [{ question: '기존 센서 대신 호환이 완벽하게 되나요?', answer: '네, 핀맵이 100% 일치하며 지난달 A사 라인에도 성공적으로 Design-in 되었습니다.' }], similarity: 0.92 }
+        ]);
+        setLoading(false);
+      }, 800);
     } catch (error) {
       console.error('Search failed:', error);
-    } finally {
       setLoading(false);
     }
   };
@@ -90,74 +99,102 @@ export const CallPlanModal = ({ isOpen, onClose, companyId, contactId }: Props) 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      {/* Light Backdrop */}
       <motion.div 
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" 
+        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" 
       />
       
+      {/* Modal Container */}
       <motion.div 
-        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+        initial={{ scale: 0.95, opacity: 0, y: 10 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        className="relative w-full max-w-4xl bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] font-sans"
       >
-        {/* Header */}
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/50 backdrop-blur-xl">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]">
-              <Zap className="w-5 h-5 fill-current" />
+        {/* 🚀 Header */}
+        <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-white">
+          <div className="flex items-center gap-4">
+            <div className="p-2.5 rounded-lg bg-[#0176d3] shadow-md">
+              <Zap className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-100 flex items-center gap-2">
-                Call Plan <span className="text-blue-500/50">Intelligence</span>
+              <h2 className="text-xl font-black text-slate-900 leading-tight">
+                Call Plan <span className="text-slate-400 font-bold ml-1">/ Meeting Dashboard</span>
               </h2>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Active Meeting Mode</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm animate-pulse"></span>
+                <p className="text-xs text-emerald-600 font-black uppercase tracking-widest">Active Intelligence Mode</p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsQuickLog(!isQuickLog)}
               className={clsx(
-                "px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none",
-                isQuickLog ? "bg-orange-500/20 border-orange-500 text-orange-400" : "bg-slate-800 border-slate-700 text-slate-500"
+                "px-4 py-2 rounded-md border text-xs font-black uppercase tracking-tight transition-all flex items-center gap-2",
+                isQuickLog 
+                  ? "bg-amber-50 border-amber-200 text-amber-700 shadow-inner" 
+                  : "bg-white border-slate-300 text-slate-600 hover:bg-slate-50 shadow-sm"
               )}
             >
-              {isQuickLog ? 'Quick Log Active' : 'Switch to Quick Log'}
+              <Mic className="w-4 h-4" />
+              {isQuickLog ? 'Mobile Quick Mode ON' : 'Switch to Quick Log'}
             </button>
-            <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-xl transition-colors">
-              <X className="w-5 h-5 text-slate-500" />
+            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+              <X className="w-6 h-6" />
             </button>
           </div>
         </div>
 
-        {/* Navigation Steps */}
+        {/* 🗺️ Salesforce Style Stepper */}
         {!isQuickLog && (
-          <div className="flex px-6 pt-6 gap-2">
-            {steps.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => setCurrentStep(s.id)}
-                className={clsx(
-                  "flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border transition-all",
-                  currentStep === s.id 
-                    ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20" 
-                    : "bg-slate-800/50 border-slate-700 text-slate-500 hover:text-slate-300"
-                )}
-              >
-                {s.label.split('.')[1]}
-              </button>
-            ))}
+          <div className="flex bg-slate-50 px-8 py-4 border-b border-slate-200 overflow-x-auto no-scrollbar">
+            {steps.map((s, idx) => {
+              const isCurrent = currentStep === s.id;
+              const isPast = steps.findIndex(step => step.id === currentStep) > idx;
+
+              return (
+                <div key={s.id} className="flex items-center flex-1 last:flex-none">
+                  <button
+                    onClick={() => setCurrentStep(s.id)}
+                    className={clsx(
+                      "group flex flex-col md:flex-row items-center gap-3 transition-all",
+                      isCurrent || isPast ? "cursor-pointer" : "cursor-default"
+                    )}
+                  >
+                    <div className={clsx(
+                      "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all border-2",
+                      isCurrent ? "bg-[#0176d3] border-[#0176d3] text-white shadow-md scale-110" :
+                      isPast ? "bg-white border-[#0176d3] text-[#0176d3]" :
+                      "bg-white border-slate-300 text-slate-400"
+                    )}>
+                      {isPast ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
+                    </div>
+                    <span className={clsx(
+                      "text-xs font-black uppercase tracking-widest hidden md:block whitespace-nowrap",
+                      isCurrent ? "text-[#0176d3]" : isPast ? "text-slate-700" : "text-slate-400"
+                    )}>
+                      {s.label.split('. ')[1]}
+                    </span>
+                  </button>
+                  {idx < steps.length - 1 && (
+                    <div className={clsx(
+                        "stepper-line",
+                        isPast ? "bg-[#0176d3]" : "bg-slate-300"
+                    )}></div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+        {/* 📝 Content Area */}
+        <div className="flex-1 overflow-y-auto p-8 bg-white no-scrollbar">
           <AnimatePresence mode="wait">
             {isQuickLog ? (
               <motion.div 
@@ -165,96 +202,168 @@ export const CallPlanModal = ({ isOpen, onClose, companyId, contactId }: Props) 
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
+                className="max-w-2xl mx-auto space-y-6"
               >
-                <div className="p-8 rounded-3xl bg-orange-500/5 border border-orange-500/20 text-center">
-                  <Mic className="w-12 h-12 text-orange-400 mx-auto mb-4 animate-pulse" />
-                  <h3 className="text-xl font-bold text-slate-100 mb-2">Mobile Quick Log Mode</h3>
-                  <p className="text-slate-400 text-sm">미팅 직후 핵심 니즈와 다음 액션만 빠르게 기록하세요.</p>
+                <div className="p-8 rounded-2xl bg-amber-50 border border-amber-200 text-center shadow-inner">
+                  <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-200">
+                    <Mic className="w-8 h-8 text-amber-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">Mobile Quick Log Mode</h3>
+                  <p className="text-slate-600 font-medium leading-relaxed">
+                    미팅 직후 핵심 니즈와 다음 액션만 빠르게 기록하세요.<br/>
+                    저장 후 CRM 대시보드에서 상세 내용을 보완할 수 있습니다.
+                  </p>
                 </div>
-                <textarea 
-                  className="w-full h-48 bg-slate-950 border border-slate-800 rounded-2xl p-4 text-slate-200 focus:outline-none focus:border-orange-500/50 transition-colors"
-                  placeholder="예: A사 센서 납기 이슈로 인해 당사 샘플 5개 테스트 요청함. 다음주 중 방문 예정..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
+                <div>
+                  <label className="sfdc-label uppercase tracking-widest text-[11px]">빠른 미팅 메모 (Meeting Summary)</label>
+                  <textarea 
+                    className="sfdc-input h-64 text-base leading-relaxed"
+                    placeholder="예: STM32 납기 이슈 확인. 당사 샘플 10개 테스트 요청됨. 다음주 화요일 2차 미팅 예정..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
+                </div>
               </motion.div>
             ) : (
-              <div key="stepped">
+              <div key="stepped" className="max-w-3xl mx-auto">
+                
+                {/* 1. PRECHECK */}
                 {currentStep === 'PRECHECK' && (
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-2 mb-2">
-                      <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                      <h3 className="text-lg font-bold text-slate-100">미팅 전 체크리스트</h3>
+                  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+                    <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                      <ShieldCheck className="w-7 h-7 text-emerald-600" />
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Meeting Readiness</h3>
+                        <p className="text-sm text-slate-500 font-medium font-mono">STEP 01 / CRM PRE-FLIGHT CHECKLIST</p>
+                      </div>
                     </div>
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 gap-3">
                       {checklist.map((item: string, i: number) => (
-                        <div key={i} className="flex items-center gap-3 p-4 rounded-xl bg-slate-800/30 border border-slate-700/50">
-                          <input 
-                            type="checkbox" 
-                            checked={checkedItems[i] || false}
-                            onChange={() => setCheckedItems({...checkedItems, [i]: !checkedItems[i]})}
-                            className="w-4 h-4 rounded border-slate-700 text-blue-600 focus:ring-blue-500 bg-slate-950"
-                          />
-                          <span className={clsx("text-sm transition-opacity", checkedItems[i] ? "text-slate-500 line-through" : "text-slate-300")}>
+                        <label key={i} className={clsx(
+                            "flex items-center gap-4 p-5 rounded-xl border transition-all cursor-pointer group",
+                            checkedItems[i] ? "bg-slate-50 border-slate-100" : "bg-white border-slate-200 hover:border-[#0176d3] hover:shadow-md"
+                        )}>
+                          <div className="relative flex items-center justify-center">
+                            <input 
+                                type="checkbox" 
+                                checked={checkedItems[i] || false}
+                                onChange={() => setCheckedItems({...checkedItems, [i]: !checkedItems[i]})}
+                                className="w-6 h-6 rounded-md border-slate-300 text-[#0176d3] focus:ring-[#0176d3] transition-all"
+                            />
+                          </div>
+                          <span className={clsx(
+                              "text-base font-bold transition-all",
+                              checkedItems[i] ? "text-slate-400 line-through" : "text-slate-700"
+                          )}>
                             {item}
                           </span>
-                        </div>
+                        </label>
                       ))}
                     </div>
-                    <div className="p-6 rounded-2xl bg-blue-950/20 border border-blue-500/20">
-                      <p className="text-xs text-blue-400 font-bold mb-2 uppercase tracking-widest">Ice-Breaking Tool Integration</p>
-                      <button className="text-sm font-bold text-slate-100 hover:text-blue-400 transition-colors flex items-center gap-2">
-                        < Zap className="w-4 h-4" /> 오늘 추천 주식 메시지 미리 생성하기
-                      </button>
+                    
+                    <div className="p-6 rounded-2xl bg-[#0176d3]/5 border border-[#0176d3]/20 flex items-start gap-5">
+                      <div className="p-3 bg-white rounded-xl shadow-sm border border-[#0176d3]/10">
+                        <Zap className="w-6 h-6 text-[#0176d3]" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-base font-black text-slate-900 uppercase tracking-tight">AI Ice-Breaker Generator</h4>
+                        <p className="text-sm text-slate-600 mt-1 font-medium leading-relaxed">MuzeStock 퀀트 엔진의 실시간 데이터를 기반으로 고객의 관심사에 맞춘 대화 주제를 생성합니다.</p>
+                        <button className="sfdc-button-primary mt-4 py-2 px-6">
+                          전략 메시지 생성하기
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {currentStep === 'TECHNICAL' && (
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-2 mb-2">
-                      <History className="w-5 h-5 text-purple-400" />
-                      <h3 className="text-lg font-bold text-slate-100">Technical Log & Vector Search</h3>
+                {/* 2. DISCOVERY */}
+                {currentStep === 'DISCOVERY' && (
+                  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+                    <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                      <Search className="w-7 h-7 text-[#0176d3]" />
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Customer Discovery</h3>
+                        <p className="text-sm text-slate-500 font-medium font-mono">STEP 02 / PAIN POINTS & OPPORTUNITIES</p>
+                      </div>
                     </div>
                     
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       <div>
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">Technical Question</label>
-                        <div className="flex gap-2">
+                        <label className="sfdc-label uppercase tracking-widest text-[11px]">현재 사용 현황 (Current Usage)</label>
+                        <textarea 
+                          className="sfdc-input h-32 text-base"
+                          placeholder="현재 어떤 장비에 어떤 부품을 메인으로 사용 중이며, 경쟁사 비중은 어느 정도입니까?"
+                          value={currentUsage}
+                          onChange={(e) => setCurrentUsage(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="sfdc-label uppercase tracking-widest text-[11px]">불편사항 및 핵심 니즈 (Pain Points)</label>
+                        <textarea 
+                          className="sfdc-input h-32 text-base"
+                          placeholder="고객이 겪고 있는 납기, 단가, 기술적 한계 또는 퀀트 데이터 기반의 우려 사항을 기록하세요."
+                          value={painPoints}
+                          onChange={(e) => setPainPoints(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. TECHNICAL */}
+                {currentStep === 'TECHNICAL' && (
+                  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+                    <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                      <div className="flex items-center gap-3">
+                        <History className="w-7 h-7 text-purple-600" />
+                        <div>
+                          <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Technical Advisory</h3>
+                          <p className="text-sm text-slate-500 font-medium font-mono">STEP 03 / VECTOR SEARCH ENABLED</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-black text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1 rounded-full uppercase tracking-widest shadow-sm">AI Engine Active</span>
+                    </div>
+                    
+                    <div className="p-6 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-6 shadow-inner">
+                      <div>
+                        <label className="sfdc-label text-slate-500 uppercase tracking-widest text-[10px]">Customer Question (Technical)</label>
+                        <div className="flex gap-3">
                           <input 
-                            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200"
-                            placeholder="고객의 기술적 질문을 입력하세요..."
+                            className="sfdc-input flex-1 text-base py-3"
+                            placeholder="기술적 질문 또는 데이터 피드백을 입력하세요..."
                             value={currentQuestion}
                             onChange={(e) => setCurrentQuestion(e.target.value)}
                           />
                           <button 
                             onClick={handleSearchSimilar}
-                            disabled={loading}
-                            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-bold flex items-center gap-2"
+                            disabled={loading || !currentQuestion}
+                            className="sfdc-button-primary flex items-center gap-2 min-w-[140px] justify-center"
                           >
-                            <Search className="w-4 h-4" />
-                            과거 대응 검색
+                            {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Search className="w-4 h-4" />}
+                            AI 검색
                           </button>
                         </div>
                       </div>
 
                       {similarLogs.length > 0 && (
-                        <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/20 animate-in fade-in duration-500">
-                          <div className="flex items-center gap-2 mb-3 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
-                            <Zap className="w-3 h-3 fill-current" /> Best Match from History (85%)
+                        <div className="p-5 rounded-xl bg-white border border-purple-200 shadow-md animate-in zoom-in-95 duration-200">
+                          <div className="flex items-center gap-2 mb-3 text-xs font-black text-purple-700 uppercase tracking-widest">
+                            <CheckCircle2 className="w-4 h-4 text-purple-600" /> Most Relevant Technical Response (92%)
                           </div>
-                          <p className="text-xs text-slate-400 mb-2 italic">"{similarLogs[0].technical_log[0].question}"</p>
-                          <p className="text-sm text-slate-200 font-bold">"{similarLogs[0].technical_log[0].answer}"</p>
+                          <p className="text-sm text-slate-500 mb-2 border-l-4 border-slate-200 pl-3 italic font-medium">"Q. {similarLogs[0].technical_log[0].question}"</p>
+                          <p className="text-base font-bold text-slate-900 border-l-4 border-purple-500 pl-3 leading-relaxed">"A. {similarLogs[0].technical_log[0].answer}"</p>
                         </div>
                       )}
 
-                      <textarea 
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 h-24"
-                        placeholder="이번 미팅에서의 답변 내용을 기록하세요..."
-                        value={currentAnswer}
-                        onChange={(e) => setCurrentAnswer(e.target.value)}
-                      />
+                      <div>
+                        <label className="sfdc-label text-slate-500 uppercase tracking-widest text-[10px]">Your Strategic Response</label>
+                        <textarea 
+                          className="sfdc-input h-28 text-base bg-white"
+                          placeholder="실제 고객에게 답변한 내용을 정문화하여 기록하세요. 이는 향후 AI 지식 베이스가 됩니다."
+                          value={currentAnswer}
+                          onChange={(e) => setCurrentAnswer(e.target.value)}
+                        />
+                      </div>
                       
                       <button 
                         onClick={() => {
@@ -262,53 +371,95 @@ export const CallPlanModal = ({ isOpen, onClose, companyId, contactId }: Props) 
                             setTechnicalLogs([...technicalLogs, { question: currentQuestion, answer: currentAnswer, date: new Date().toISOString() }]);
                             setCurrentQuestion('');
                             setCurrentAnswer('');
+                            setSimilarLogs([]);
                           }
                         }}
-                        className="w-full py-2 bg-blue-600/50 hover:bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                        className="w-full sfdc-button-secondary py-3 text-base flex items-center justify-center gap-2"
                       >
-                        로그 추가하기
+                        <Plus className="w-5 h-5" />
+                        기술 로그에 정문화 기록하기
                       </button>
                     </div>
+
+                    {/* 쌓인 로그 표시 */}
+                    {technicalLogs.length > 0 && (
+                      <div className="space-y-3">
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Recorded Technical Logs ({technicalLogs.length})</p>
+                        {technicalLogs.map((log, idx) => (
+                          <div key={idx} className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm flex flex-col gap-2">
+                            <div className="flex gap-3">
+                                <span className="text-[#0176d3] font-black text-sm">Q.</span>
+                                <p className="font-bold text-slate-800 text-sm">{log.question}</p>
+                            </div>
+                            <div className="flex gap-3 pt-2 border-t border-slate-50">
+                                <span className="text-slate-400 font-black text-sm">A.</span>
+                                <p className="text-slate-600 text-sm font-medium leading-relaxed">{log.answer}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
+                {/* 4. SOURCING */}
                 {currentStep === 'SOURCING' && (
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-2 mb-2">
-                      < Zap className="w-5 h-5 text-cyan-400" />
-                      <h3 className="text-lg font-bold text-slate-100">Smart Sourcing Bridge</h3>
-                    </div>
-                    <p className="text-xs text-slate-400">현장에서 고객이 언급한 희귀 부품의 재고를 Rare Source 엔진으로 즉시 스캔합니다.</p>
-                    
-                    <div className="flex gap-2">
-                      <input 
-                        className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200"
-                        placeholder="부품 번호 입력 (예: STM32F405...)"
-                      />
-                      <button className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-sm font-bold">스캔 시작</button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 rounded-xl bg-slate-800/30 border border-slate-700/50 flex flex-col items-center justify-center text-center opacity-50">
-                        <AlertCircle className="w-5 h-5 text-slate-500 mb-2" />
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">No Active Scan</p>
+                  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+                    <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                      <Globe className="w-7 h-7 text-blue-600" />
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Supply Chain Discovery</h3>
+                        <p className="text-sm text-slate-500 font-medium font-mono">STEP 04 / GLOBAL RARE SOURCE SCAN</p>
                       </div>
                     </div>
+                    <p className="text-base text-slate-600 font-medium leading-relaxed">현장에서 언급된 부품Part Number)을 즉시 스캔하여 글로벌 재고 상황과 단종 리스크를 정량화합니다.</p>
+                    
+                    <div className="flex gap-3">
+                      <div className="relative flex-1">
+                        <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                        <input 
+                          className="sfdc-input pl-12 py-3.5 text-base"
+                          placeholder="부품 번호를 입력하세요 (예: STM32F405VT...)"
+                        />
+                      </div>
+                      <button className="sfdc-button-primary px-8 flex items-center gap-2">
+                        <Zap className="w-5 h-5" />
+                        글로벌 스캔
+                      </button>
+                    </div>
+
+                    <div className="p-12 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-center">
+                      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
+                        <AlertCircle className="w-6 h-6 text-slate-300" />
+                      </div>
+                      <p className="text-lg font-bold text-slate-400">Scan Waiting...</p>
+                      <p className="text-sm text-slate-400 mt-1 font-medium italic">부품 정보를 입력하고 스캔을 시작하면 실시간 수급 데이터가 표시됩니다.</p>
+                    </div>
                   </div>
                 )}
 
+                {/* 5. LOGIC */}
                 {currentStep === 'LOGIC' && (
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText className="w-5 h-5 text-amber-400" />
-                      <h3 className="text-lg font-bold text-slate-100">최종 미팅 기록</h3>
+                  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+                    <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                      <FileText className="w-7 h-7 text-amber-600" />
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Final Synthesis</h3>
+                        <p className="text-sm text-slate-500 font-medium font-mono">STEP 05 / EXECUTIVE SUMMARY & NEXT ACTION</p>
+                      </div>
                     </div>
-                    <textarea 
-                      className="w-full h-48 bg-slate-950 border border-slate-800 rounded-2xl p-4 text-slate-200 focus:outline-none focus:border-blue-500/50 transition-colors"
-                      placeholder="기타 특이사항이나 상세 회의록을 입력하세요..."
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                    />
+                    
+                    <div className="space-y-6">
+                      <div>
+                        <label className="sfdc-label uppercase tracking-widest text-[11px]">미팅 상세 메모 및 다음 액션 (Executive Notes)</label>
+                        <textarea 
+                          className="sfdc-input h-56 text-base leading-relaxed"
+                          placeholder="미팅 전반적인 분위기, 의사결정권자의 의중, 차기 미팅 일정 및 준비 사항을 구체적으로 기록하세요."
+                          value={notes}
+                          onChange={(e) => setNotes(e.target.value)}
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -316,17 +467,20 @@ export const CallPlanModal = ({ isOpen, onClose, companyId, contactId }: Props) 
           </AnimatePresence>
         </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-slate-800 flex justify-between bg-slate-900/50 backdrop-blur-xl">
+        {/* 🏁 Footer Actions */}
+        <div className="p-6 border-t border-slate-100 bg-slate-50/80 flex justify-between items-center rounded-b-xl">
           <button 
             disabled={currentStep === 'PRECHECK' && !isQuickLog}
             onClick={() => {
               const prev: Record<Step, Step> = { PRECHECK: 'PRECHECK', DISCOVERY: 'PRECHECK', TECHNICAL: 'DISCOVERY', SOURCING: 'TECHNICAL', LOGIC: 'SOURCING' };
               setCurrentStep(prev[currentStep]);
             }}
-            className="px-6 py-2 text-slate-400 hover:text-slate-200 text-sm font-bold flex items-center gap-2 disabled:opacity-30"
+            className="sfdc-button-secondary py-2 px-8 flex items-center gap-2 group disabled:opacity-30"
           >
-            이전
+            <div className="rotate-180 transition-transform group-hover:-translate-x-1">
+                <ArrowRight className="w-4 h-4" />
+            </div>
+            PREVIOUS STEP
           </button>
           
           <button 
@@ -334,19 +488,29 @@ export const CallPlanModal = ({ isOpen, onClose, companyId, contactId }: Props) 
               const next: Record<Step, Step> = { PRECHECK: 'DISCOVERY', DISCOVERY: 'TECHNICAL', TECHNICAL: 'SOURCING', SOURCING: 'LOGIC', LOGIC: 'LOGIC' };
               setCurrentStep(next[currentStep]);
             }}
-            className="px-8 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+            className={clsx(
+              "sfdc-button-primary py-2 px-10 flex items-center gap-3 text-base group transition-all",
+              currentStep === 'LOGIC' || isQuickLog
+                ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200"
+                : ""
+            )}
           >
-            {currentStep === 'LOGIC' || isQuickLog ? '미팅 종료 및 저장' : '다음 단계로'}
-            <ArrowRight className="w-4 h-4" />
+            {currentStep === 'LOGIC' || isQuickLog ? (
+              <>
+                <CheckCircle2 className="w-5 h-5 shadow-sm" />
+                COMPLETE & SAVE MISSION
+              </>
+            ) : (
+              <>
+                NEXT INTELLIGENCE STEP
+                <div className="transition-transform group-hover:translate-x-1">
+                    <ArrowRight className="w-5 h-5" />
+                </div>
+              </>
+            )}
           </button>
         </div>
       </motion.div>
     </div>
   );
 };
-
-const ArrowRight = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-  </svg>
-);

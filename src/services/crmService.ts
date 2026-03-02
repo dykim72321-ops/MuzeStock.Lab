@@ -101,11 +101,21 @@ export const updateCrmProjectStage = async (id: string, stage: string, velocityU
 
 // --- Call Plans ---
 export const getCallPlans = async (companyId?: string) => {
-  let query = supabase.from('crm_call_plans').select('*, crm_contacts(name)');
+  let query = supabase.from('crm_call_plans').select('*, crm_contacts(name), crm_projects(title)');
   if (companyId) {
     query = query.eq('company_id', companyId);
   }
   const { data, error } = await query.order('visit_date', { ascending: false });
+  if (error) throw error;
+  return data as (CallPlan & { crm_contacts: { name: string }, crm_projects: { title: string } })[];
+};
+
+export const getCallPlansByProject = async (projectId: string) => {
+  const { data, error } = await supabase
+    .from('crm_call_plans')
+    .select('*, crm_contacts(name)')
+    .eq('project_id', projectId)
+    .order('visit_date', { ascending: false });
   if (error) throw error;
   return data as (CallPlan & { crm_contacts: { name: string } })[];
 };
@@ -118,6 +128,22 @@ export const createCallPlan = async (callPlan: Partial<CallPlan>) => {
     .single();
   if (error) throw error;
   return data as CallPlan;
+};
+
+// --- Project Intelligence & Timeline ---
+export const getProjectTimeline = async (projectId: string) => {
+  // Aggregate all related data for a project comprehensive view
+  const [project, callPlans, sourcing] = await Promise.all([
+    supabase.from('crm_projects').select('*, crm_companies(*)').eq('id', projectId).single(),
+    getCallPlansByProject(projectId),
+    supabase.from('crm_sourced_parts').select('*').eq('project_id', projectId)
+  ]);
+
+  return {
+    project: project.data,
+    history: callPlans,
+    sourcingRisk: sourcing.data
+  };
 };
 
 // --- Vector Intelligence ---

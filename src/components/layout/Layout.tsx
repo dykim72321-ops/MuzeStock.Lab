@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { Sidebar } from '../../layout/Sidebar';
+import { TopNav } from './TopNav';
 import { LayoutDashboard, List, Settings, Zap, Search } from 'lucide-react';
 import clsx from 'clsx';
 import { useMarketPulse } from '../../hooks/useMarketPulse';
@@ -10,17 +10,17 @@ export const Layout = () => {
   const lastSignal = useMarketPulse();
 
   return (
-    <div className="flex min-h-screen text-slate-100 font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
-      <Toaster position="top-right" theme="dark" />
+    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
+      <Toaster position="top-right" theme="light" />
 
       {/* ⚡ Realtime Pulse Indicator (Global) */}
-      <div className="fixed top-4 right-4 z-[100] flex items-center gap-2 pointer-events-none">
+      <div className="fixed top-20 right-4 z-[90] flex items-center gap-2 pointer-events-none">
         {lastSignal && (
           <div className={clsx(
-            "px-3 py-1.5 rounded-full border shadow-[0_0_20px_rgba(0,0,0,0.5)] backdrop-blur-3xl flex items-center gap-2 animate-in slide-in-from-top-2 duration-300",
-            lastSignal.signal === 'OVERSOLD' ? "bg-emerald-950/40 border-emerald-500/30 text-emerald-400" :
-              lastSignal.signal === 'OVERBOUGHT' ? "bg-rose-950/40 border-rose-500/30 text-rose-400" :
-                "bg-slate-900/40 border-white/10 text-slate-300"
+            "px-3 py-1.5 rounded-full border shadow-lg backdrop-blur-md flex items-center gap-2 animate-in slide-in-from-top-2 duration-300",
+            lastSignal.signal === 'OVERSOLD' ? "bg-emerald-50 border-emerald-200 text-emerald-700" :
+              lastSignal.signal === 'OVERBOUGHT' ? "bg-rose-50 border-rose-200 text-rose-700" :
+                "bg-white border-slate-200 text-slate-600"
           )}>
             <Zap className={clsx("w-3 h-3 fill-current", lastSignal ? "animate-pulse" : "")} />
             <span className="text-xs font-bold font-mono">
@@ -30,35 +30,31 @@ export const Layout = () => {
         )}
       </div>
 
-      {/* 고정 사이드바 너비 확보 */}
-      <aside className="hidden lg:block fixed inset-y-0 left-0 w-64 z-50">
-        <Sidebar />
-      </aside>
+      {/* 상단 네비게이션 */}
+      <TopNav />
 
-      {/* 메인 콘텐츠 영역 (스크롤 가능) */}
-      <main className="flex-1 lg:ml-64 relative min-h-screen overflow-y-auto overflow-x-hidden pb-20 lg:pb-0 transition-all duration-300">
-        {/* 상단 여백 및 좌우 패딩을 넉넉하게 주어 데이터에 집중하게 함 */}
+      {/* 메인 콘텐츠 영역 */}
+      <main className="flex-1 relative min-h-screen overflow-y-auto overflow-x-hidden pb-20 lg:pb-0 transition-all duration-300">
         <div className="w-full max-w-[2000px] mx-auto p-4 md:p-8 lg:p-10">
           <Outlet />
         </div>
       </main>
 
-      {/* Mobile Nav Bar */}
-      <div className="lg:hidden fixed bottom-4 left-4 right-4 h-16 bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-2xl flex items-center justify-around px-2 z-50 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-cyan-500/5 rounded-2xl pointer-events-none" />
-        <NavLink to="/" className={({ isActive }) => clsx("flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors relative z-10", isActive ? "text-cyan-400 bg-white/5" : "text-slate-500")}>
+      {/* Mobile Nav Bar - Updated for Light Theme */}
+      <div className="lg:hidden fixed bottom-4 left-4 right-4 h-16 bg-white/80 backdrop-blur-xl border border-slate-200 rounded-2xl flex items-center justify-around px-2 z-50 shadow-xl">
+        <NavLink to="/" className={({ isActive }) => clsx("flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors relative z-10", isActive ? "text-[#0176d3] bg-blue-50" : "text-slate-500")}>
           <LayoutDashboard className="w-5 h-5" />
           <span className="text-[10px] font-bold">발굴</span>
         </NavLink>
-        <NavLink to="/scanner" className={({ isActive }) => clsx("flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors relative z-10", isActive ? "text-cyan-400 bg-white/5" : "text-slate-500")}>
+        <NavLink to="/scanner" className={({ isActive }) => clsx("flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors relative z-10", isActive ? "text-[#0176d3] bg-blue-50" : "text-slate-500")}>
           <Search className="w-5 h-5" />
           <span className="text-[10px] font-bold">스캐너</span>
         </NavLink>
-        <NavLink to="/watchlist" className={({ isActive }) => clsx("flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors relative z-10", isActive ? "text-cyan-400 bg-white/5" : "text-slate-500")}>
+        <NavLink to="/watchlist" className={({ isActive }) => clsx("flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors relative z-10", isActive ? "text-[#0176d3] bg-blue-50" : "text-slate-500")}>
           <List className="w-5 h-5" />
           <span className="text-[10px] font-bold">관심종목</span>
         </NavLink>
-        <NavLink to="/settings" className={({ isActive }) => clsx("flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors relative z-10", isActive ? "text-cyan-400 bg-white/5" : "text-slate-500")}>
+        <NavLink to="/settings" className={({ isActive }) => clsx("flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors relative z-10", isActive ? "text-[#0176d3] bg-blue-50" : "text-slate-500")}>
           <Settings className="w-5 h-5" />
           <span className="text-[10px] font-bold">설정</span>
         </NavLink>
@@ -66,3 +62,4 @@ export const Layout = () => {
     </div>
   );
 };
+

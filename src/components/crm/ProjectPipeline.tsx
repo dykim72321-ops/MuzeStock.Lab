@@ -9,13 +9,13 @@ import type { ProjectStage } from '../../types/crm';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
 
-const STAGES: { id: ProjectStage; label: string; color: string }[] = [
-  { id: 'NEEDS', label: '니즈파악', color: 'bg-slate-800' },
-  { id: 'SAMPLE', label: '샘플제안', color: 'bg-blue-900/40' },
-  { id: 'TEST', label: '테스트/검증', color: 'bg-indigo-900/40' },
-  { id: 'NEGOTIATION', label: '단가협의', color: 'bg-amber-900/40' },
-  { id: 'WIN', label: '수주완료', color: 'bg-emerald-900/40' },
-  { id: 'DROP', label: '실패', color: 'bg-rose-900/40' },
+const STAGES: { id: ProjectStage; label: string; color: string; border: string; text: string }[] = [
+  { id: 'NEEDS', label: '니즈파악', color: 'bg-slate-100', border: 'border-slate-200', text: 'text-slate-600' },
+  { id: 'SAMPLE', label: '샘플제안', color: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-700' },
+  { id: 'TEST', label: '테스트/검증', color: 'bg-purple-50', border: 'border-purple-100', text: 'text-purple-700' },
+  { id: 'NEGOTIATION', label: '단가협의', color: 'bg-amber-50', border: 'border-amber-100', text: 'text-amber-700' },
+  { id: 'WIN', label: '수주완료', color: 'bg-emerald-50', border: 'border-emerald-100', text: 'text-emerald-700' },
+  { id: 'DROP', label: '실패', color: 'bg-rose-50', border: 'border-rose-100', text: 'text-rose-700' },
 ];
 
 export const ProjectPipeline = () => {
@@ -48,27 +48,27 @@ export const ProjectPipeline = () => {
   };
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-6 no-scrollbar">
+    <div className="flex gap-6 overflow-x-auto pb-8 no-scrollbar px-2">
       {STAGES.map((stage) => (
         <div 
           key={stage.id}
-          className="flex-shrink-0 w-80 flex flex-col gap-4"
+          className="flex-shrink-0 w-80 flex flex-col gap-5"
         >
           {/* Column Header */}
-          <div className="flex items-center justify-between px-2">
-            <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-              <span className={clsx("w-1.5 h-1.5 rounded-full", stage.color.replace('bg-', 'bg-').replace('/40', ''))}></span>
+          <div className="flex items-center justify-between px-4 py-2 bg-white rounded-t-xl border-x border-t border-slate-200 shadow-sm">
+            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+              <span className={clsx("w-2 h-2 rounded-full shadow-sm", stage.text.replace('text-', 'bg-'))}></span>
               {stage.label}
-              <span className="ml-1 text-[10px] opacity-50">({getProjectsByStage(stage.id).length})</span>
+              <span className="ml-1 opacity-40 font-black tabular-nums">({getProjectsByStage(stage.id).length})</span>
             </h3>
-            <button className="p-1 hover:bg-slate-800 rounded-md transition-colors">
-              <Plus className="w-3 h-3 text-slate-500" />
+            <button className="p-1.5 hover:bg-slate-50 rounded-md transition-colors text-slate-400 hover:text-[#0176d3]">
+              <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
 
           {/* Kanban Cards Container */}
           <div className={clsx(
-            "flex-1 p-3 rounded-[32px] border border-slate-800/50 min-h-[500px] space-y-3",
+            "flex-1 p-4 rounded-b-xl border-x border-b border-slate-200 min-h-[600px] space-y-4 shadow-inner",
             stage.color
           )}>
             {getProjectsByStage(stage.id).map((project, idx) => (
@@ -77,24 +77,24 @@ export const ProjectPipeline = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                className="group relative p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-blue-500/50 shadow-lg cursor-pointer transition-all"
+                className="group relative p-5 rounded-xl bg-white border border-slate-200 hover:border-[#0176d3]/40 shadow-sm hover:shadow-xl cursor-pointer transition-all active:scale-[0.98]"
               >
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-sm font-bold text-slate-100 line-clamp-2 leading-tight group-hover:text-blue-400 transition-colors">
+                <div className="flex justify-between items-start mb-3">
+                  <h4 className="text-sm font-black text-slate-900 line-clamp-2 leading-tight group-hover:text-[#0176d3] transition-colors">
                     {project.title}
                   </h4>
                 </div>
                 
-                <div className="space-y-2">
-                  <p className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5">
-                    <Target className="w-3 h-3" />
-                    {project.crm_companies?.name}
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <Target className="w-3.5 h-3.5 text-[#0176d3]" />
+                    {project.crm_companies?.name || '미지정 기업'}
                   </p>
                   
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800/50">
+                  <div className="flex items-center justify-between mt-5 pt-4 border-t border-slate-50">
                     <div className="flex flex-col">
-                      <span className="text-[9px] text-slate-500 uppercase font-black tracking-tighter">Expected</span>
-                      <span className="text-xs font-mono font-bold text-slate-200">
+                      <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest">Expected Val</span>
+                      <span className="text-sm font-black text-slate-800 tabular-nums">
                         ${(project.expected_value / 1000).toFixed(1)}K
                       </span>
                     </div>
@@ -102,13 +102,12 @@ export const ProjectPipeline = () => {
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Find next stage
                         const currentIdx = STAGES.findIndex(s => s.id === stage.id);
                         if (currentIdx < STAGES.length - 1) {
                           handleStageChange(project.id, STAGES[currentIdx + 1].id);
                         }
                       }}
-                      className="p-2 rounded-xl bg-slate-800 hover:bg-blue-600 hover:text-white text-slate-400 transition-all active:scale-95"
+                      className="p-2.5 rounded-lg bg-slate-50 hover:bg-[#0176d3] text-slate-400 hover:text-white transition-all active:scale-90 border border-slate-100 shadow-sm"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
@@ -118,8 +117,9 @@ export const ProjectPipeline = () => {
             ))}
             
             {getProjectsByStage(stage.id).length === 0 && (
-              <div className="h-20 flex items-center justify-center border border-dashed border-slate-800 rounded-2xl opacity-30">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">No Projects</span>
+              <div className="h-28 flex flex-col items-center justify-center border-2 border-dashed border-slate-200/50 rounded-2xl opacity-40 bg-white/50">
+                <Plus className="w-5 h-5 text-slate-300 mb-2" />
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Add Opportunity</span>
               </div>
             )}
           </div>
