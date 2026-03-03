@@ -6,7 +6,7 @@ description: 오늘의 추천 종목 생성 워크플로우 (Quant Hybrid Pipeli
 
 ## 개요
 
-MuzeStock.Lab의 "오늘의 추천 종목"은 단순한 기술적 지표를 넘어, **파이썬 퀀트
+MuzeBIZ.Lab의 "오늘의 추천 종목"은 단순한 기술적 지표를 넘어, **파이썬 퀀트
 엔진의 자동 백테스팅(Simulation)**을 통해 검증된 종목만을 선별합니다.
 
 ---

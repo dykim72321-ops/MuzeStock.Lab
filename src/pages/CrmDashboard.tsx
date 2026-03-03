@@ -337,7 +337,7 @@ export function CrmDashboard() {
                   exit={{ opacity: 0, scale: 0.95 }}
                   className="bg-white rounded-3xl border border-slate-200 p-12 shadow-sm text-center"
                 >
-                  <h3 className="text-xl font-black text-slate-800 mb-12">MuzeStock.Lab R&R Structure</h3>
+                  <h3 className="text-xl font-black text-slate-800 mb-12">MuzeBIZ.Lab R&R Structure</h3>
                   <div className="flex flex-col items-center gap-16">
                     <OrgProfile name="최지휘" role="Lab Lead" desc="전략 수립 및 AI 모델 총괄" />
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 w-full max-w-4xl">

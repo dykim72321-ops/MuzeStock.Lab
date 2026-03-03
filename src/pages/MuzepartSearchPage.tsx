@@ -324,20 +324,43 @@ const SearchPlatform: React.FC = () => {
   };
 
   // --- Smart Link Reconstruction ---
+  const openExternalLink = (url: string) => {
+    // Solution 2: rel="noreferrer" ಉಜಾ (Bypass referrer checks that cause redirects to homepage)
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noreferrer noopener';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const getDistributorUrl = (part: ComponentPart) => {
-    if (part.product_url) return part.product_url;
-    
-    // Fallback logic based on distributor name
-    const q = part.mpn;
+    const q = encodeURIComponent(part.mpn);
     const dist = part.distributor.toLowerCase();
     
-    if (dist.includes('mouser')) return `https://www.mouser.kr/Search/Refine?Keyword=${q}`;
-    if (dist.includes('digi-key')) return `https://www.digikey.kr/en/products/result?keywords=${q}`;
+    // 1. Prioritize Direct Deep Links for Major Distributors 
+    // (Bypasses third-party affiliate tracking links which often result in broken redirects to homepages)
+    if (dist.includes('mouser')) return `https://www.mouser.com/Search/Refine?Keyword=${q}`;
+    if (dist.includes('digi-key') || dist.includes('digikey')) return `https://www.digikey.com/en/products/result?keywords=${q}`;
+    if (dist.includes('arrow')) return `https://www.arrow.com/en/products/search?q=${q}`;
+    if (dist.includes('avnet')) return `https://www.avnet.com/shop/us/search/${q}`;
+    if (dist.includes('element14') || dist.includes('farnell') || dist.includes('newark')) return `https://www.newark.com/search?st=${q}`;
+    if (dist.includes('future')) return `https://www.futureelectronics.com/search/?text=${q}`;
+    if (dist.includes('rs component') || dist.includes('rs-online')) return `https://uk.rs-online.com/web/c/?searchTerm=${q}`;
+    if (dist.includes('verical')) return `https://www.verical.com/search?text=${q}`;
+    if (dist.includes('lcsc')) return `https://www.lcsc.com/search?q=${q}`;
+    if (dist.includes('tme')) return `https://www.tme.eu/en/katalog/?search=${q}`;
     if (dist.includes('win source')) return `https://www.win-source.net/search?q=${q}`;
     if (dist.includes('rochester')) return `https://www.rocelec.com/search?q=${q}`;
     if (dist.includes('flip')) return `https://www.flipelectronics.com/search?q=${q}`;
+    if (dist.includes('netcomponents')) return `https://www.netcomponents.com/results.htm?t=f&r=1&s=1&v=1&p=${q}`;
+
+    // 2. Fallback to aggregator tracking link if available
+    if (part.product_url) return part.product_url;
     
-    return `https://www.google.com/search?q=${part.distributor}+${q}`;
+    // 3. Final Fallback: Google search
+    return `https://www.google.com/search?q=${encodeURIComponent(part.distributor)}+${q}`;
   };
 
   const handleLock = async (part: ComponentPart) => {
@@ -545,7 +568,7 @@ const SearchPlatform: React.FC = () => {
                     {part.datasheet && (
                       <button 
                         className="btn-table-action"
-                        onClick={() => window.open(part.datasheet, '_blank')}
+                        onClick={() => part.datasheet && openExternalLink(part.datasheet)}
                         title="View PDF Datasheet"
                       >📄</button>
                     )}
@@ -553,14 +576,14 @@ const SearchPlatform: React.FC = () => {
                     {part.source_type === 'Deep Link' || part.stock === 0 ? (
                       <button 
                         className="sfdc-button"
-                        onClick={() => window.open(getDistributorUrl(part), '_blank')}
+                        onClick={() => openExternalLink(getDistributorUrl(part))}
                         style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
                         title="Check price and availability on Distributor site"
                       >🔗 Check Site</button>
                     ) : (
                       <button 
                         className="btn-table-action"
-                        onClick={() => window.open(getDistributorUrl(part), '_blank')}
+                        onClick={() => openExternalLink(getDistributorUrl(part))}
                         title={`Buy ${part.mpn} at ${part.distributor}`}
                       >🛒</button>
                     )}
@@ -644,7 +667,7 @@ const SearchPlatform: React.FC = () => {
                     {hasDatasheet && (
                         <button 
                             className="btn-secondary-sm"
-                            onClick={() => window.open(part.datasheet, '_blank')}
+                            onClick={() => part.datasheet && openExternalLink(part.datasheet)}
                             title="View Datasheet"
                         >
                             📄 PDF
@@ -653,7 +676,7 @@ const SearchPlatform: React.FC = () => {
                     
                     <button 
                         className="btn-secondary-sm"
-                        onClick={() => window.open(getDistributorUrl(part), '_blank')}
+                        onClick={() => openExternalLink(getDistributorUrl(part))}
                         title="Visit Distributor Website to Purchase"
                     >
                         🛒 BUY AT SITE ↗

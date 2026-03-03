@@ -61,7 +61,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                             <HelpCircle className="w-5 h-5 text-indigo-400" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white">MuzeStock.Lab 터미널 가이드</h2>
+                            <h2 className="text-xl font-bold text-white">MuzeBIZ.Lab 터미널 가이드</h2>
                             <p className="text-xs text-slate-500 font-medium">실전 퀀트 시스템 핵심 활용 4단계 튜토리얼</p>
                         </div>
                     </div>

@@ -22,7 +22,7 @@ class WebhookManager:
                     "description": description,
                     "color": color,
                     "timestamp": datetime.utcnow().isoformat(),
-                    "footer": {"text": "MuzeStock.Lab Quant Engine"},
+                    "footer": {"text": "MuzeBIZ.Lab Quant Engine"},
                 }
             ]
         }

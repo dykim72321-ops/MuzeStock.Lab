@@ -1,4 +1,4 @@
-# 🚀 MuzeStock.Lab
+# 🚀 MuzeBIZ.Lab
 
 AI 기반 페니 스탁(Penny Stock) 분석 플랫폼
 
@@ -58,7 +58,7 @@ npx supabase link --project-ref drnxydtrsjumjksqmdgi
 ## 프로젝트 구조
 
 ```
-MuzeStock.Lab/
+MuzeBIZ.Lab/
 ├── src/
 │   ├── components/       # React 컴포넌트
 │   │   ├── analysis/     # AI 분석 관련

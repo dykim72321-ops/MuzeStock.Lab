@@ -50,7 +50,7 @@ paper_engine = None
 load_dotenv()
 
 app = FastAPI(
-    title="MuzeStock Technical Analysis API",
+    title="MuzeBIZ Technical Analysis API",
     description="Unified Python Platform for Stock Analysis & Discovery",
     version="2.1.0",
 )
@@ -140,7 +140,7 @@ class TechnicalIndicators(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "MuzeStock Unified Python Platform is running!"}
+    return {"message": "MuzeBIZ Unified Python Platform is running!"}
 
 
 # --- Rare Source Schemas & Engine ---
@@ -796,7 +796,7 @@ async def process_ticker_pulse(ticker_symbol: str):
                             if payload.get("signal") == "BUY"
                             else "🔴 STRONG SELL / SCALE_OUT"
                         )
-                        title = f"[MuzeStock Pulse] {ticker_symbol} {action}"
+                        title = f"[MuzeBIZ Pulse] {ticker_symbol} {action}"
                         desc = f"현재가: ${payload.get('price'):.2f} | RSI: {payload.get('rsi')}\n\n💡 {payload.get('ai_report', '')}"
                         await webhook.send_alert(
                             title=title, description=desc, color=color

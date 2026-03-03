@@ -28,7 +28,7 @@ export const TopNav = () => {
               <Dna className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-black tracking-tighter text-slate-800">
-              MuzeStock<span className="text-[#0176d3]">.Lab</span>
+              MuzeBIZ<span className="text-[#0176d3]">.Lab</span>
             </span>
           </NavLink>
 
@@ -57,14 +57,6 @@ export const TopNav = () => {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-4">
-          <div className="relative hidden md:block group">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#0176d3]" />
-            <input 
-              type="text" 
-              placeholder="데이터 검색..." 
-              className="pl-9 pr-4 py-2 w-64 bg-slate-100 border border-transparent focus:bg-white focus:border-[#0176d3] focus:ring-4 focus:ring-blue-100 rounded-lg text-sm transition-all outline-none text-slate-900"
-            />
-          </div>
 
           <button className="p-2 text-slate-500 hover:text-[#0176d3] hover:bg-slate-100 rounded-full transition-colors relative">
             <Bell className="w-5 h-5" />

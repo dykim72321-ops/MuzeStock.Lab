@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# MuzeStock.Lab Deployment Script
+# MuzeBIZ.Lab Deployment Script
 
-echo "🚀 Starting MuzeStock.Lab Deployment..."
+echo "🚀 Starting MuzeBIZ.Lab Deployment..."
 
 # 1. Build Frontend
 echo "📦 Building frontend..."

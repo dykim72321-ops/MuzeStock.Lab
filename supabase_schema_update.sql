@@ -1,5 +1,5 @@
 -- =========================================================================
--- MuzeStock.Lab - Supabase [realtime_signals] Schema Synchronization SQL
+-- MuzeBIZ.Lab - Supabase [realtime_signals] Schema Synchronization SQL
 -- =========================================================================
 -- 이 스크립트를 Supabase 대시보드의 SQL Editor에 붙여넣고 실행(Run)하세요.
 -- 기존에 테이블이 없으면 생성하고, 이미 있다면 누락된 컬럼만 안전하게 추가합니다.

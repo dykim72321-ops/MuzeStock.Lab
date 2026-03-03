@@ -1,5 +1,5 @@
 -- 20260221000000_create_paper_trading_tables.sql
--- Paper Trading Engine Schema for MuzeStock.Lab v2.0
+-- Paper Trading Engine Schema for MuzeBIZ.Lab v2.0
 
 -- 1. Paper Account Status (Single row tracking)
 CREATE TABLE IF NOT EXISTS public.paper_account (

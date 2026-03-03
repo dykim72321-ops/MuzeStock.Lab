@@ -289,7 +289,7 @@ class EngineValidator:
         # ── 결과 출력
         sep = "=" * 55
         print(f"\n{sep}")
-        print("  📊  MuzeStock.Lab  |  펄스 엔진 대규모 백테스트")
+        print("  📊  MuzeBIZ.Lab  |  펄스 엔진 대규모 백테스트")
         print(sep)
         print(
             f"  유니버스    : 미국 우량주 {len(self.tickers)}개 (실제 분석: {len(portfolio_returns)}개)"
@@ -402,7 +402,7 @@ class EngineValidator:
         # ── 3-컬럼 최종 비교표
         W = 65
         print("\n" + "=" * W)
-        print("  🏁  3-MODE 최종 비교표  |  MuzeStock.Lab 펄스 엔진")
+        print("  🏁  3-MODE 최종 비교표  |  MuzeBIZ.Lab 펄스 엔진")
         print("=" * W)
         hdr = f"  {'지표':<24} {'STRICT':>12} {'RELAXED':>12} {'MOMENTUM':>12}"
         print(hdr)

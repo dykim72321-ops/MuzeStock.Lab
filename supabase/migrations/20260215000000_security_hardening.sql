@@ -1,5 +1,5 @@
 -- 20260215000000_security_hardening.sql
--- MuzeStock.Lab Supabase Security Hardening Migration
+-- MuzeBIZ.Lab Supabase Security Hardening Migration
 
 -- 1. Enable RLS on all public tables
 ALTER TABLE IF EXISTS public.risk_audits ENABLE ROW LEVEL SECURITY;

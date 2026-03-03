@@ -1,5 +1,5 @@
 -- 20260215000001_security_hardening_phase2.sql
--- MuzeStock.Lab Supabase Security Hardening Phase 2
+-- MuzeBIZ.Lab Supabase Security Hardening Phase 2
 
 -- 1. Move Extensions to dedicated schema
 CREATE SCHEMA IF NOT EXISTS extensions;

@@ -326,7 +326,7 @@ export const DnaMatchView = () => {
             "{analysis.bullPoints?.[0] || "AI 분석 결과를 기반으로 투자 의견을 제공합니다."}"
           </p>
           <footer className="mt-3 text-sm text-slate-500 font-mono">
-            — MuzeStock.Lab Master AI • {new Date().toLocaleDateString('ko-KR')}
+            — MuzeBIZ.Lab Master AI • {new Date().toLocaleDateString('ko-KR')}
           </footer>
         </blockquote>
       )}

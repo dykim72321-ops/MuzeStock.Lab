@@ -1,5 +1,5 @@
 ---
-description: how to deploy MuzeStock.Lab
+description: how to deploy MuzeBIZ.Lab
 ---
 
 This workflow automates the deployment of the Supabase backend and the frontend
