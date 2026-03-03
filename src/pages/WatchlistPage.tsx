@@ -8,7 +8,11 @@ import { ResponsiveContainer, AreaChart, Area, YAxis, ReferenceLine, Tooltip as 
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { getWatchlist, removeFromWatchlist, type WatchlistItem } from '../services/watchlistService';
-import { fetchMultipleStocks } from '../services/stockService';
+import { 
+  fetchMultipleStocks, 
+  fetchStockQuote, 
+  fetchStockHistory 
+} from '../services/stockService';
 import type { Stock } from '../types';
 
 export const WatchlistPage = () => {
@@ -29,10 +33,15 @@ export const WatchlistPage = () => {
         const tickers = items.map(i => i.ticker);
         const stockData = await fetchMultipleStocks(tickers);
         
-        // Fetch history data concurrently for all stocks
-        const historyPromises = tickers.map(ticker => import('../services/stockService').then(m => m.fetchStockHistory(ticker)));
-        const historyResults = await Promise.all(historyPromises);
-        
+        // Fetch history sequentially to avoid 429 rate limits
+        const historyResults: any[] = [];
+        for (const ticker of tickers) {
+            const h = await fetchStockHistory(ticker);
+            historyResults.push(h);
+            // Wait 1500ms between requests to stay under rate limits (Yahoo is sensitive)
+            if (tickers.length > 1) await new Promise(r => setTimeout(r, 1500));
+        }
+
         // Map history back to stocks
         const enrichedStocks = stockData.map((stock, idx) => ({
             ...stock,

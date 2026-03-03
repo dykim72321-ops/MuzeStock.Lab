@@ -32,7 +32,6 @@ export const useMarketPulse = () => {
 
           // RSI 30 미만이면 즉각 알림 발송!
           if (signal.signal === 'OVERSOLD') {
-             // Toast 알림 (라이브러리 없으면 alert 대체 가능)
              try {
                 toast.error(`🚨 ${signal.ticker} 과매도 진입! (RSI: ${signal.value})`);
              } catch(e) {
@@ -42,15 +41,22 @@ export const useMarketPulse = () => {
              try {
                 toast.success(`📈 ${signal.ticker} 과매수 구간! (RSI: ${signal.value})`);
              } catch(e) {
-                
+                console.warn("Toast library not found:", e);
              }
           }
         }
-      )
-      .subscribe();
+      );
+
+    channel.subscribe((status) => {
+      if (status === 'CHANNEL_ERROR') {
+        console.error('WebSocket connection error');
+      }
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, []);
 

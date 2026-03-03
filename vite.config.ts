@@ -13,6 +13,11 @@ export default defineConfig({
         ws: true,
         rewrite: (path) => path.replace(/^\/py-api/, ''),
       },
+      '/yahoo-api': {
+        target: 'https://query1.finance.yahoo.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/yahoo-api/, ''),
+      },
     },
   },
 })

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, LabelList,
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
   XAxis, YAxis, CartesianGrid, BarChart, Bar
 } from 'recharts';
 import './MuzepartSearchPage.css';
@@ -355,7 +355,7 @@ const SearchPlatform: React.FC = () => {
     
     // 1. Prioritize Direct Deep Links for Major Distributors 
     // (Bypasses third-party affiliate tracking links which often result in broken redirects to homepages)
-    if (dist.includes('mouser')) return `https://www.mouser.com/Search/Refine?Keyword=${q}`;
+    if (dist.includes('mouser')) return `https://www.mouser.com/c/?q=${q}`;
     if (dist.includes('digi-key') || dist.includes('digikey')) return `https://www.digikey.com/en/products/result?keywords=${q}`;
     if (dist.includes('arrow')) return `https://www.arrow.com/en/products/search?q=${q}`;
     if (dist.includes('avnet')) return `https://www.avnet.com/shop/us/search/${q}`;
@@ -889,7 +889,7 @@ const SearchPlatform: React.FC = () => {
             {!intelData ? (
               <p className="text-xs text-slate-400 font-medium">검색 후 업데이트됩니다.</p>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={200}>
                   <PieChart>
                     <Pie
                       data={intelData.inventoryData}
@@ -1001,7 +1001,7 @@ const SearchPlatform: React.FC = () => {
             ) : (
               <div className="h-full flex flex-col">
                 <div className="flex-1 min-h-0">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={200}>
                     <BarChart data={intelData.priceData} margin={{ top: 15, right: 5, bottom: 20, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#64748b' }} angle={-30} textAnchor="end" interval={0} />

@@ -125,14 +125,16 @@ async function fetchYahooAnalyst(ticker: string) {
 }
 
 // 2b. Yahoo: Historical data (bypass CORS)
-async function fetchYahooHistory(ticker: string) {
+async function fetchYahooHistory(ticker: string, session: { cookie: string; crumb: string }, userAgent: string) {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1mo`;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1mo&crumb=${session.crumb}`;
     const res = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+        'Cookie': session.cookie,
+        'User-Agent': userAgent
       }
     });
+
     if (!res.ok) {
        console.warn(`[Yahoo History] ${ticker} failed with status: ${res.status}`);
        return null;
@@ -154,6 +156,7 @@ async function fetchYahooHistory(ticker: string) {
     return null;
   }
 }
+
 
 
 // 4. Google News RSS: Recent headlines for sentiment context
@@ -243,14 +246,24 @@ serve(async (req) => {
     if (!ticker) throw new Error('Ticker required');
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+    const userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
 
-    // Parallel fetch: Finnhub (price) + Yahoo (analyst) + Google News + Yahoo History
+    // Get Yahoo Session first as it is needed by multiple fetchers
+    let session = null;
+    try {
+      session = await getYahooSession();
+    } catch (e) {
+      console.warn('[SmartQuote] Failed to get Yahoo session, history/analyst data may be limited');
+    }
+
+    // Parallel fetch: Finnhub (price) + Yahoo (analyst & history) + Google News
     const [finnhubData, yahooData, newsData, historyData] = await Promise.all([
       fetchFinnhubPrice(ticker),
-      fetchYahooAnalyst(ticker),
+      session ? fetchYahooAnalyst(ticker) : Promise.resolve(null),
       fetchGoogleNews(ticker),
-      fetchYahooHistory(ticker)
+      session ? fetchYahooHistory(ticker, session, userAgent) : Promise.resolve(null)
     ]);
+
 
     // Only fetch Alpha Vantage if specifically requested (for AI analysis)
     let financialData = null;

@@ -238,17 +238,69 @@ export async function fetchMultipleStocks(tickers: string[]): Promise<Stock[]> {
   return results;
 }
 
-export async function fetchStockHistory(ticker: string, resolution: string = 'D', days: number = 30): Promise<{ date: string; price: number }[]> {
-  // Check cache first
-  const cached = cache.get(ticker);
-  if (cached && cached.data.history && cached.data.history.length > 0) {
-    return cached.data.history;
+// Helper to handle retries for rate-limited APIs (Yahoo 429)
+async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries = 2): Promise<Response> {
+  let delay = 1000;
+  for (let i = 0; i < maxRetries; i++) {
+    const res = await fetch(url, options);
+    if (res.status === 429 && i < maxRetries - 1) {
+      console.warn(`[Retry] Rate limited (429) on ${url}. Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2; // Exponential backoff
+      continue;
+    }
+    return res;
   }
-
-  // If not in cache, fetch quote (which now includes history via Edge Function proxy)
-  const stock = await fetchStockQuote(ticker);
-  return stock?.history || [];
+  return fetch(url, options); // Final attempt
 }
+
+export async function fetchStockHistory(ticker: string, resolution: string = 'D', days: number = 30): Promise<{ date: string; price: number }[]> {
+  try {
+    // 1. Check cache first
+    const cached = cache.get(ticker);
+    if (cached && cached.data.history && cached.data.history.length > 5) {
+      return cached.data.history;
+    }
+
+    // 2. Try Vite Proxy for Yahoo (bypasses CORS locally)
+    const range = days <= 5 ? '5d' : days <= 30 ? '1mo' : days <= 90 ? '3mo' : '1y';
+    // Use the proxy configured in vite.config.ts
+    const url = `/yahoo-api/v8/finance/chart/${ticker}?interval=1d&range=${range}`;
+
+    const res = await fetchWithRetry(url);
+    if (!res.ok) {
+       console.warn(`[Proxy History] Yahoo via Proxy failed: ${res.status}`);
+       // Fallback to what we have in cache or return empty
+       return cached?.data?.history || [];
+    }
+
+    const data = await res.json();
+    const result = data?.chart?.result?.[0];
+    
+    if (result && result.timestamp && result.indicators?.quote?.[0]?.close) {
+       const timestamps = result.timestamp;
+       const closes = result.indicators.quote[0].close;
+       
+       const history = timestamps.map((ts: number, index: number) => ({
+         date: new Date(ts * 1000).toISOString(),
+         price: closes[index]
+       })).filter((item: any) => item.price !== null && item.price !== undefined);
+
+       // Update cache if we found good data
+       if (cached && history.length > 0) {
+         cached.data.history = history;
+       }
+
+       return history;
+    }
+
+    return cached?.data?.history || [];
+  } catch (err) {
+    console.error(`[History Fetch] Failed for ${ticker}:`, err);
+    return [];
+  }
+}
+
 
 
 
