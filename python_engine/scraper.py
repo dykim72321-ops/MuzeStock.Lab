@@ -478,7 +478,7 @@ class SearchAggregator:
                         )
                         # Remove extra newlines or spaces from actual_mpn just in case
                         if actual_mpn:
-                            actual_mpn = actual_mpn.split('\n')[0].strip()
+                            actual_mpn = actual_mpn.split("\n")[0].strip()
 
                         # 데이터 정제
                         stock_num = re.sub(r"[^0-9]", "", stock_text)
@@ -498,15 +498,17 @@ class SearchAggregator:
                             price = 0.0
 
                         # Buy link 추출 시도 (FindChips의 구매/리디렉트 링크)
-                        buy_link_el = await row.query_selector("a[href*='/buy/'], td.td-buy a, td.td-price a, a.btn-buy")
+                        buy_link_el = await row.query_selector(
+                            "a[href*='/buy/'], td.td-buy a, td.td-price a, a.btn-buy"
+                        )
                         buy_url = ""
                         if buy_link_el:
                             href = await buy_link_el.get_attribute("href")
                             if href:
-                                if href.startswith("/"):
-                                    buy_url = "https://www.findchips.com" + (href if not href.startswith("//") else href[1:])
-                                    # Handle double slash if href started with /
-                                    buy_url = buy_url.replace("findchips.com//", "findchips.com/")
+                                if href.startswith("//"):
+                                    buy_url = "https:" + href
+                                elif href.startswith("/"):
+                                    buy_url = "https://www.findchips.com" + href
                                 else:
                                     buy_url = href
 
@@ -524,7 +526,7 @@ class SearchAggregator:
                                         else ("Medium" if stock > 0 else "High")
                                     ),
                                     "source_type": "Market Aggregator",
-                                    "product_url": buy_url
+                                    "product_url": buy_url,
                                 }
                             )
                         else:

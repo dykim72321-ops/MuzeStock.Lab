@@ -12,7 +12,6 @@ import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import { StockTerminalModal } from '../components/dashboard/StockTerminalModal';
 import { addToWatchlist } from '../services/watchlistService';
-import { addToPortfolio } from '../services/portfolioService';
 import { useNavigate } from 'react-router-dom';
 
 export const ScannerPage = () => {
@@ -469,7 +468,17 @@ export const ScannerPage = () => {
           onClose={() => setTerminalData(null)}
           data={terminalData}
           onAddToWatchlist={async () => {
-            await addToWatchlist(terminalData.ticker, undefined, 'WATCHING', terminalData.price);
+            const buyPrice = terminalData.price;
+            const targetProfit = buyPrice * 1.08;
+            const stopLoss = buyPrice * 0.95;
+            await addToWatchlist(
+              terminalData.ticker, 
+              undefined, 
+              'WATCHING', 
+              buyPrice,
+              targetProfit,
+              stopLoss
+            );
             navigate('/watchlist');
           }}
         />

@@ -175,11 +175,25 @@ export const WatchlistPage = () => {
                       </div>
 
                       <div className={`flex items-end justify-between ${viewMode === 'grid' ? '' : 'flex-1'}`}>
-                        <div>
-                          <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Entry Price</p>
-                          <p className="text-xl font-black text-slate-400 font-mono line-through opacity-70">
-                            {item.entryPrice ? `$${item.entryPrice.toFixed(2)}` : 'N/A'}
-                          </p>
+                        <div className="flex gap-4">
+                          <div>
+                            <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Buy</p>
+                            <p className="text-sm font-black text-slate-700 font-mono">
+                              {item.buyPrice ? `$${item.buyPrice.toFixed(2)}` : '---'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Target</p>
+                            <p className="text-sm font-black text-[#0176d3] font-mono">
+                              {item.targetProfit ? `$${item.targetProfit.toFixed(2)}` : '---'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Stop</p>
+                            <p className="text-sm font-black text-rose-500 font-mono">
+                              {item.stopLoss ? `$${item.stopLoss.toFixed(2)}` : '---'}
+                            </p>
+                          </div>
                         </div>
                         <div className="text-right">
                           <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Current</p>
@@ -190,10 +204,10 @@ export const WatchlistPage = () => {
                       </div>
 
                       {/* Performance Chart */}
-                      {item.entryPrice && stock && viewMode === 'grid' && (
+                      {item.buyPrice && stock && viewMode === 'grid' && (
                         <div className="h-20 w-full mt-4 relative">
                           {(() => {
-                            const returnPct = ((stock.price / item.entryPrice) - 1) * 100;
+                            const returnPct = ((stock.price / item.buyPrice) - 1) * 100;
                             const isProfit = returnPct >= 0;
                             const color = isProfit ? '#10b981' : '#f43f5e';
                             

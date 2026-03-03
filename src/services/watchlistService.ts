@@ -7,7 +7,9 @@ export interface WatchlistItem {
   addedAt: string;
   notes?: string;
   status: WatchlistStatus;
-  entryPrice?: number;
+  buyPrice?: number;
+  targetProfit?: number;
+  stopLoss?: number;
 }
 
 /**
@@ -29,7 +31,9 @@ export async function getWatchlist(): Promise<WatchlistItem[]> {
     addedAt: item.created_at,
     notes: item.notes,
     status: (item.status as WatchlistStatus) || 'WATCHING',
-    entryPrice: item.entry_price,
+    buyPrice: item.buy_price ? Number(item.buy_price) : undefined,
+    targetProfit: item.target_profit ? Number(item.target_profit) : undefined,
+    stopLoss: item.stop_loss ? Number(item.stop_loss) : undefined,
   }));
 }
 
@@ -53,7 +57,14 @@ export async function isInWatchlist(ticker: string): Promise<boolean> {
 /**
  * Add a stock to the watchlist
  */
-export async function addToWatchlist(ticker: string, notes?: string, status: WatchlistStatus = 'WATCHING', entryPrice?: number): Promise<void> {
+export async function addToWatchlist(
+  ticker: string, 
+  notes?: string, 
+  status: WatchlistStatus = 'WATCHING', 
+  buyPrice?: number,
+  targetProfit?: number,
+  stopLoss?: number
+): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   
   const payload: any = {
@@ -63,9 +74,9 @@ export async function addToWatchlist(ticker: string, notes?: string, status: Wat
       status,
   };
   
-  if (entryPrice !== undefined) {
-      payload.entry_price = entryPrice;
-  }
+  if (buyPrice !== undefined) payload.buy_price = buyPrice;
+  if (targetProfit !== undefined) payload.target_profit = targetProfit;
+  if (stopLoss !== undefined) payload.stop_loss = stopLoss;
 
   const { error } = await supabase
     .from('watchlist')
@@ -107,13 +118,18 @@ export async function removeFromWatchlist(ticker: string): Promise<void> {
 /**
  * Toggle a stock in/out of the watchlist
  */
-export async function toggleWatchlist(ticker: string, entryPrice?: number): Promise<boolean> {
+export async function toggleWatchlist(
+  ticker: string, 
+  buyPrice?: number,
+  targetProfit?: number,
+  stopLoss?: number
+): Promise<boolean> {
   const inWatchlist = await isInWatchlist(ticker);
   if (inWatchlist) {
     await removeFromWatchlist(ticker);
     return false;
   } else {
-    await addToWatchlist(ticker, undefined, 'WATCHING', entryPrice);
+    await addToWatchlist(ticker, undefined, 'WATCHING', buyPrice, targetProfit, stopLoss);
     return true;
   }
 }
