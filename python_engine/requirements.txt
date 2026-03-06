@@ -6,6 +6,9 @@ pandas
 openpyxl
 supabase
 requests
+requests-cache
+aiohttp
+cachetools
 beautifulsoup4
 jinja2
 python-multipart

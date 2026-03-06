@@ -350,11 +350,15 @@ const SearchPlatform: React.FC = () => {
   };
 
   const getDistributorUrl = (part: ComponentPart) => {
+    // 0. Prioritize Backend-provided direct link (if it's a valid URL)
+    if (part.product_url && part.product_url.startsWith('http')) {
+      return part.product_url;
+    }
+
     const q = encodeURIComponent(part.mpn);
     const dist = part.distributor.toLowerCase();
     
     // 1. Prioritize Direct Deep Links for Major Distributors 
-    // (Bypasses third-party affiliate tracking links which often result in broken redirects to homepages)
     if (dist.includes('mouser')) return `https://www.mouser.com/c/?q=${q}`;
     if (dist.includes('digi-key') || dist.includes('digikey')) return `https://www.digikey.com/en/products/result?keywords=${q}`;
     if (dist.includes('arrow')) return `https://www.arrow.com/en/products/search?q=${q}`;
@@ -365,12 +369,12 @@ const SearchPlatform: React.FC = () => {
     if (dist.includes('verical')) return `https://www.verical.com/search?text=${q}`;
     if (dist.includes('lcsc')) return `https://www.lcsc.com/search?q=${q}`;
     if (dist.includes('tme')) return `https://www.tme.eu/en/katalog/?search=${q}`;
-    if (dist.includes('win source')) return `https://www.win-source.net/search?q=${q}`;
+    if (dist.includes('win source')) return `https://www.win-source.net/search/${q}.html`;
     if (dist.includes('rochester')) return `https://www.rocelec.com/search?q=${q}`;
     if (dist.includes('flip')) return `https://www.flipelectronics.com/search?q=${q}`;
     if (dist.includes('netcomponents')) return `https://www.netcomponents.com/results.htm?t=f&r=1&s=1&v=1&p=${q}`;
 
-    // 2. Fallback to aggregator tracking link if available
+    // 2. Fallback to aggregator tracking link if available (was redundant with step 0, but kept for logic safety)
     if (part.product_url) return part.product_url;
     
     // 3. Final Fallback: Google search
@@ -873,16 +877,19 @@ const SearchPlatform: React.FC = () => {
         </div>
       </header>
 
-      {/* Market Intel Visualization Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Market Intel Visualization Row - Premium Redesign */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Global Inventory Card */}
-        <div className="sfdc-card p-5">
-          <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+        <div className="lg:col-span-4 sfdc-card p-6 bg-white/80 backdrop-blur-md border-white/40 shadow-xl rounded-2xl">
+          <div className="flex items-center justify-between mb-6 pb-2 border-b border-slate-100">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500 rounded-lg text-white shadow-sm">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" /></svg>
+              <div className="p-2.5 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-xl text-white shadow-lg">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" /></svg>
               </div>
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Global Inventory</h3>
+              <div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Global Inventory</h3>
+                <p className="text-[10px] text-slate-400 font-bold">Distribution by Region/Dealer</p>
+              </div>
             </div>
           </div>
           <div className="h-[200px] flex items-center justify-center">
@@ -924,16 +931,18 @@ const SearchPlatform: React.FC = () => {
         </div>
 
         {/* EOL Risk Map Card */}
-        <div className="sfdc-card p-5">
-          <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-100">
+        <div className="lg:col-span-4 sfdc-card p-6 bg-white/80 backdrop-blur-md border-white/40 shadow-xl rounded-2xl">
+          <div className="flex items-center justify-between mb-6 pb-2 border-b border-slate-100">
             <div className="flex flex-col">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-500 rounded-lg text-white shadow-sm">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                <div className="p-2.5 bg-gradient-to-tr from-emerald-600 to-teal-500 rounded-xl text-white shadow-lg">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
                 </div>
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">수급 리스크 지표 (Supply Risk)</h3>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Supply Risk Index</h3>
+                  <p className="text-[10px] text-slate-400 font-bold">Live Procurement Stability Map</p>
+                </div>
               </div>
-              <p className="text-[10px] text-slate-500 font-medium ml-11 mt-1">글로벌 실시간 재고량을 기준으로 단종/품절 위험도를 평가합니다.</p>
             </div>
           </div>
           <div className="h-[200px] flex flex-col justify-center gap-4 px-2">
@@ -976,17 +985,19 @@ const SearchPlatform: React.FC = () => {
           </div>
         </div>
 
-        {/* Price Comparison Card — REAL DATA */}
-        <div className="sfdc-card p-5">
-          <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-100">
+        {/* Price Comparison Card */}
+        <div className="lg:col-span-4 sfdc-card p-6 bg-white/80 backdrop-blur-md border-white/40 shadow-xl rounded-2xl">
+          <div className="flex items-center justify-between mb-6 pb-2 border-b border-slate-100">
             <div className="flex flex-col">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-rose-500 rounded-lg text-white shadow-sm">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                <div className="p-2.5 bg-gradient-to-tr from-rose-600 to-pink-500 rounded-xl text-white shadow-lg">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
                 </div>
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">유통사별 단가 비교 (Price Comparison)</h3>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Market Price Drift</h3>
+                  <p className="text-[10px] text-slate-400 font-bold">Cross-Distributor Price Benchmark</p>
+                </div>
               </div>
-              <p className="text-[10px] text-slate-500 font-medium ml-11 mt-1">글로벌 탑 티어 유통사들의 현재 판매 단가 비교 차트입니다.</p>
             </div>
           </div>
           <div className="h-[200px]">

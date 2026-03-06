@@ -238,6 +238,7 @@ class SourcingEngine:
                         risk_level=ext["risk_level"],
                         updated_at=datetime.now(),
                         datasheet="",  # PDD/Search table doesn't always have datasheet link directly accessible without extra clicks
+                        product_url=ext.get("product_url", ""),
                     )
                     standard_parts.append(part)
                 except Exception:

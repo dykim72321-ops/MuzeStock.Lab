@@ -27,39 +27,25 @@
   --danger: #ef4444;
 
   /* Redesign Theme */
-  /* Premium Enhancement Theme */
-  --glass-white: rgba(255, 255, 255, 0.7);
-  --glass-blue: rgba(30, 58, 138, 0.03);
-  --glass-blur: blur(16px);
-  --glass-border-light: rgba(255, 255, 255, 0.4);
+  /* Redesign Theme v3 (Ultra Premium) */
+  --bg-dark: #0f172a;
+  --bg-card: rgba(255, 255, 255, 0.8);
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --accent-blue: #3b82f6;
+  --accent-indigo: #6366f1;
+  --accent-emerald: #10b981;
 
-  --skeleton-bg: #e2e8f0;
-  --skeleton-shimmer: linear-gradient(
-    90deg,
-    #e2e8f0 25%,
-    #f1f5f9 50%,
-    #e2e8f0 75%
-  );
-
-  --bg-command: #020617; /* Ultra dark slate for command center feel */
-  --glow-primary: rgba(30, 58, 138, 0.4);
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --neon-accent: #38bdf8; /* Sky blue neon */
-
-  --sidebar-width: 260px;
-  --header-height: 64px;
-}
-
-* {
-  box-sizing: border-box;
+  --shadow-premium:
+    0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  --radius-xl: 1.25rem;
 }
 
 body {
   margin: 0;
-  font-family: "Outfit", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-  background-color: var(--bg-app);
-  color: var(--text-main);
+  font-family: "Inter", "Outfit", sans-serif;
+  background-color: #f1f5f9;
+  color: #1e293b;
   -webkit-font-smoothing: antialiased;
 }
 
