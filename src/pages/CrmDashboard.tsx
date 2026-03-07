@@ -6,23 +6,14 @@ import {
   AlertCircle, 
   CheckCircle2, 
   FileText, 
-  Search, 
   ChevronRight,
   ClipboardList,
   Cpu,
   Zap,
   ShieldCheck,
-  Plus,
   Bell,
-  MessageSquare,
-  Target,
-  Lightbulb,
-  Settings,
-  LogOut,
-  Briefcase,
   KanbanSquare,
   TrendingUp,
-  Globe,
   ArrowLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -102,11 +93,11 @@ export function CrmDashboard() {
       {/* 1. Sidebar Navigation */}
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0">
         <div className="p-6 border-b border-slate-100 flex items-center gap-2">
-          <div className="bg-indigo-600 p-1.5 rounded-lg shadow-lg shadow-indigo-200">
+          <div className="bg-[#0176d3] p-1.5 rounded-lg shadow-lg shadow-blue-100">
             <Zap size={20} className="text-white" fill="currentColor" />
           </div>
           <h1 className="text-xl font-black text-slate-800 tracking-tight">
-            Sales<span className="text-indigo-600">.Hub</span>
+            Sales<span className="text-[#0176d3]">.Hub</span>
           </h1>
         </div>
         
@@ -117,52 +108,64 @@ export function CrmDashboard() {
           <NavItem icon={<FileText size={18}/>} label="Minutes" active={activeTab === 'minutes'} onClick={() => setActiveTab('minutes')} />
         </nav>
 
-        <div className="p-4 border-t border-slate-100">
-          <button className="w-full flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-slate-600 transition-colors text-sm font-medium mb-1">
-            <Settings size={18} /> Settings
-          </button>
-          <button className="w-full flex items-center gap-3 px-4 py-2 text-rose-400 hover:text-rose-600 transition-colors text-sm font-medium">
-            <LogOut size={18} /> Sign Out
-          </button>
-        </div>
       </aside>
 
       {/* 2. Main Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50">
-        {/* Header */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        {/* Header - Unified with Scanner/Search Hub Style */}
+        <header className="mx-8 mt-8 mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm shrink-0">
           <div className="flex items-center gap-4">
-            {selectedProjectId && (
-              <button 
-                onClick={() => setSelectedProjectId(null)}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-indigo-600"
-              >
-                <ArrowLeft size={20} />
-              </button>
+            {selectedProjectId ? (
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setSelectedProjectId(null)}
+                  className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-400 hover:text-[#0176d3] hover:border-[#0176d3] transition-all"
+                >
+                  <ArrowLeft size={20} />
+                </button>
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-0.5">Project Intelligence</p>
+                  <h2 className="text-2xl font-black text-slate-900 leading-tight">
+                    {projectTimeline?.project?.title || 'Loading...'}
+                  </h2>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-[#0176d3] rounded-lg shadow-md">
+                  <LayoutDashboard className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-0.5">
+                    {activeTab === 'dashboard' ? "Design-Win Pipeline" : 
+                     activeTab === 'call-plan' ? "Strategic Discovery" : 
+                     activeTab === 'org' ? "Human Capital" : "Knowledge Base"}
+                  </p>
+                  <h2 className="text-2xl font-black text-slate-900 leading-tight">
+                    {activeTab === 'dashboard' && "전체 프로젝트 현황"}
+                    {activeTab === 'call-plan' && "Discovery Planner"}
+                    {activeTab === 'org' && "조직 관리 및 R&R"}
+                    {activeTab === 'minutes' && "회의록 관리"}
+                  </h2>
+                </div>
+              </div>
             )}
-            <h2 className="font-bold text-slate-800">
-              {activeTab === 'dashboard' && !selectedProjectId && "전체 프로젝트 현황 (Design-Win Pipeline)"}
-              {activeTab === 'dashboard' && selectedProjectId && `${projectTimeline?.project?.title || 'Loading...'} - Project Timeline`}
-              {activeTab === 'call-plan' && "Strategic Discovery Planner"}
-              {activeTab === 'org' && "조직 관리 및 R&R"}
-              {activeTab === 'minutes' && "회의록 관리"}
-            </h2>
           </div>
           <div className="flex items-center gap-5">
             <div className="relative group cursor-pointer">
-              <Bell className="text-slate-400 group-hover:text-indigo-600 transition-colors" size={20} />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[10px] flex items-center justify-center rounded-full border-2 border-white font-bold">3</span>
+              <Bell className="text-slate-400 group-hover:text-[#0176d3] transition-colors" size={20} />
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[10px] flex items-center justify-center rounded-full border-2 border-white font-bold shadow-sm">3</span>
             </div>
             <div className="h-8 w-px bg-slate-200"></div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-bold text-slate-700">Admin</span>
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-sm shadow-md">OP</div>
+            <div className="flex items-center gap-3 bg-slate-50 pl-4 pr-2 py-1.5 rounded-xl border border-slate-100">
+              <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Admin Control</span>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#0176d3] to-blue-400 flex items-center justify-center text-white font-black text-xs shadow-md">OP</div>
             </div>
           </div>
         </header>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-y-auto px-8 pb-8">
           <div className="max-w-6xl mx-auto space-y-8">
             <AnimatePresence mode="wait">
               {activeTab === 'dashboard' && !selectedProjectId && (
@@ -193,26 +196,26 @@ export function CrmDashboard() {
                         </div>
                         <div className="divide-y divide-slate-100">
                           {projects.length > 0 ? projects.map(project => (
-                            <div 
-                              key={project.id} 
-                              onClick={() => handleProjectClick(project.id)}
-                              className="p-5 hover:bg-slate-50/50 transition-all flex items-center justify-between group cursor-pointer border-l-4 border-l-transparent hover:border-l-indigo-600"
-                            >
-                              <div>
-                                <h4 className="font-bold text-slate-800 group-hover:text-indigo-600">{project.title}</h4>
-                                <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-400 font-medium">
-                                  <span>{project.crm_companies?.name || 'Unknown Company'}</span>
-                                  <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
-                                  <span className="font-bold text-slate-600">${((project.expected_value || 0) / 1000).toFixed(1)}K</span>
+                              <div 
+                                key={project.id} 
+                                onClick={() => handleProjectClick(project.id)}
+                                className="p-5 hover:bg-slate-50/50 transition-all flex items-center justify-between group cursor-pointer border-l-4 border-l-transparent hover:border-l-[#0176d3]"
+                              >
+                                <div>
+                                  <h4 className="font-bold text-slate-800 group-hover:text-[#0176d3]">{project.title}</h4>
+                                  <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-400 font-medium">
+                                    <span>{project.crm_companies?.name || 'Unknown Company'}</span>
+                                    <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+                                    <span className="font-bold text-slate-600">${((project.expected_value || 0) / 1000).toFixed(1)}K</span>
+                                  </div>
+                                </div>
+                                <div className="text-right flex items-center gap-4">
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-[#0176d3] border border-blue-100 uppercase">
+                                    {project.stage || 'NEEDS'}
+                                  </span>
+                                  <ChevronRight size={16} className="text-slate-200 group-hover:text-[#0176d3] transition-colors" />
                                 </div>
                               </div>
-                              <div className="text-right flex items-center gap-4">
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 text-indigo-600 border border-indigo-100 uppercase">
-                                  {project.stage || 'NEEDS'}
-                                </span>
-                                <ChevronRight size={16} className="text-slate-200 group-hover:text-indigo-600 transition-colors" />
-                              </div>
-                            </div>
                           )) : (
                             <div className="p-12 text-center text-slate-400 italic">No active opportunities found.</div>
                           )}
@@ -258,18 +261,18 @@ export function CrmDashboard() {
                           <div className="relative pl-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
                             {projectTimeline?.history && projectTimeline.history.length > 0 ? projectTimeline.history.map((log: any, idx: number) => (
                               <div key={log.id || idx} className="mb-10 relative">
-                                <div className="absolute left-[-21px] top-1.5 w-3 h-3 rounded-full bg-white border-2 border-indigo-600 shadow-sm z-10"></div>
-                                <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-indigo-100 transition-all hover:shadow-md hover:shadow-indigo-50/50 group">
+                                <div className="absolute left-[-21px] top-1.5 w-3 h-3 rounded-full bg-white border-2 border-[#0176d3] shadow-sm z-10"></div>
+                                <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-blue-100 transition-all hover:shadow-md hover:shadow-blue-50/50 group">
                                   <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-3">
-                                      <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
+                                      <span className="text-[10px] font-black text-[#0176d3] uppercase tracking-widest bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
                                         {safeFormatDate(log.visit_date)}
                                       </span>
                                       <span className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
                                         <Users size={14} className="text-slate-400" /> {log.crm_contacts?.name}
                                       </span>
                                     </div>
-                                    <ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-500" />
+                                    <ChevronRight size={14} className="text-slate-300 group-hover:text-[#0176d3]" />
                                   </div>
                                   <p className="text-sm text-slate-600 leading-relaxed font-medium">
                                     {log.notes || '기술 미팅 및 샘플 제안 진행.'}
@@ -363,7 +366,7 @@ const NavItem = ({ icon, label, active, onClick }: any) => (
     onClick={onClick}
     className={clsx(
       "w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all",
-      active ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
+      active ? 'bg-blue-50 text-[#0176d3] shadow-sm' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
     )}
   >
     {icon} {label}
@@ -375,7 +378,7 @@ const StepButton = ({ label, active, onClick }: any) => (
     onClick={onClick}
     className={clsx(
       "px-6 py-2 rounded-xl text-xs font-black transition-all",
-      active ? 'bg-white text-indigo-600 shadow-md ring-1 ring-slate-100' : 'text-slate-400 hover:text-slate-600'
+      active ? 'bg-white text-[#0176d3] shadow-md ring-1 ring-slate-100' : 'text-slate-400 hover:text-slate-600'
     )}
   >
     {label}
@@ -384,7 +387,7 @@ const StepButton = ({ label, active, onClick }: any) => (
 
 const StatCard = ({ label, value, icon: Icon, color }: any) => {
   const colors: any = {
-    indigo: 'bg-indigo-600 shadow-indigo-100',
+    indigo: 'bg-[#0176d3] shadow-blue-100',
     rose: 'bg-rose-500 shadow-rose-100',
     emerald: 'bg-emerald-500 shadow-emerald-100',
     blue: 'bg-blue-600 shadow-blue-100'

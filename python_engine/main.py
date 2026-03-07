@@ -169,6 +169,8 @@ class StandardPart(BaseModel):
     rohs: Optional[bool] = True
 
 
+from utils import PartNormalizer
+
 class SourcingEngine:
     def __init__(self):
         self.exchange_rate = 1450.0
@@ -179,76 +181,128 @@ class SourcingEngine:
             return [round(current_price, 2)]
         return []
 
-    async def aggregate_intel(self, q: str):
+    async def _fetch_from_provider(self, provider_name: str, provider_instance, q: str) -> List[StandardPart]:
         """
-        Aggregates results from local inventory and real external sources (Mouser)
+        Generic wrapper for each sourcing provider (Mouser, DigiKey, Scraper, etc.)
         """
-        standard_parts = []
-
-        # 1. Search local member inventory
-        local_results = await inventory_service.search_inventory(q)
-        for item in local_results:
-            try:
-                part = StandardPart(
-                    id=item.get("id", str(uuid.uuid4())[:12]),
-                    mpn=item.get("mpn", q.upper()),
-                    manufacturer=item.get("manufacturer", "Unknown"),
-                    distributor=item.get("distributor", "Internal"),
-                    source_type=item.get("source_type", "Member Inventory"),
-                    stock=item.get("stock", 0),
-                    price=item.get("price", 0.0),
-                    price_history=self._generate_price_history(item.get("price", 0.0)),
-                    currency=item.get("currency", "USD"),
-                    delivery=item.get("delivery", "Direct"),
-                    condition=item.get("condition", "New"),
-                    date_code=item.get("date_code", "N/A"),
-                    is_eol=item.get("is_eol", False),
-                    risk_level=item.get("risk_level", "Low"),
-                    updated_at=datetime.now(),
-                    datasheet=item.get("datasheet", ""),
-                    description=item.get("description", ""),
-                    product_url=item.get("product_url", ""),
-                )
-                standard_parts.append(part)
-            except Exception:
-                pass
-
-        # 2. Search Real External Data (Mouser)
         try:
-            mouser = MouserHunter()
-            external_results = await mouser.search_mpn(q)
-
-            for ext in external_results:
+            print(f"🚀 [ENGINE] Calling provider: {provider_name}")
+            results = await provider_instance.search_mpn(q)
+            
+            standardized = []
+            for ext in results:
                 try:
-                    price = ext["price"]
+                    price = ext.get("price", 0.0)
                     part = StandardPart(
-                        id=f"ext-mouser-{uuid.uuid4().hex[:6]}",
+                        id=f"ext-{provider_name.lower()}-{uuid.uuid4().hex[:6]}",
                         mpn=ext["mpn"],
-                        manufacturer=ext["manufacturer"],
-                        distributor=ext["distributor"],
-                        source_type=ext["source_type"],
-                        stock=ext["stock"],
+                        manufacturer=ext.get("manufacturer", "Unknown"),
+                        distributor=PartNormalizer.normalize_distributor(ext["distributor"]),
+                        source_type=ext.get("source_type", "External"),
+                        stock=ext.get("stock", 0),
                         price=price,
                         price_history=self._generate_price_history(price),
-                        currency="USD",
-                        delivery="3-5 Days",
+                        currency=ext.get("currency", "USD"),
+                        delivery=ext.get("delivery", "3-5 Days"),
                         condition="New",
                         date_code="2023+",
-                        is_eol=ext["risk_level"] == "High",
-                        risk_level=ext["risk_level"],
+                        is_eol=ext.get("risk_level") == "High",
+                        risk_level=ext.get("risk_level", "Low"),
                         updated_at=datetime.now(),
-                        datasheet="",  # PDD/Search table doesn't always have datasheet link directly accessible without extra clicks
+                        datasheet=ext.get("datasheet", ""),
                         product_url=ext.get("product_url", ""),
+                        description=ext.get("description", "")
                     )
-                    standard_parts.append(part)
-                except Exception:
-                    pass
+                    standardized.append(part)
+                except Exception as e:
+                    print(f"⚠️ [ENGINE] Individual item normalization error in {provider_name}: {e}")
+            return standardized
         except Exception as e:
-            print(f"⚠️ External Intel Aggregation Error: {e}")
+            print(f"❌ [ENGINE] Provider {provider_name} failed: {e}")
+            return []
 
+    async def aggregate_intel(self, q: str):
+        """
+        Aggregates results from multiple channels in parallel with intelligent deduplication.
+        """
+        # 1. Start parallel fetching
+        tasks = []
+        
+        # Local Inventory
+        tasks.append(self._fetch_from_local(q))
+        
+        # External Providers
+        external_providers = {
+            "Mouser": MouserHunter(),
+            # "DigiKey": DigiKeyHunter(), # Future expansion
+        }
+        
+        for name, instance in external_providers.items():
+            tasks.append(self._fetch_from_provider(name, instance, q))
+            
+        # Wait for all providers
+        all_results_lists = await asyncio.gather(*tasks)
+        
+        # 2. Intellectual Merging & Deduplication
+        merged_parts = {}
+        
+        for part_list in all_results_lists:
+            for part in part_list:
+                # Key = Normalized MPN + Distributor
+                norm_mpn = PartNormalizer.clean_mpn(part.mpn)
+                key = f"{norm_mpn}@{part.distributor}"
+                
+                if key not in merged_parts:
+                    merged_parts[key] = part
+                else:
+                    # Update existing entry if new one has more stock or a better (lower but non-zero) price
+                    existing = merged_parts[key]
+                    if part.stock > existing.stock:
+                        existing.stock = part.stock
+                    if (part.price > 0 and (existing.price == 0 or part.price < existing.price)):
+                        existing.price = part.price
+                        existing.price_history = part.price_history
+                    if part.product_url and not existing.product_url:
+                        existing.product_url = part.product_url
+
+        # 3. Final Sort (By price, non-zero first)
+        final_list = list(merged_parts.values())
         return sorted(
-            standard_parts, key=lambda x: x.price if x.price > 0 else float("inf")
+            final_list, key=lambda x: x.price if x.price > 0 else float("inf")
         )
+
+    async def _fetch_from_local(self, q: str) -> List[StandardPart]:
+        """Internal helper for local inventory fetch"""
+        local_parts = []
+        try:
+            local_results = await inventory_service.search_inventory(q)
+            for item in local_results:
+                try:
+                    part = StandardPart(
+                        id=item.get("id", str(uuid.uuid4())[:12]),
+                        mpn=item.get("mpn", q.upper()),
+                        manufacturer=item.get("manufacturer", "Unknown"),
+                        distributor=PartNormalizer.normalize_distributor(item.get("distributor", "Internal")),
+                        source_type="Member Inventory",
+                        stock=item.get("stock", 0),
+                        price=item.get("price", 0.0),
+                        price_history=self._generate_price_history(item.get("price", 0.0)),
+                        currency=item.get("currency", "USD"),
+                        delivery="Direct",
+                        condition=item.get("condition", "New"),
+                        date_code=item.get("date_code", "N/A"),
+                        is_eol=item.get("is_eol", False),
+                        risk_level=item.get("risk_level", "Low"),
+                        updated_at=datetime.now(),
+                        datasheet=item.get("datasheet", ""),
+                        description=item.get("description", ""),
+                        product_url=item.get("product_url", ""),
+                    )
+                    local_parts.append(part)
+                except Exception: continue
+        except Exception as e:
+            print(f"⚠️ Local Inventory Search Error: {e}")
+        return local_parts
 
 
 sourcing_engine = SourcingEngine()

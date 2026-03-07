@@ -3,7 +3,7 @@ import { Target, Zap } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { StockTerminalModal } from '../dashboard/StockTerminalModal';
 import { addToWatchlist } from '../../services/watchlistService';
-import { addToPortfolio } from '../../services/portfolioService';
+
 import clsx from 'clsx';
 
 interface AnalysisResultCardProps {
@@ -148,11 +148,7 @@ export const AnalysisResultCard = ({
                     riskLevel,
                     aiSummary: aiSummary || `${ticker}는 현재 DNA 점수 ${dnaScore}점으로 분석되고 있으며, 상세 리포트를 생성 중입니다.`
                 }}
-                onSimulation={async () => {
-                    const price = 0; // In a real scenario, we'd fetch the latest price or use the one from props
-                    const res = await addToPortfolio(ticker, price);
-                    alert(res.message);
-                }}
+
                 onAddToWatchlist={async () => {
                     await addToWatchlist(ticker);
                     alert(`${ticker}가 관심 종목에 추가되었습니다.`);

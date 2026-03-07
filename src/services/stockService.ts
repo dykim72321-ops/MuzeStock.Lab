@@ -255,7 +255,7 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries
 }
 
 // Final fallback: Generate realistic-looking wavy data if all APIs fail
-function generateSimulatedHistory(ticker: string, currentPrice: number, changePercent: number, days: number = 20): { date: string; price: number }[] {
+function generateSimulatedHistory(_ticker: string, currentPrice: number, changePercent: number, days: number = 20): { date: string; price: number }[] {
   const history: { date: string; price: number }[] = [];
   const now = Date.now();
   const dayMs = 24 * 60 * 60 * 1000;

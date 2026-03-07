@@ -370,6 +370,8 @@ class FinvizHunter:
             await asyncio.sleep(1)  # Be polite
 
 
+from utils import PartNormalizer
+
 class SearchAggregator:
     def __init__(self):
         self.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
@@ -388,185 +390,135 @@ class SearchAggregator:
                 context = await browser.new_context(user_agent=self.user_agent)
                 page = await context.new_page()
 
-                url = f"{self.base_url}{mpn}"
-                await page.goto(url, wait_until="domcontentloaded", timeout=45000)
+                # Search query normalization
+                search_q = mpn.strip()
+                url = f"{self.base_url}{search_q}"
+                
+                try:
+                    await page.goto(url, wait_until="domcontentloaded", timeout=45000)
+                except Exception as e:
+                    print(f"❌ [AGGREGATOR] Navigation failed: {e}")
+                    await browser.close()
+                    return []
 
                 # 유통사별 섹션 렌더링 대기
                 try:
                     await page.wait_for_selector(".distributor-results", timeout=15000)
                 except Exception as e:
-                    print(f"⚠️ [AGGREGATOR] wait_for_selector timeout: {e}")
+                    print(f"⚠️ [AGGREGATOR] No distributor results found for {mpn}")
+                    await browser.close()
+                    return []
 
                 # 유통사별 섹션 파싱
                 distributors = await page.query_selector_all(".distributor-results")
-                print(
-                    f"🔍 [AGGREGATOR] Found {len(distributors)} potential distributor sections"
-                )
-
+                
                 for dist in distributors:
                     try:
-                        name_el = await dist.query_selector(".distributor-name")
-                        if not name_el:
-                            name_el = await dist.query_selector(".distributor-title")
-                        if not name_el:
-                            name_el = await dist.query_selector(".distributor-header a")
+                        # 1. Distributor Name Extraction
+                        name_el = await dist.query_selector(".distributor-name, .distributor-title, .distributor-header a")
+                        dist_name_raw = (await name_el.inner_text()).strip() if name_el else ""
 
-                        # 텍스트 추출 시도
-                        dist_name_raw = (
-                            (await name_el.inner_text()).strip() if name_el else ""
-                        )
-
-                        # 텍스트가 비어있다면 로고 이미지의 alt 속성 확인 (FindChips는 로고 사용 빈번)
                         if not dist_name_raw:
-                            img_el = await dist.query_selector(
-                                ".distributor-header img"
-                            )
+                            img_el = await dist.query_selector(".distributor-header img")
                             if img_el:
-                                dist_name_raw = (
-                                    await img_el.get_attribute("alt")
-                                    or await img_el.get_attribute("title")
-                                    or ""
-                                )
+                                dist_name_raw = await img_el.get_attribute("alt") or await img_el.get_attribute("title") or ""
 
-                        dist_name = dist_name_raw.strip() if dist_name_raw else "Other"
+                        dist_name = PartNormalizer.normalize_distributor(dist_name_raw)
 
-                        # 주요 유통사 가독성 개선
-                        common_dists = [
-                            "Mouser",
-                            "Digi-Key",
-                            "Arrow",
-                            "Future",
-                            "Farnell",
-                            "Avnet",
-                            "Newark",
-                            "RS Components",
-                            "TME",
-                            "LCSC",
-                        ]
-                        match_name = next(
-                            (d for d in common_dists if d.lower() in dist_name.lower()),
-                            dist_name,
-                        )
+                        # 2. Part Row Extraction
+                        # We look for the first row that actually has stock/price info
+                        rows = await dist.query_selector_all("tr:has(td.td-stock)")
+                        if not rows:
+                            rows = await dist.query_selector_all("tr") # Fallback to any row if selector fails
 
-                        # 부품 정보 행 파싱 (data-mpn 속성이 동적으로 늦게 주입될 수 있으므로 td.td-stock 유무로 판단)
-                        rows = await dist.query_selector_all("tr")
-                        row = None
-                        for r in rows:
-                            if await r.query_selector("td.td-stock"):
-                                row = r
-                                break
-
-                        if not row:
-                            continue
-
-                        stock_el = await row.query_selector("td.td-stock")
-                        price_el = await row.query_selector("td.td-price")
-                        mfr_el = await row.query_selector("td.td-mfg")
-                        part_el = await row.query_selector("td.td-part a, td.td-part")
-
-                        stock_text = (
-                            (await stock_el.inner_text()).strip() if stock_el else "0"
-                        )
-                        price_text = (
-                            (await price_el.inner_text()).strip() if price_el else "0"
-                        )
-                        mfr_text = (
-                            (await mfr_el.inner_text()).strip() if mfr_el else "N/A"
-                        )
-                        actual_mpn = (
-                            (await part_el.inner_text()).strip() if part_el else mpn
-                        )
-                        # Remove extra newlines or spaces from actual_mpn just in case
-                        if actual_mpn:
-                            actual_mpn = actual_mpn.split("\n")[0].strip()
-
-                        # 데이터 정제
-                        stock_num = re.sub(r"[^0-9]", "", stock_text)
-                        stock = int(stock_num) if stock_num else 0
-
-                        # 다중 가격 텍스트 안전 파싱 (예: \n으로 구분된 여러 가격 파편 중 첫 번째 유효 숫자 추출)
-                        price_match = re.search(
-                            r"[\d,]+(?:\.\d+)?",
-                            price_text.replace("₩", "").replace("$", ""),
-                        )
-                        if price_match:
+                        for row in rows:
                             try:
-                                price = float(price_match.group().replace(",", ""))
+                                stock_el = await row.query_selector("td.td-stock")
+                                price_el = await row.query_selector("td.td-price")
+                                mfr_el = await row.query_selector("td.td-mfg")
+                                part_el = await row.query_selector("td.td-part a, td.td-part")
+
+                                if not stock_el or not price_el:
+                                    continue
+
+                                stock_text = (await stock_el.inner_text()).strip()
+                                price_text = (await price_el.inner_text()).strip()
+                                mfr_text = (await mfr_el.inner_text()).strip() if mfr_el else "N/A"
+                                actual_mpn = (await part_el.inner_text()).strip() if part_el else mpn
+                                
+                                if actual_mpn:
+                                    actual_mpn = actual_mpn.split("\n")[0].strip()
+
+                                # 3. Data Cleansing
+                                stock_num = re.sub(r"[^0-9]", "", stock_text)
+                                stock = int(stock_num) if stock_num else 0
+
+                                price = PartNormalizer.format_price(price_text)
+
+                                # 4. Buy Link Extraction (Critical for Cart Fix)
+                                buy_link_el = await row.query_selector("a[href*='/buy/'], td.td-buy a, td.td-price a, a.btn-buy")
+                                buy_url = ""
+                                if buy_link_el:
+                                    href = await buy_link_el.get_attribute("href")
+                                    if href:
+                                        if href.startswith("//"): buy_url = "https:" + href
+                                        elif href.startswith("/"): buy_url = "https://www.findchips.com" + href
+                                        else: buy_url = href
+
+                                if stock > 0 or price > 0:
+                                    results.append({
+                                        "distributor": dist_name,
+                                        "mpn": actual_mpn,
+                                        "normalized_mpn": PartNormalizer.clean_mpn(actual_mpn),
+                                        "manufacturer": mfr_text,
+                                        "stock": stock,
+                                        "price": price,
+                                        "risk_level": "Low" if stock > 100 else ("Medium" if stock > 0 else "High"),
+                                        "source_type": "Market Aggregator",
+                                        "product_url": buy_url,
+                                    })
                             except:
-                                price = 0.0
-                        else:
-                            price = 0.0
-
-                        # Buy link 추출 시도 (FindChips의 구매/리디렉트 링크)
-                        buy_link_el = await row.query_selector(
-                            "a[href*='/buy/'], td.td-buy a, td.td-price a, a.btn-buy"
-                        )
-                        buy_url = ""
-                        if buy_link_el:
-                            href = await buy_link_el.get_attribute("href")
-                            if href:
-                                if href.startswith("//"):
-                                    buy_url = "https:" + href
-                                elif href.startswith("/"):
-                                    buy_url = "https://www.findchips.com" + href
-                                else:
-                                    buy_url = href
-
-                        if stock > 0 or price > 0:
-                            results.append(
-                                {
-                                    "distributor": match_name,
-                                    "mpn": actual_mpn,
-                                    "manufacturer": mfr_text,
-                                    "stock": stock,
-                                    "price": price,
-                                    "risk_level": (
-                                        "Low"
-                                        if stock > 100
-                                        else ("Medium" if stock > 0 else "High")
-                                    ),
-                                    "source_type": "Market Aggregator",
-                                    "product_url": buy_url,
-                                }
-                            )
-                        else:
-                            print(
-                                f"[DEBUG SKIP] {match_name} - stock_txt: '{stock_text}' -> {stock}, price_txt: '{price_text}' -> {price}"
-                            )
+                                continue
                     except:
                         continue
 
                 await browser.close()
 
-                # 중복 유통사 제거 및 최적 데이터 선별
+                # Deduplicate and sort (Keep highest stock for the same distributor+normalized_mpn)
                 unique_results = {}
                 for r in results:
-                    d_key = r["distributor"]
-                    if (
-                        d_key not in unique_results
-                        or r["stock"] > unique_results[d_key]["stock"]
-                    ):
-                        unique_results[d_key] = r
+                    key = f"{r['distributor']}_{r['normalized_mpn']}"
+                    if key not in unique_results or r["stock"] > unique_results[key]["stock"]:
+                        unique_results[key] = r
 
                 final_list = list(unique_results.values())
-                print(
-                    f"✅ [AGGREGATOR] Successfully aggregated {len(final_list)} distributors for {mpn}"
-                )
+                print(f"✅ [AGGREGATOR] Found {len(final_list)} unique distributor offers for {mpn}")
                 return final_list
 
         except Exception as e:
             print(f"❌ [AGGREGATOR] Critical Failure: {e}")
             return []
 
-
 class MouserHunter:
     def __init__(self):
-        self.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
-        self.base_url = "https://www.mouser.kr/Search/Refine?Keyword="
+        pass
 
     async def search_mpn(self, mpn: str) -> List[Dict]:
         aggregator = SearchAggregator()
         return await aggregator.search_market_intel(mpn)
+
+if __name__ == "__main__":
+    async def test():
+        aggregator = SearchAggregator()
+        res = await aggregator.search_market_intel("TPS54331")
+        print(f"Test Results: {res}")
+
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "test":
+        asyncio.run(test())
+    else:
+        hunter = FinvizHunter()
+        asyncio.run(hunter.scrape())
 
 
 if __name__ == "__main__":

@@ -255,7 +255,7 @@ export const WatchlistPage = () => {
                             
                             // MANDATE: The graph MUST start at 0% from the registration date.
                             // Therefore, the reference price is ALWAYS the price on the first day of history (addedAt).
-                            const referencePrice = hasHistory ? stock.history[0].price : (item.buyPrice || stock.price);
+                            const referencePrice = (hasHistory && stock.history) ? stock.history[0].price : (item.buyPrice || stock.price);
                               
                             const currentReturnPct = ((stock.price / referencePrice) - 1) * 100;
                             const isProfit = currentReturnPct >= 0;
