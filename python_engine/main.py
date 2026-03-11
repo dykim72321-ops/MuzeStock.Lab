@@ -564,6 +564,62 @@ def analyze_stock(request: AnalyzeRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class ValidateRequest(BaseModel):
+    tickers: List[str]
+
+
+@app.post("/api/validate_candidates")
+async def validate_candidates(
+    request: ValidateRequest, api_key: str = Security(get_api_key)
+):
+    """
+    스크래퍼가 발굴한 후보군을 퀀트 지표(RSI, ADX, RVOL)로 정밀 검증
+    """
+    valid_tickers = []
+    
+    # 병렬 처리를 위해 asyncio.gather 고려 가능하나, yfinance 속도 제한 방지를 위해 순차 혹은 소규모 그룹 처리
+    for ticker in request.tickers:
+        try:
+            # 최근 30일치 데이터 (RVOL 20MA + RSI 14일 확보용)
+            df = yf.download(ticker, period="1mo", progress=False)
+            if df.empty or len(df) < 20:
+                continue
+
+            # 1. RSI 계산
+            df["RSI"] = ta.momentum.RSIIndicator(df["Close"], window=14).rsi()
+            
+            # 2. ADX & DI 계산
+            adx_obj = ta.trend.ADXIndicator(df["High"], df["Low"], df["Close"], window=14)
+            df["ADX"] = adx_obj.adx()
+            df["DI_plus"] = adx_obj.adx_pos()
+            df["DI_minus"] = adx_obj.adx_neg()
+            
+            # 3. RVOL (상대 거래량, 당일 제외 20일 평균 기준)
+            df["Vol_Avg"] = df["Volume"].shift(1).rolling(window=20).mean()
+            df["RVOL"] = df["Volume"] / (df["Vol_Avg"] + 1e-9)
+            
+            latest = df.iloc[-1]
+            prev = df.iloc[-2]
+            
+            # 퀀트 검증 필터 (Backtester 입증 수치)
+            # 1. RSI 40 이상 (회복세)
+            # 2. ADX 상승 (추세 강화) & DI+ > DI-
+            # 3. RVOL > 1.5 (거래량 폭발)
+            cond1 = latest["RSI"] > 40
+            cond2 = latest["ADX"] > prev["ADX"] and latest["DI_plus"] > latest["DI_minus"]
+            cond3 = latest["RVOL"] > 1.5
+            
+            if cond1 and cond2 and cond3:
+                valid_tickers.append(ticker.upper())
+                print(f"🎯 [VALIDATED] {ticker} 통과 (RVOL: {latest['RVOL']:.2f})")
+                
+        except Exception as e:
+            print(f"⚠️ {ticker} 검증 중 오류: {e}")
+            continue
+
+    return valid_tickers
+
+
 @app.post("/api/hunt")
 async def trigger_hunt(
     background_tasks: BackgroundTasks, api_key: str = Security(get_api_key)
@@ -655,8 +711,8 @@ def calculate_advanced_signals(df: pd.DataFrame):
     # 6. 전략적 합치 (Confluence) 로직
     # Strong Buy: RSI < 45 AND MACD Golden Cross AND ADX > 20 AND RVOL > 3.0 AND Not Extended
     df["Strong_Buy"] = (
-        (df["RSI"] < 45) 
-        & (df["MACD_Diff"] > 0) 
+        (df["RSI"] < 45)
+        & (df["MACD_Diff"] > 0)
         & (df["MACD_Diff"].shift(1) <= 0)
         & (df["ADX"] > 20)
         & (df["RVOL"] > 3.0)
@@ -753,9 +809,7 @@ def generate_ai_investment_report(data: dict):
     )
 
     # 3. 추가 조언 및 면책 조항
-    report.append(
-        "※ 본 데이터는 Micro-Cap 전용 하이브리드 엔진 분석 결과입니다."
-    )
+    report.append("※ 본 데이터는 Micro-Cap 전용 하이브리드 엔진 분석 결과입니다.")
 
     return "\n".join(report)
 
@@ -799,7 +853,9 @@ def run_pulse_engine(ticker: str, df_raw: pd.DataFrame):
         ),
         "adx": round(float(latest["ADX"]), 2) if "ADX" in latest else 0.0,
         "rvol": round(float(latest["RVOL"]), 2) if "RVOL" in latest else 1.0,
-        "is_extended": bool(latest["Is_Extended"]) if "Is_Extended" in latest else False,
+        "is_extended": (
+            bool(latest["Is_Extended"]) if "Is_Extended" in latest else False
+        ),
         "volatility_ann": round(sizing["annualized_volatility"] * 100, 2),
         "vol_weight": sizing["vol_weight"],
         "kelly_f": sizing["kelly_f"],
