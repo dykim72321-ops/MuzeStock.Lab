@@ -86,7 +86,7 @@ manager = ConnectionManager()
 
 async def get_api_key(header_value: str = Security(api_key_header)):
     """ADMIN_SECRET_KEY 환경변수와 헤더 값을 비교하여 인증"""
-    admin_key = os.getenv("ADMIN_SECRET_KEY")
+    admin_key = os.getenv("ADMIN_SECRET_KEY") or os.getenv("VITE_ADMIN_SECRET_KEY")
     if not admin_key:
         # 보안을 위해 키가 설정되지 않은 경우 모든 요청 거부
         raise HTTPException(

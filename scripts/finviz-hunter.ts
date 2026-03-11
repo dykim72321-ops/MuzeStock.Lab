@@ -10,9 +10,10 @@
 import { chromium } from 'playwright';
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase 설정 (환경변수에서 로드)
-const SUPABASE_URL = process.env.SUPABASE_URL || '';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+// 환경변수 로드 및 폴백 (VITE 접두사 포함)
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
+const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY || process.env.VITE_ADMIN_SECRET_KEY || '';
 
 interface DiscoveredStock {
   ticker: string;
@@ -42,35 +43,43 @@ async function scrapeFinviz(): Promise<DiscoveredStock[]> {
   
   console.log('📡 Finviz 접속 중...');
   try {
+    // commit: 응답 수신 즉시 진행 (load/networkidle 비대기)
     await page.goto(url, { 
-      waitUntil: 'networkidle',
-      timeout: 45000 
+      waitUntil: 'commit',
+      timeout: 30000 
     });
     
-    // 테이블 로드 대기
-    await page.waitForSelector('table.screener-body-table', { timeout: 20000 });
+    console.log('⏳ 데이터 로딩 대기 (10초)...');
+    await page.waitForTimeout(10000); // 충분한 로딩 시간 확보
     
-    // 데이터 추출
+    // 혹시 모를 팝업 제거 (ESC 키 활용)
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(1000);
+    
+    // 데이터 추출 (셀렉터 의존성 최소화)
     const stocks = await page.evaluate(() => {
-      const rows = document.querySelectorAll('table.screener-body-table tr.table-dark-row-cp, table.screener-body-table tr.table-light-row-cp');
+      // 모든 행을 가져온 뒤 'Ticker'가 포함된 행은 제외하고 데이터 패턴이 맞는 행만 추출
+      const allRows = Array.from(document.querySelectorAll('tr'));
       const results: any[] = [];
       
-      rows.forEach((row) => {
+      allRows.forEach((row) => {
         const cells = row.querySelectorAll('td');
-        if (cells.length >= 10) {
+        // Finviz 스크리너 행의 특징: 최소 10개 이상의 셀을 가짐
+        if (cells.length >= 11) {
           const ticker = cells[1]?.textContent?.trim() || '';
           const sector = cells[3]?.textContent?.trim() || '';
           const priceText = cells[8]?.textContent?.trim() || '0';
           const change = cells[9]?.textContent?.trim() || '0%';
           const volumeText = cells[10]?.textContent?.trim() || '0';
           
-          if (ticker && ticker !== 'Ticker') {
+          // Ticker가 대문자 영문이고, Price가 숫자인 경우만 유효 행으로 간주
+          if (ticker && /^[A-Z]{1,5}$/.test(ticker) && ticker !== 'Ticker') {
             results.push({
               ticker,
-              price: parseFloat(priceText.replace(/[^0-9.-]/g, '')) || 0,
-              volumeText, // 파싱 전 텍스트 전달
+              sector,
+              priceText,
               change,
-              sector
+              volumeText
             });
           }
         }
@@ -79,18 +88,27 @@ async function scrapeFinviz(): Promise<DiscoveredStock[]> {
       return results;
     });
 
+    if (stocks.length === 0) {
+        throw new Error('데이터 추출 실패: 유효한 종목 행을 찾을 수 없습니다.');
+    }
+
     // 2. Volume 데이터 정규화 (Commas 제거 및 Number 변환)
-    const normalizedStocks: DiscoveredStock[] = stocks.map(s => ({
-      ...s,
-      volume: parseInt(s.volumeText.replace(/,/g, ''), 10) || 0
+    const normalizedStocks: DiscoveredStock[] = stocks.map((s: any) => ({
+      ticker: s.ticker,
+      price: parseFloat(s.priceText.replace(/[^0-9.-]/g, '')) || 0,
+      volume: parseInt(s.volumeText.replace(/,/g, ''), 10) || 0,
+      change: s.change,
+      sector: s.sector
     }));
     
     await browser.close();
-    console.log(`✅ ${normalizedStocks.length}개 종목 1차 발굴 완료`);
+    console.log(`✅ ${normalizedStocks.length}개 종목 발굴 성공!`);
     return normalizedStocks;
 
   } catch (error) {
-    console.error('❌ 스크래핑 실패 (블락 가능성):', error);
+    const debugPath = '/tmp/finviz_error.png';
+    await page.screenshot({ path: debugPath });
+    console.error(`❌ 스크래핑 실패 (디버그 샷: ${debugPath}):`, error);
     await browser.close();
     return [];
   }
@@ -105,7 +123,7 @@ async function validateWithPythonEngine(stocks: DiscoveredStock[]): Promise<Disc
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'X-Admin-Key': process.env.ADMIN_SECRET_KEY || ''
+        'X-Admin-Key': ADMIN_SECRET_KEY
       },
       body: JSON.stringify({ tickers })
     });
