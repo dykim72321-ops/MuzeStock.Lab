@@ -13,9 +13,33 @@ import { motion } from 'framer-motion';
 import { StockTerminalModal } from '../components/dashboard/StockTerminalModal';
 import { addToWatchlist } from '../services/watchlistService';
 import { useNavigate } from 'react-router-dom';
+import { useDNACalculator } from '../hooks/useDNACalculator';
+import { calculateDNATargets } from '../utils/dnaMath';
 
 const RISK_LOW_MAX = 40;
 const RISK_HIGH_MIN = 70;
+
+const TargetStopDisplay = ({ stock }: { stock: Stock }) => {
+  const { targetPrice, stopPrice } = useDNACalculator({
+    buyPrice: stock.price,
+    currentPrice: stock.price,
+    buyDate: new Date().toISOString()
+  });
+
+  return (
+    <div className="flex flex-col gap-1 bg-slate-50/50 p-2.5 rounded-lg border border-slate-200/80 min-w-[120px]">
+      <div className="flex items-center justify-between text-[11px] font-mono">
+        <span className="text-slate-500 font-bold uppercase tracking-wider">🎯 Target</span>
+        <span className="text-emerald-600 font-black">${targetPrice.toFixed(2)}</span>
+      </div>
+      <div className="flex items-center justify-between text-[11px] font-mono mt-1">
+       <span className="text-slate-500 font-bold uppercase tracking-wider">🛡️ Stop</span>
+       <span className="text-rose-600 font-black">${stopPrice.toFixed(2)}</span>
+      </div>
+    </div>
+  );
+};
+
 
 export const ScannerPage = () => {
   const navigate = useNavigate();
@@ -381,6 +405,7 @@ export const ScannerPage = () => {
                       <th className="px-8 py-5 cursor-pointer hover:text-slate-900 transition-colors" onClick={() => toggleSort('price')}>
                         Market Value {sortBy === 'price' && (sortOrder === 'asc' ? <ArrowUpWideNarrow className="inline w-3 h-3 ml-1" /> : <ArrowDownWideNarrow className="inline w-3 h-3 ml-1" />)}
                       </th>
+                      <th className="px-8 py-5 text-left">Targets &amp; Stops (ATR)</th>
                       <th className="px-8 py-5 cursor-pointer hover:text-slate-900 transition-colors" onClick={() => toggleSort('change')}>
                         24h Delta {sortBy === 'change' && (sortOrder === 'asc' ? <ArrowUpWideNarrow className="inline w-3 h-3 ml-1" /> : <ArrowDownWideNarrow className="inline w-3 h-3 ml-1" />)}
                       </th>
@@ -410,6 +435,9 @@ export const ScannerPage = () => {
                         </td>
                         <td className="px-8 py-6">
                           <div className="font-mono text-slate-800 text-lg font-black">${stock.price.toFixed(2)}</div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <TargetStopDisplay stock={stock} />
                         </td>
                         <td className="px-8 py-6">
                           <div className={clsx(
@@ -473,7 +501,7 @@ export const ScannerPage = () => {
                     <p className="text-[10px] text-slate-400 uppercase font-black tracking-[0.2em] mt-1">{stock.name}</p>
                   </div>
 
-                  <div className="flex items-end justify-between border-t border-slate-50 pt-6">
+                  <div className="flex items-end justify-between border-t border-slate-50 pt-6 mb-4">
                     <div>
                       <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Asset Value</p>
                       <p className="text-2xl font-mono font-black text-slate-900 tabular-nums">${stock.price.toFixed(2)}</p>
@@ -486,6 +514,9 @@ export const ScannerPage = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Added Target/Stop for Grid Parity */}
+                  <TargetStopDisplay stock={stock} />
                 </Card>
               ))}
             </div>
@@ -501,15 +532,16 @@ export const ScannerPage = () => {
           data={terminalData}
           onAddToWatchlist={async () => {
             const buyPrice = terminalData.price;
-            const targetProfit = buyPrice * 1.08;
-            const stopLoss = buyPrice * 0.95;
+            // Use Pure Function to get consistent T/S
+            const { targetPrice, stopPrice } = calculateDNATargets(buyPrice, terminalData.quantData?.atr5);
+            
             await addToWatchlist(
               terminalData.ticker, 
               undefined, 
               'WATCHING', 
               buyPrice,
-              targetProfit,
-              stopLoss
+              targetPrice,
+              stopPrice
             );
             navigate('/watchlist');
           }}

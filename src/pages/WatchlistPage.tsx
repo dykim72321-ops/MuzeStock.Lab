@@ -7,11 +7,13 @@ import {
 import { ResponsiveContainer, AreaChart, Area, YAxis, ReferenceLine, Tooltip as RechartsTooltip } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
+import clsx from 'clsx';
 import { getWatchlist, removeFromWatchlist, addToWatchlist, type WatchlistItem } from '../services/watchlistService';
 import { 
   fetchMultipleStocksOptimized
 } from '../services/stockService';
 import { useDNACalculator } from '../hooks/useDNACalculator';
+import { StockTerminalModal } from '../components/dashboard/StockTerminalModal';
 import type { Stock } from '../types';
 
 const formatPrice = (price: number | undefined | null): string => {
@@ -26,6 +28,10 @@ export const WatchlistPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Terminal Modal State
+  const [terminalData, setTerminalData] = useState<any | null>(null);
+
 
   const loadData = async () => {
     setLoading(true);
@@ -176,10 +182,20 @@ export const WatchlistPage = () => {
                 stock={getStock(item.ticker)} 
                 viewMode={viewMode}
                 onRemove={handleRemove}
+                onDeepDive={(data) => setTerminalData(data)}
               />
             ))}
           </AnimatePresence>
         </div>
+      )}
+
+      {/* Terminal Modal Brushing */}
+      {terminalData && (
+        <StockTerminalModal 
+          isOpen={!!terminalData}
+          onClose={() => setTerminalData(null)}
+          data={terminalData}
+        />
       )}
     </div>
   );
@@ -190,10 +206,10 @@ interface WatchlistItemCardProps {
   stock?: Stock;
   viewMode: 'grid' | 'list';
   onRemove: (ticker: string) => void;
+  onDeepDive: (data: any) => void;
 }
 
-const WatchlistItemCard = ({ item, stock, viewMode, onRemove }: WatchlistItemCardProps) => {
-  const navigate = useNavigate();
+const WatchlistItemCard = ({ item, stock, viewMode, onRemove, onDeepDive }: WatchlistItemCardProps) => {
   // const isPositive = stock && stock.changePercent >= 0; // Daily change is no longer the primary color driver
   // Use isProfit instead for the entire card theme
 
@@ -220,7 +236,27 @@ const WatchlistItemCard = ({ item, stock, viewMode, onRemove }: WatchlistItemCar
       exit={{ opacity: 0, scale: 0.9 }}
       className={viewMode === 'grid' ? "" : "w-full"}
     >
-      <Card className={`group relative overflow-hidden transition-all bg-white border border-slate-200 shadow-sm hover:border-[#0176d3]/40 hover:shadow-md ${
+      <Card 
+        onClick={() => {
+          if (stock) {
+            const cache = (stock as any).stock_analysis_cache?.[0]?.analysis;
+            let aiSummaryStr = cache?.aiSummary || "해당 자산에 대한 최신 시장 Narrative를 분석 중입니다...";
+            
+            onDeepDive({
+              ticker: stock.ticker,
+              dnaScore: dnaScore,
+              popProbability: cache?.popProbability || 0,
+              bullPoints: cache?.bullCase || ["No details"],
+              bearPoints: cache?.bearCase || ["No details"],
+              matchedLegend: cache?.matchedLegend || { ticker: 'None', similarity: 0 },
+              riskLevel: cache?.riskLevel || 'Medium',
+              aiSummary: aiSummaryStr,
+              price: stock.price,
+              change: `${stock.changePercent.toFixed(2)}%`,
+            });
+          }
+        }}
+        className={`group relative overflow-hidden transition-all bg-white border border-slate-200 shadow-sm cursor-pointer hover:border-[#0176d3]/40 hover:shadow-md ${
         viewMode === 'grid' ? 'p-6' : 'p-4 flex items-center justify-between'
       }`}>
         {/* Background Glow */}
@@ -412,22 +448,56 @@ const WatchlistItemCard = ({ item, stock, viewMode, onRemove }: WatchlistItemCar
           )}
           
           {viewMode === 'list' && (
-            <div className="flex items-center gap-4 ml-8">
-               <div className="flex items-center gap-1 bg-[#0176d3]/10 text-[#0176d3] px-2 py-1 rounded-md text-[10px] font-black tracking-widest border border-[#0176d3]/20 whitespace-nowrap">
-                  <ShieldCheck className="w-3 h-3" />
-                  {dnaScore}% DNA
-                </div>
+            <div className="flex items-center gap-8 ml-auto">
+               {/* Numerical Data Group */}
+               <div className="hidden xl:flex items-center gap-6 border-r border-slate-100 pr-6">
+                 <div>
+                    <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Entry</p>
+                    <p className="text-sm font-black text-slate-700 font-mono">{formatPrice(item.buyPrice)}</p>
+                 </div>
+                 <div>
+                    <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Target</p>
+                    <p className="text-sm font-black text-[#0176d3] font-mono">{formatPrice(targetPrice)}</p>
+                 </div>
+                 <div>
+                    <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Stop</p>
+                    <p className="text-sm font-black text-rose-500 font-mono">{formatPrice(stopPrice)}</p>
+                 </div>
+               </div>
+
+               {/* Score & Decay */}
+               <div className="flex flex-col items-end min-w-[100px]">
+                 <div className="flex items-center gap-1.5 bg-[#0176d3]/10 text-[#0176d3] px-2.5 py-1 rounded-lg text-[10px] font-black tracking-widest border border-[#0176d3]/20 whitespace-nowrap">
+                    <ShieldCheck className="w-3 h-3" />
+                    {dnaScore}% DNA
+                  </div>
+                  {timePenalty > 0 && (
+                    <span className="text-[8px] text-rose-400 font-bold mt-1 opacity-80 flex items-center gap-1">
+                      <TrendingDown className="w-2 h-2" /> {timePenalty.toFixed(0)}pt Decay
+                    </span>
+                  )}
+               </div>
+
+               {/* ROI Badge */}
+               <div className={clsx(
+                 "flex flex-col items-end min-w-[80px] p-2 rounded-lg border",
+                 isProfit ? "bg-emerald-50/50 border-emerald-100" : "bg-rose-50/50 border-rose-100"
+               )}>
+                 <p className="text-[8px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Total ROI</p>
+                 <p className={`text-sm font-black font-mono flex items-center gap-1 ${isProfit ? 'text-emerald-600' : 'text-rose-600'}`}>
+                   {isProfit ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                   {isProfit ? '+' : ''}{currentReturnPct.toFixed(2)}%
+                 </p>
+               </div>
+
                <button 
-                onClick={() => navigate(`/analysis/${item.ticker}`)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-md text-xs font-bold text-slate-700 transition-all"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove(item.ticker);
+                }}
+                className="p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100"
               >
-                Analyze
-              </button>
-              <button 
-                onClick={() => onRemove(item.ticker)}
-                className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-all"
-              >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4.5 h-4.5" />
               </button>
             </div>
           )}
