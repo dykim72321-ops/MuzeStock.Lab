@@ -169,11 +169,13 @@ class PartNormalizer:
         """
         if not mpn:
             return ""
-        
+
         # 1. Broad cleanup of packaging junk
         # Matches patterns like -TR, /R, #PBF, -REEL at the end
         # Also catches alphanumeric suffixes after a digit sequence
-        cleaned = re.split(r'[-/#](?:TR|R|PBF|REEL|T|DR|PB)$', mpn, flags=re.IGNORECASE)[0]
+        cleaned = re.split(
+            r"[-/#](?:TR|R|PBF|REEL|T|DR|PB)$", mpn, flags=re.IGNORECASE
+        )[0]
 
         # 2. Heuristic for common semi-conductor naming (Prefix + Number)
         # Usually everything after the first sequence of digits + maybe 1-2 chars is suffix
@@ -192,7 +194,7 @@ class PartNormalizer:
         base = PartNormalizer.get_base_family(mpn)
         if not base or base == mpn:
             return [mpn]
-        
+
         return list(set([mpn, base, f"{base}-TR", f"{base}DR"]))
 
     @staticmethod

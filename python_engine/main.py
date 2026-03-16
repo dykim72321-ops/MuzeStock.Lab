@@ -340,13 +340,16 @@ class SourcingEngine:
         # 2. Start parallel fetching with timeouts
         print(f"📡 [ENGINE] Triggering parallel scouting for: {q}...", flush=True)
         aggregator = SearchAggregator()
-        
+
         # Parallel tasks with individual timeouts
         tasks = [
-            asyncio.wait_for(self._fetch_from_provider("Market Aggregator", aggregator, q), timeout=10.0),
-            asyncio.wait_for(self._fetch_from_local(q), timeout=5.0)
+            asyncio.wait_for(
+                self._fetch_from_provider("Market Aggregator", aggregator, q),
+                timeout=10.0,
+            ),
+            asyncio.wait_for(self._fetch_from_local(q), timeout=5.0),
         ]
-        
+
         # Gather results (ignore failures to keep the engine resilient)
         results_nested = await asyncio.gather(*tasks, return_exceptions=True)
         results = []
@@ -362,12 +365,20 @@ class SourcingEngine:
             try:
                 base_family = PartNormalizer.get_base_family(q)
                 if base_family and base_family.upper() != q.upper():
-                    print(f"🧬 [ENGINE] Initial results weak. Triggering Parametric Match for: {base_family}")
-                    alt_results = await self._fetch_from_provider("Parametric Engine", aggregator, base_family)
+                    print(
+                        f"🧬 [ENGINE] Initial results weak. Triggering Parametric Match for: {base_family}"
+                    )
+                    alt_results = await self._fetch_from_provider(
+                        "Parametric Engine", aggregator, base_family
+                    )
                     for alt in alt_results:
-                        if PartNormalizer.clean_mpn(alt.mpn) != PartNormalizer.clean_mpn(q):
+                        if PartNormalizer.clean_mpn(
+                            alt.mpn
+                        ) != PartNormalizer.clean_mpn(q):
                             alt.is_alternative = True
-                            alt.relevance_score = (alt.relevance_score or 200) - 100 # Penalize fallback
+                            alt.relevance_score = (
+                                alt.relevance_score or 200
+                            ) - 100  # Penalize fallback
                             results.append(alt)
             except Exception as e:
                 print(f"⚠️ [ENGINE] Parametric fallback failed: {e}")
@@ -383,21 +394,26 @@ class SourcingEngine:
                 merged_parts[key] = part
             else:
                 # Merge logic: take highest stock, lowest price
-                if part.stock > existing.stock: existing.stock = part.stock
-                if part.price > 0 and (existing.price == 0 or part.price < existing.price):
+                if part.stock > existing.stock:
+                    existing.stock = part.stock
+                if part.price > 0 and (
+                    existing.price == 0 or part.price < existing.price
+                ):
                     existing.price = part.price
                 if part.relevance_score > (existing.relevance_score or 0):
                     existing.relevance_score = part.relevance_score
 
         # 5. Expert Grading & Final Sort
         final_list = list(merged_parts.values())
-        
+
         # Relevance -> Availability -> Price
-        final_list.sort(key=lambda x: (
-            -getattr(x, 'relevance_score', 0),
-            x.stock == 0,
-            x.price if x.price > 0 else float('inf')
-        ))
+        final_list.sort(
+            key=lambda x: (
+                -getattr(x, "relevance_score", 0),
+                x.stock == 0,
+                x.price if x.price > 0 else float("inf"),
+            )
+        )
 
         # 6. Store in Cache
         self.search_cache[q_norm] = final_list
@@ -532,6 +548,7 @@ async def get_part_details(url: str = Query(...)):
     """
     try:
         from scraper import SearchAggregator
+
         aggregator = SearchAggregator()
         details = await aggregator.get_part_details(url)
         return details
