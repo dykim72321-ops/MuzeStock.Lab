@@ -72,6 +72,20 @@ export const getRiskLabel = (score: number) => {
   return 'Stable';
 };
 
+export const getRelevanceBadgeClass = (score: number) => {
+  if (score >= 1000) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+  if (score >= 500) return 'bg-blue-100 text-blue-700 border-blue-200';
+  if (score >= 200) return 'bg-amber-100 text-amber-700 border-amber-200';
+  return 'bg-slate-100 text-slate-500 border-slate-200';
+};
+
+export const getRelevanceLabel = (score: number) => {
+  if (score >= 1000) return 'Exact Match';
+  if (score >= 500) return 'Prefix Match';
+  if (score >= 200) return 'Variant';
+  return 'Partial';
+};
+
 export const getSortClass = (currentField: SortField, targetField: SortField, sortOrder: SortOrder) => {
   if (currentField !== targetField) return 'sortable';
   return sortOrder === 'asc' ? 'sortable sorted-asc' : 'sortable sorted-desc';

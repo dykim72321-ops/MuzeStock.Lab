@@ -1,23 +1,67 @@
 import { useMemo } from 'react';
-import { calculateDNATargets } from '../utils/dnaMath';
+import { calculateDNATargets, calculateEfficiencyRatio, calculateKellyWeight } from '../utils/dnaMath';
+import type { HistoricalDataPoint } from '../types';
 
 interface DNAConfig {
   buyPrice: number;
   currentPrice: number;
-  atr5?: number; // Supabase에서 내려주는 5일 평균 변동폭
-  buyDate: string; // ISO String 형태
+  currentHigh?: number;
+  atr5?: number;
+  buyDate: string;
+  history?: HistoricalDataPoint[];
+  benchmarkHistory?: HistoricalDataPoint[]; // 🆕 Russell 2000 (IWM)
 }
 
-export function useDNACalculator({ buyPrice, currentPrice, atr5, buyDate }: DNAConfig) {
+export function useDNACalculator({ 
+  buyPrice, 
+  currentPrice, 
+  currentHigh = 0, 
+  atr5, 
+  buyDate,
+  history = [],
+  benchmarkHistory = []
+}: DNAConfig) {
   return useMemo(() => {
-    // 1. 공통 연산 함수 사용 (T: 목표가, S: 손절가)
-    const { targetPrice: T, stopPrice: S, effectiveATR } = calculateDNATargets(buyPrice, atr5);
-    
-    const GAMMA = 0.8; // 수익 모멘텀 지수
-    const DELTA = 1.5; // 손실 공포 지수
-    const LAMBDA = 2; // 일일 시간 감가점
+    // 1. Efficiency Ratio (ER) 계산
+    const historicalPrices = history.map(h => h.price);
+    const efficiencyRatio = calculateEfficiencyRatio(historicalPrices);
 
-    // 2. 시간 페널티 계산 (Time Decay - UTC 기준 안정화)
+    // 2. Relative Strength (RS) 계산
+    let relativeStrength = 0;
+    if (history.length > 5 && benchmarkHistory.length > 5) {
+      const stockStart = history[0].price;
+      const stockEnd = currentPrice;
+      const stockReturn = (stockEnd / stockStart) - 1;
+
+      const benchStart = benchmarkHistory[0].price;
+      const benchEnd = benchmarkHistory[benchmarkHistory.length - 1].price;
+      const benchReturn = (benchEnd / benchStart) - 1;
+
+      relativeStrength = Number(((stockReturn - benchReturn) * 100).toFixed(2));
+    }
+    
+    // 3. 변동성 StdDev 계산 (단순화: 가격 변동폭의 평균)
+    const volatilityStdDev = history.length > 1 
+      ? Math.sqrt(history.reduce((acc, h, i, arr) => {
+          if (i === 0) return 0;
+          return acc + Math.pow(h.price - arr[i-1].price, 2);
+        }, 0) / history.length)
+      : buyPrice * 0.05;
+
+    // 3. 고도화된 목표가/손절가 연산 (Chandelier Exit)
+    const { targetPrice: T, stopPrice: S, effectiveATR, isTrailing } = calculateDNATargets(
+      buyPrice, 
+      currentPrice, 
+      currentHigh, 
+      atr5,
+      volatilityStdDev
+    );
+    
+    const GAMMA = 0.8; 
+    const DELTA = 1.5; 
+    const LAMBDA = 2; 
+
+    // 4. 시간 페널티 계산
     const msPerDay = 1000 * 60 * 60 * 24;
     const now = new Date();
     const utcNow = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
@@ -25,34 +69,45 @@ export function useDNACalculator({ buyPrice, currentPrice, atr5, buyDate }: DNAC
     const utcAdded = Date.UTC(added.getUTCFullYear(), added.getUTCMonth(), added.getUTCDate());
     
     const daysHeld = Math.max(0, Math.floor((utcNow - utcAdded) / msPerDay));
-    const timePenalty = Math.min(40, daysHeld * LAMBDA); // 최대 40점 Cap
+    const timePenalty = Math.min(40, daysHeld * LAMBDA);
 
-    // 3. 비선형 DNA 스코어 계산
+    // 5. DNA 스코어 계산 (ER 가중치 적용)
     let score = 50;
 
     if (currentPrice >= T) {
-      score = 100; // 목표 달성 시 페널티 없이 100점
+      score = 100; 
     } else if (currentPrice > buyPrice) {
-      // 수익 구간 로직
       const progress = (currentPrice - buyPrice) / (T - buyPrice);
-      score = 50 + 50 * Math.pow(progress, GAMMA) - timePenalty;
+      // ER이 높을수록(추세가 깔끔할수록) 점수 가점
+      const erBonus = efficiencyRatio * 10;
+      score = 50 + (50 * Math.pow(progress, GAMMA)) + erBonus - timePenalty;
     } else {
-      // 손실 구간 로직
       const fall = (buyPrice - currentPrice) / (buyPrice - S);
-      // currentPrice가 S 밑으로 내려가면 fall이 1보다 커지므로 점수는 0에 수렴
       const clampedFall = Math.min(1, fall); 
-      score = 50 - 50 * Math.pow(clampedFall, DELTA) - timePenalty;
+      // ER이 낮을수록(노이즈가 심할수록) 하락장에서 감점 가중
+      const erPenalty = (1 - efficiencyRatio) * 15;
+      score = 50 - (50 * Math.pow(clampedFall, DELTA)) - erPenalty - timePenalty;
     }
 
-    // 4. 최종 점수 보정 (0 ~ 100 사이 유지)
+    const finalScore = Math.max(0, Math.min(100, Math.round(score)));
+
+    // 6. Kelly Position Sizing (Quarter-Kelly)
+    // 손익비 R = (Target - Entry) / (Entry - Stop)
+    const riskRewardRatio = (T - buyPrice) / (buyPrice - S);
+    const kellyWeight = calculateKellyWeight(finalScore, riskRewardRatio);
+
     return {
-      dnaScore: Math.max(0, Math.min(100, Math.round(score))),
+      dnaScore: finalScore,
       targetPrice: T,
       stopPrice: S,
       timePenalty,
       daysHeld,
-      effectiveATR
+      effectiveATR,
+      efficiencyRatio: Number(efficiencyRatio.toFixed(2)),
+      kellyWeight,
+      relativeStrength,
+      isTrailing
     };
-  }, [buyPrice, currentPrice, atr5, buyDate]);
+  }, [buyPrice, currentPrice, currentHigh, atr5, buyDate, history, benchmarkHistory]);
 }
 

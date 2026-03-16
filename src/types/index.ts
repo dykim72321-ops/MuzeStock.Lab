@@ -7,8 +7,10 @@ export interface Stock {
   volume: number;
   marketCap: string;
   dnaScore: number;
+  relativeStrength?: number; // 🆕 RS vs Russell 2000 (IWM)
   sector: string;
   description: string;
+  currentHigh?: number; // 🆕 Highest price since monitoring/session
   relevantMetrics: {
     debtToEquity: number;
     rndRatio: number; // R&D as % of Revenue
@@ -37,7 +39,9 @@ export interface Stock {
     // 🆕 Momentum Indicators (Phase 1)
     averageVolume10d?: number; // 10-day average volume
     relativeVolume?: number; // Current volume / Avg volume (key momentum signal)
+    relativeStrength?: number;
     atr5?: number; // 🆕 5-day Average True Range
+    dailyChangeStdDev?: number; // 🆕 Historical volatility measure
   };
   news?: { title: string; url: string; time_published: string }[];
   newsHeadlines?: string[]; // 🆕 Google News headlines

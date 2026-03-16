@@ -76,7 +76,8 @@ export const useMuzepartSearch = () => {
           is_qc_enabled: false,
           price_history: item.price_history || [item.price],
           is_locked: false,
-          is_processing: false
+          is_processing: false,
+          relevance_score: item.relevance_score || 0
         })));
       } else {
         console.error("Malformed search data:", data);
@@ -320,6 +321,25 @@ export const useMuzepartSearch = () => {
     }
   }, []);
 
+  const fetchPartDetails = useCallback(async (productUrl: string) => {
+    if (!productUrl) return null;
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/parts/details?url=${encodeURIComponent(productUrl)}`);
+      if (!response.ok) throw new Error('Detail fetch failed');
+      const details = await response.json();
+      
+      // Update results with fetched specs
+      setResults(prev => prev.map(p => 
+        p.product_url === productUrl ? { ...p, ...details, specs: { ...p.specs, ...details.specs } } : p
+      ));
+      
+      return details;
+    } catch (err) {
+      console.error("Failed to fetch extended specs:", err);
+      return null;
+    }
+  }, []);
+
   return {
     phase,
     query,
@@ -364,6 +384,7 @@ export const useMuzepartSearch = () => {
     handleSort,
     resetFilters,
     handleLock,
+    fetchPartDetails,
     handleRetryConnection,
     setIsBackendConnected,
     setConnectionError

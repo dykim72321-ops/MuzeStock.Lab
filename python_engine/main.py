@@ -159,6 +159,7 @@ class StandardPart(BaseModel):
     market_notes: Optional[str] = ""
     lifecycle: Optional[str] = "Unknown"
     is_alternative: Optional[bool] = False
+    relevance_score: Optional[int] = 0
     updated_at: datetime
     datasheet: Optional[str] = ""
     description: Optional[str] = ""
@@ -305,6 +306,7 @@ class SourcingEngine:
                         risk_score=ext.get("risk_score", risk_score),
                         lifecycle=ext.get("lifecycle", "Active"),
                         is_alternative=ext.get("is_alternative", False),
+                        relevance_score=ext.get("relevance_score", 0),
                         updated_at=datetime.now(),
                         datasheet=ext.get("datasheet", ""),
                         product_url=ext.get("product_url", ""),
@@ -335,78 +337,71 @@ class SourcingEngine:
             print(f"⚡ [ENGINE] Cache Hit for: {q_norm}")
             return self.search_cache[q_norm]
 
-        # 2. Start parallel fetching
-        tasks = []
+        # 2. Start parallel fetching with timeouts
+        print(f"📡 [ENGINE] Triggering parallel scouting for: {q}...", flush=True)
         aggregator = SearchAggregator()
-        print(f"DEBUG: [ENGINE] Triggering fetch for: {q}", flush=True)
-        tasks.append(self._fetch_from_provider("Market Aggregator", aggregator, q))
+        
+        # Parallel tasks with individual timeouts
+        tasks = [
+            asyncio.wait_for(self._fetch_from_provider("Market Aggregator", aggregator, q), timeout=10.0),
+            asyncio.wait_for(self._fetch_from_local(q), timeout=5.0)
+        ]
+        
+        # Gather results (ignore failures to keep the engine resilient)
+        results_nested = await asyncio.gather(*tasks, return_exceptions=True)
+        results = []
+        for res in results_nested:
+            if isinstance(res, list):
+                results.extend(res)
+            elif isinstance(res, Exception):
+                print(f"⚠️ [ENGINE] Source timeout or failure: {res}")
 
-        # Wait for initial results
-        all_results_lists = await asyncio.gather(*tasks)
-        results = [p for sublist in all_results_lists for p in sublist]
-        print(
-            f"DEBUG: [ENGINE] Aggregated {len(results)} results from providers",
-            flush=True,
-        )
-
-        # 2. Parametric DNA Match Fallback (if results are weak)
-        # Weak results = < 3 results or all High Risk
+        # 3. Parametric Match Fallback (if results are weak)
         is_weak = len(results) < 3 or all((p.risk_score or 0) > 70 for p in results)
-
         if is_weak:
             try:
                 base_family = PartNormalizer.get_base_family(q)
                 if base_family and base_family.upper() != q.upper():
-                    print(
-                        f"🧬 [ENGINE] Initial results weak. Triggering Parametric DNA Match for: {base_family}"
-                    )
-                    # Rename to clarify this is deterministic family search, not generic LLM AI
-                    alt_results = await self._fetch_from_provider(
-                        "Parametric Engine", aggregator, base_family
-                    )
+                    print(f"🧬 [ENGINE] Initial results weak. Triggering Parametric Match for: {base_family}")
+                    alt_results = await self._fetch_from_provider("Parametric Engine", aggregator, base_family)
                     for alt in alt_results:
-                        if PartNormalizer.clean_mpn(
-                            alt.mpn
-                        ) != PartNormalizer.clean_mpn(q):
+                        if PartNormalizer.clean_mpn(alt.mpn) != PartNormalizer.clean_mpn(q):
                             alt.is_alternative = True
-                            alt.market_notes = f"Parametric alternative to {q}"
+                            alt.relevance_score = (alt.relevance_score or 200) - 100 # Penalize fallback
                             results.append(alt)
-            except ImportError:
-                print(
-                    "⚠️ [ENGINE] utils.PartNormalizer not found, skipping parametric match."
-                )
+            except Exception as e:
+                print(f"⚠️ [ENGINE] Parametric fallback failed: {e}")
 
-        # 3. Intellectual Merging & Deduplication
+        # 4. Deduplication & Merging
         merged_parts = {}
-
         for part in results:
-            # Key = Normalized MPN + Distributor
             norm_mpn = PartNormalizer.clean_mpn(part.mpn)
             key = f"{norm_mpn}@{part.distributor}"
 
-            if key not in merged_parts:
+            existing = merged_parts.get(key)
+            if not existing:
                 merged_parts[key] = part
             else:
-                existing = merged_parts[key]
-                if part.stock > existing.stock:
-                    existing.stock = part.stock
-                if part.price > 0 and (
-                    existing.price == 0 or part.price < existing.price
-                ):
+                # Merge logic: take highest stock, lowest price
+                if part.stock > existing.stock: existing.stock = part.stock
+                if part.price > 0 and (existing.price == 0 or part.price < existing.price):
                     existing.price = part.price
-                    existing.price_history = part.price_history
-                if part.product_url and not existing.product_url:
-                    existing.product_url = part.product_url
+                if part.relevance_score > (existing.relevance_score or 0):
+                    existing.relevance_score = part.relevance_score
 
-        # 4. Final Sort (By price, non-zero first)
+        # 5. Expert Grading & Final Sort
         final_list = list(merged_parts.values())
-        sorted_results = sorted(
-            final_list, key=lambda x: x.price if x.price > 0 else float("inf")
-        )
+        
+        # Relevance -> Availability -> Price
+        final_list.sort(key=lambda x: (
+            -getattr(x, 'relevance_score', 0),
+            x.stock == 0,
+            x.price if x.price > 0 else float('inf')
+        ))
 
-        # 5. Store in Cache
-        self.search_cache[q_norm] = sorted_results
-        return sorted_results
+        # 6. Store in Cache
+        self.search_cache[q_norm] = final_list
+        return final_list
 
     async def _fetch_from_local(self, q: str) -> List[StandardPart]:
         """Internal helper for local inventory fetch"""
@@ -528,6 +523,21 @@ async def search_parts(
         print(f"❌ [API] Search error: {e}")
         print(traceback.format_exc())
         return []  # 에러 발생 시 빈 리스트 반환하여 프론트엔드 크래시 방지
+
+
+@app.get("/api/parts/details")
+async def get_part_details(url: str = Query(...)):
+    """
+    [LAZY LOADING] Fetches extended specs from a specific product URL.
+    """
+    try:
+        from scraper import SearchAggregator
+        aggregator = SearchAggregator()
+        details = await aggregator.get_part_details(url)
+        return details
+    except Exception as e:
+        print(f"❌ [API] Detail fetch error: {e}")
+        return {}
 
 
 @app.websocket("/ws/pulse")

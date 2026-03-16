@@ -6,25 +6,36 @@ import {
   getStockClass, 
   getDistributorUrl,
   getRiskScoreClass,
-  getRiskLabel
+  getRiskLabel,
+  getRelevanceBadgeClass,
+  getRelevanceLabel
 } from './MuzepartUI';
-import { Globe } from 'lucide-react';
+import { Globe, Info } from 'lucide-react';
 
 interface MuzepartResultRowProps {
   part: ComponentPart;
   handleLock: (part: ComponentPart) => void;
+  onShowDetails: (part: ComponentPart) => void;
 }
 
 export const MuzepartResultRow: React.FC<MuzepartResultRowProps> = ({ 
   part, 
-  handleLock 
+  handleLock,
+  onShowDetails
 }) => {
   return (
     <tr key={`${part.id}-${part.distributor}`} className="hover:bg-slate-50/50 transition-colors">
       <td className="px-4 py-4">
-        <span className={`distributor-badge ${getDistributorBadgeClass(part.distributor)}`}>
-          {part.distributor}
-        </span>
+        <div className="flex flex-col gap-1.5">
+          <span className={`distributor-badge ${getDistributorBadgeClass(part.distributor)}`}>
+            {part.distributor}
+          </span>
+          {part.relevance_score !== undefined && (
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold border ${getRelevanceBadgeClass(part.relevance_score)}`}>
+              {getRelevanceLabel(part.relevance_score)}
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-4 py-4">
         <div className="flex items-center gap-3">
@@ -77,6 +88,13 @@ export const MuzepartResultRow: React.FC<MuzepartResultRowProps> = ({
           >
             <Globe className="w-4 h-4" />
           </a>
+          <button
+            onClick={() => onShowDetails(part)}
+            className="p-2 text-slate-400 hover:text-[#0176d3] hover:bg-blue-50 rounded-lg transition-all"
+            title="상세 정보 (Specs)"
+          >
+            <Info className="w-4 h-4" />
+          </button>
           <button 
             onClick={() => handleLock(part)}
             disabled={part.is_locked || part.is_processing}

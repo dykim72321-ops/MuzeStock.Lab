@@ -31,8 +31,19 @@ export const MuzepartSearchPage: React.FC = () => {
     intelData, showSuccess, setShowSuccess,
     trackingId, handleSearch,
     handleSort, handleLock,
+    fetchPartDetails,
     handleRetryConnection, resetFilters
   } = useMuzepartSearch();
+
+  const [detailPart, setDetailPart] = useState<any | null>(null);
+  const [isFetchingDetails, setIsFetchingDetails] = useState(false);
+
+  const onShowDetails = async (part: any) => {
+    setDetailPart(part);
+    setIsFetchingDetails(true);
+    await fetchPartDetails(part.product_url);
+    setIsFetchingDetails(false);
+  };
 
   type ViewMode = 'grid' | 'table';
   const [viewMode, setViewMode] = useState<ViewMode>('table');
@@ -238,6 +249,7 @@ export const MuzepartSearchPage: React.FC = () => {
                           key={`${part.id}-${part.distributor}`}
                           part={part}
                           handleLock={handleLock}
+                          onShowDetails={onShowDetails}
                         />
                       ))}
                     </tbody>
@@ -250,6 +262,7 @@ export const MuzepartSearchPage: React.FC = () => {
                       key={`${part.id}-${part.distributor}`}
                       part={part}
                       handleLock={handleLock}
+                      onShowDetails={onShowDetails}
                     />
                   ))}
                 </div>
@@ -331,6 +344,97 @@ export const MuzepartSearchPage: React.FC = () => {
             >
               확인 후 계속하기
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {detailPart && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-0 overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-white rounded-lg shadow-sm">
+                  <Search className="w-5 h-5 text-[#0176d3]" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-slate-900 leading-tight">Extended Specifications</h2>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{detailPart.mpn}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setDetailPart(null)}
+                className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              {isFetchingDetails ? (
+                <div className="py-20 text-center space-y-4">
+                  <div className="loading-spinner-premium mx-auto"></div>
+                  <p className="text-sm font-bold text-slate-500">Fetching deep specs from {detailPart.distributor}...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-4">
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Core Identity</p>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-xs text-slate-600">Manufacturer</span>
+                          <span className="text-xs font-bold text-slate-900">{detailPart.manufacturer}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs text-slate-600">Package</span>
+                          <span className="text-xs font-bold text-slate-900">{detailPart.package || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs text-slate-600">RoHS</span>
+                          <span className={`text-xs font-bold ${detailPart.rohs ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {detailPart.rohs ? 'Compliant' : 'Non-Compliant'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 h-full">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Technical Specs</p>
+                      <div className="space-y-2">
+                        {detailPart.specs && Object.keys(detailPart.specs).length > 0 ? (
+                          Object.entries(detailPart.specs).map(([k, v]) => (
+                            <div key={k} className="flex justify-between border-b border-slate-100 pb-1">
+                              <span className="text-xs text-slate-600">{k}</span>
+                              <span className="text-xs font-bold text-slate-900 text-right ml-2">{v as string}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-xs text-slate-400 italic">No additional specs found.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button 
+                onClick={() => setDetailPart(null)}
+                className="px-6 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-100 transition-all"
+              >
+                Close
+              </button>
+              <button 
+                onClick={() => { handleLock(detailPart); setDetailPart(null); }}
+                className="px-6 py-2 bg-[#0176d3] text-white font-bold rounded-xl hover:bg-blue-700 shadow-md transition-all"
+              >
+                Proceed to Lock
+              </button>
+            </div>
           </div>
         </div>
       )}

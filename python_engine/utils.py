@@ -165,19 +165,35 @@ class PartNormalizer:
         """
         Extracts the core part family by stripping common packaging/temp suffixes.
         Example: 'TPS54331-DR' -> 'TPS54331', 'STM32F103C8T6' -> 'STM32F103'
+        Uses Regex to separate Base MPN from known suffixes.
         """
         if not mpn:
             return ""
-        # 1. Standard pattern: Split by hyphens/dots and take the first part
-        base = re.split(r"[-.]", mpn)[0]
+        
+        # 1. Broad cleanup of packaging junk
+        # Matches patterns like -TR, /R, #PBF, -REEL at the end
+        # Also catches alphanumeric suffixes after a digit sequence
+        cleaned = re.split(r'[-/#](?:TR|R|PBF|REEL|T|DR|PB)$', mpn, flags=re.IGNORECASE)[0]
 
         # 2. Heuristic for common semi-conductor naming (Prefix + Number)
         # Usually everything after the first sequence of digits + maybe 1-2 chars is suffix
-        match = re.search(r"^([A-Z]+[0-9]+[A-Z]*)", base)
+        match = re.search(r"^([A-Z0-9]+?[0-9]{3,})", cleaned)
         if match:
             return match.group(1)
 
-        return base
+        # 3. Fallback: Split by hyphens/dots and take the first part
+        return re.split(r"[-.]", cleaned)[0]
+
+    @staticmethod
+    def generate_variants(mpn: str) -> list[str]:
+        """
+        Generates common variants of an MPN to increase search surface.
+        """
+        base = PartNormalizer.get_base_family(mpn)
+        if not base or base == mpn:
+            return [mpn]
+        
+        return list(set([mpn, base, f"{base}-TR", f"{base}DR"]))
 
     @staticmethod
     def get_lifecycle_status(mpn: str, stock: int) -> str:

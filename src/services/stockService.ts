@@ -58,6 +58,7 @@ async function fetchFromFinnhub(ticker: string): Promise<Stock | null> {
       volume: 0, // Finnhub quote doesn't include volume, would need separate call
       marketCap: 'N/A',
       dnaScore: calculateDnaScore(data.c, data.dp || 0, 0),
+      currentHigh: data.h || data.c,
       sector: getSector(ticker),
       description: '',
       relevantMetrics: {
@@ -201,6 +202,7 @@ export async function fetchStockQuote(ticker: string, historyRange?: string): Pr
       volume: data.volume || 0,
       marketCap: formatMarketCap(data.marketCap),
       dnaScore: data.dnaScore || calculateDnaScore(data.price, data.changePercent, data.volume),
+      currentHigh: data.high || data.price,
       sector: getSector(ticker),
       description: getDescription(ticker),
       relevantMetrics: {

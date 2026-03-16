@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Trash2, Activity, TrendingUp, TrendingDown, Search,
-  LayoutGrid, List, Zap, ShieldCheck
+  LayoutGrid, List, Zap, ShieldCheck, HelpCircle
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, YAxis, ReferenceLine, Tooltip as RechartsTooltip } from 'recharts';
 import { useNavigate } from 'react-router-dom';
@@ -10,11 +10,12 @@ import { Card } from '../components/ui/Card';
 import clsx from 'clsx';
 import { getWatchlist, removeFromWatchlist, addToWatchlist, type WatchlistItem } from '../services/watchlistService';
 import { 
-  fetchMultipleStocksOptimized
+  fetchMultipleStocksOptimized,
+  fetchStockHistory
 } from '../services/stockService';
 import { useDNACalculator } from '../hooks/useDNACalculator';
 import { StockTerminalModal } from '../components/dashboard/StockTerminalModal';
-import type { Stock } from '../types';
+import type { Stock, HistoricalDataPoint } from '../types';
 
 const formatPrice = (price: number | undefined | null): string => {
   if (price === undefined || price === null) return '---';
@@ -25,6 +26,7 @@ export const WatchlistPage = () => {
   const navigate = useNavigate();
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([]);
   const [stocks, setStocks] = useState<Stock[]>([]);
+  const [benchmarkHistory, setBenchmarkHistory] = useState<HistoricalDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -55,11 +57,16 @@ export const WatchlistPage = () => {
         
         console.log(`[Watchlist] Fetching optimized data for ${tickers.length} tickers with range: ${historyRange}`);
         
+        
         // 🚀 Parallel Optimized Fetch
-        const enrichedStocks = await fetchMultipleStocksOptimized(tickers, historyRange);
+        const [enrichedStocks, iwmHistory] = await Promise.all([
+          fetchMultipleStocksOptimized(tickers, historyRange),
+          fetchStockHistory('IWM', 'D', diffDays)
+        ]);
         
         console.log('DEBUG: Enriched Stocks with History:', enrichedStocks.map(s => ({ t: s.ticker, hL: s.history?.length })));
         setStocks(enrichedStocks);
+        setBenchmarkHistory(iwmHistory);
       }
     } catch (err) {
       console.error('Failed to load watchlist:', err);
@@ -182,6 +189,7 @@ export const WatchlistPage = () => {
                 stock={getStock(item.ticker)} 
                 viewMode={viewMode}
                 onRemove={handleRemove}
+                benchmarkHistory={benchmarkHistory}
                 onDeepDive={(data) => setTerminalData(data)}
               />
             ))}
@@ -206,19 +214,30 @@ interface WatchlistItemCardProps {
   stock?: Stock;
   viewMode: 'grid' | 'list';
   onRemove: (ticker: string) => void;
+  benchmarkHistory: HistoricalDataPoint[];
   onDeepDive: (data: any) => void;
 }
 
-const WatchlistItemCard = ({ item, stock, viewMode, onRemove, onDeepDive }: WatchlistItemCardProps) => {
-  // const isPositive = stock && stock.changePercent >= 0; // Daily change is no longer the primary color driver
-  // Use isProfit instead for the entire card theme
-
+const WatchlistItemCard = ({ item, stock, viewMode, onRemove, benchmarkHistory, onDeepDive }: WatchlistItemCardProps) => {
   // 🆕 DNA Calculator Integration
-  const { dnaScore, targetPrice, stopPrice, timePenalty, daysHeld } = useDNACalculator({
+  const { 
+    dnaScore, 
+    targetPrice, 
+    stopPrice, 
+    timePenalty, 
+    daysHeld,
+    efficiencyRatio,
+    kellyWeight,
+    relativeStrength,
+    isTrailing
+  } = useDNACalculator({
     buyPrice: item.buyPrice || stock?.price || 0,
     currentPrice: stock?.price || 0,
+    currentHigh: stock?.currentHigh || stock?.price || 0,
     atr5: stock?.relevantMetrics?.atr5,
-    buyDate: item.addedAt
+    buyDate: item.addedAt,
+    history: stock?.history,
+    benchmarkHistory
   });
 
   if (!stock) return null;
@@ -253,6 +272,9 @@ const WatchlistItemCard = ({ item, stock, viewMode, onRemove, onDeepDive }: Watc
               aiSummary: aiSummaryStr,
               price: stock.price,
               change: `${stock.changePercent.toFixed(2)}%`,
+              efficiencyRatio,
+              kellyWeight,
+              relativeStrength
             });
           }
         }}
@@ -283,9 +305,12 @@ const WatchlistItemCard = ({ item, stock, viewMode, onRemove, onDeepDive }: Watc
             {viewMode === 'grid' && (
               <div className="flex items-center gap-2">
                 <div className="flex flex-col items-end">
-                  <div className="flex items-center gap-1 bg-[#0176d3]/10 text-[#0176d3] px-2 py-1 rounded text-[10px] font-black tracking-widest border border-[#0176d3]/20">
+                  <div className="flex items-center gap-1 bg-[#0176d3]/10 text-[#0176d3] px-2 py-1 rounded text-[10px] font-black tracking-widest border border-[#0176d3]/20 hover:bg-[#0176d3]/20 transition-colors group/score relative cursor-help">
                     <ShieldCheck className="w-3 h-3" />
                     {dnaScore}% DNA SCORE
+                    <div className="absolute bottom-full right-0 mb-2 w-48 bg-slate-900 text-white text-[8px] p-2 rounded shadow-xl opacity-0 group-hover/score:opacity-100 transition-opacity z-50 pointer-events-none leading-relaxed font-normal normal-case tracking-normal">
+                      <span className="text-indigo-400 font-bold">DNA SCORE:</span> AI가 분석한 현재 종목의 종합 상승 잠재력 점수 (100점에 가까울수록 강력)
+                    </div>
                   </div>
                   {timePenalty > 0 && (
                     <div className="flex flex-col items-end group/penalty relative">
@@ -301,7 +326,10 @@ const WatchlistItemCard = ({ item, stock, viewMode, onRemove, onDeepDive }: Watc
                   )}
                 </div>
                 <button 
-                  onClick={() => onRemove(item.ticker)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(item.ticker);
+                  }}
                   className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-all"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -313,28 +341,65 @@ const WatchlistItemCard = ({ item, stock, viewMode, onRemove, onDeepDive }: Watc
           <div className={`flex flex-wrap items-end justify-between gap-y-4 ${viewMode === 'grid' ? '' : 'flex-1'}`}>
             <div className="flex flex-wrap gap-2 sm:gap-4">
               <div>
-                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Entry</p>
+                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5 flex items-center gap-1 group/entry relative cursor-help">
+                  Entry
+                  <HelpCircle className="w-2.5 h-2.5 opacity-50" />
+                  <div className="absolute bottom-full left-0 mb-1 w-32 bg-slate-900 text-white text-[8px] p-2 rounded shadow-xl opacity-0 group-hover/entry:opacity-100 transition-opacity z-50 pointer-events-none leading-relaxed normal-case tracking-normal font-normal">
+                    종목을 감시 궤도에 추가했을 때의 기준 가격
+                  </div>
+                </p>
                 <p className="text-sm font-black text-slate-700 font-mono">
                   {formatPrice(item.buyPrice)}
                 </p>
               </div>
               <div>
-                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5">DNA Target</p>
+                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5 flex items-center gap-1 group/target relative cursor-help">
+                  DNA Target
+                  <HelpCircle className="w-2.5 h-2.5 opacity-50" />
+                  <div className="absolute bottom-full left-0 mb-1 w-32 bg-slate-900 text-white text-[8px] p-2 rounded shadow-xl opacity-0 group-hover/target:opacity-100 transition-opacity z-50 pointer-events-none leading-relaxed normal-case tracking-normal font-normal">
+                    AI 모델이 산출한 현실적인 1차 수익 실현 목표가
+                  </div>
+                </p>
                 <p className="text-sm font-black text-[#0176d3] font-mono">
                   {formatPrice(targetPrice)}
                 </p>
               </div>
               <div>
-                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">DNA Stop</p>
+                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5 flex items-center gap-1 group/stop relative cursor-help">
+                  DNA Stop
+                  <HelpCircle className="w-2.5 h-2.5 opacity-50" />
+                  <div className="absolute bottom-full left-0 mb-1 w-48 bg-slate-900 text-white text-[8px] p-2 rounded shadow-xl opacity-0 group-hover/stop:opacity-100 transition-opacity z-50 pointer-events-none leading-relaxed normal-case tracking-normal font-normal">
+                    손실 제한 지지선. 가격 상승 시 고점에 비례해 자동으로 올라 수익을 실현하는 <span className="text-amber-400">트레일링 스탑</span>이 적용됩니다.
+                  </div>
+                </p>
                 <p className="text-sm font-black text-rose-500 font-mono">
                   {formatPrice(stopPrice)}
                 </p>
+                {isTrailing && (
+                  <p className="text-[7px] text-amber-500 font-bold uppercase mt-0.5 animate-pulse">
+                    Trailing Active
+                  </p>
+                )}
               </div>
               {viewMode === 'grid' && (
                 <div>
                   <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Held</p>
                   <p className="text-sm font-black text-slate-500 font-mono">
                     {daysHeld}d
+                  </p>
+                </div>
+              )}
+              {viewMode === 'grid' && (
+                <div>
+                  <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5 flex items-center gap-1 group/kelly relative cursor-help">
+                    Kelly %
+                    <HelpCircle className="w-2.5 h-2.5 opacity-50" />
+                    <div className="absolute bottom-full left-0 mb-1 w-48 bg-slate-900 text-white text-[8px] p-2 rounded shadow-xl opacity-0 group-hover/kelly:opacity-100 transition-opacity z-50 pointer-events-none leading-relaxed normal-case tracking-normal font-normal">
+                      수익성(승률)과 손익비를 수학적으로 계산한 추천 투자 비중. 안정성을 위해 <span className="text-indigo-400">Quarter-Kelly</span>가 적용되었습니다.
+                    </div>
+                  </p>
+                  <p className="text-sm font-black text-indigo-500 font-mono">
+                    {kellyWeight}%
                   </p>
                 </div>
               )}
@@ -369,7 +434,7 @@ const WatchlistItemCard = ({ item, stock, viewMode, onRemove, onDeepDive }: Watc
                    return (
                      <div className="w-full h-full min-h-[80px] flex items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                          Chart Data Collecting...
+                           Chart Data Collecting...
                         </span>
                      </div>
                    );
@@ -439,6 +504,14 @@ const WatchlistItemCard = ({ item, stock, viewMode, onRemove, onDeepDive }: Watc
                         <Zap className="w-3 h-3 text-amber-500" />
                         <span className="text-slate-900">{dnaScore}%</span>
                         <span className="text-[8px] text-slate-400 ml-1 uppercase underline decoration-[#0176d3]/30 underline-offset-2 tracking-tighter">DNA MATCH</span>
+                      </div>
+
+                      <div className="bg-white/90 px-2 py-1 rounded-md backdrop-blur-sm border border-emerald-500/20 shadow-sm flex items-center gap-1 text-[10px] font-black font-mono transition-opacity group-hover/chart:opacity-0 group/er relative cursor-help">
+                        <Activity className="w-3 h-3 text-emerald-500" />
+                        <span className="text-slate-900">ER {efficiencyRatio}</span>
+                        <div className="absolute bottom-full left-0 mb-2 w-48 bg-slate-900 text-white text-[8px] p-2 rounded shadow-xl opacity-0 group-hover/er:opacity-100 transition-opacity z-50 pointer-events-none leading-relaxed font-normal normal-case tracking-normal">
+                          <span className="text-emerald-400 font-bold">Efficiency Ratio:</span> 추세 순도. 1.0에 가까울수록 잡음 없이 깔끔하고 강력한 상승 추세임을 의미합니다.
+                        </div>
                       </div>
                     </div>
                   </div>

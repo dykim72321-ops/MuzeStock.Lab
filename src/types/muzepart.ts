@@ -24,6 +24,7 @@ export interface ComponentPart {
   is_processing?: boolean;
   risk_score?: number;
   market_notes?: string;
+  relevance_score?: number;
   specs?: Record<string, string>;
 }
 

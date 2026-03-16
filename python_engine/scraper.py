@@ -417,21 +417,22 @@ class SearchAggregator:
                     # If not found after 5s, continue and try to parse anyway
                     pass
 
-                # 유통사별 섹션 파싱
-                distributors = await page.query_selector_all(".distributor-results")
+                # 유통사별 섹션 파싱 (Authorized/Independent 모두 포함하도록 포괄적 선택)
+                distributors = await page.query_selector_all(".distributor-results, .distributor-section")
 
                 for dist in distributors:
                     try:
                         dist_name_raw = ""
+                        # Try multiple common name selectors
                         name_el = await dist.query_selector(
-                            ".distributor-name, .distributor-title, .distributor-header a"
+                            ".distributor-name, .distributor-title, .distributor-header a, h3"
                         )
                         if name_el:
                             dist_name_raw = (await name_el.inner_text()).strip()
 
                         if not dist_name_raw:
                             img_el = await dist.query_selector(
-                                ".distributor-header img"
+                                ".distributor-header img, img.distributor-logo"
                             )
                             if img_el:
                                 dist_name_raw = (
@@ -447,23 +448,24 @@ class SearchAggregator:
                         rows = await dist.query_selector_all("tr")
                         for row in rows:
                             try:
+                                # Generalized selectors to avoid missing data
                                 stock_el = await row.query_selector(
-                                    "td.td-stock, .stock-info"
+                                    "td.td-stock, .stock-info, .inventory"
                                 )
                                 price_el = await row.query_selector(
-                                    "td.td-price, .price-list"
+                                    "td.td-price, .price-list, .price"
                                 )
                                 part_el = await row.query_selector(
-                                    "td.td-part, .td-part"
+                                    "td.td-part, .part-number, a.mpn-link"
                                 )
                                 mfg_el = await row.query_selector(
-                                    "td.td-mfg, .td-mfg, .mfg-name"
+                                    "td.td-mfg, .mfg-name, .manufacturer"
                                 )
                                 pkg_el = await row.query_selector(
-                                    "td.td-pkg, .td-pkg, .package-name"
+                                    "td.td-pkg, .package-name"
                                 )
                                 desc_el = await row.query_selector(
-                                    "td.td-description, .td-description, td.td-specs, .td-specs, .specs-info"
+                                    "td.td-description, .td-specs, .description"
                                 )
 
                                 if not stock_el and not part_el:
@@ -484,12 +486,9 @@ class SearchAggregator:
                                     if part_el
                                     else mpn
                                 )
-                                actual_mpn = (
-                                    actual_mpn_raw.split("DISTI")[0]
-                                    .split("\n")[0]
-                                    .strip()
-                                )
-
+                                
+                                # Cleanup MPN from visual artifacts
+                                actual_mpn = actual_mpn_raw.split('\n')[0].strip()
                                 if "Part #" in actual_mpn:
                                     continue
 
@@ -497,125 +496,50 @@ class SearchAggregator:
                                 stock = int(stock_num) if stock_num else 0
                                 price = PartNormalizer.format_price(price_text)
 
-                                buy_link_el = await row.query_selector(
-                                    "a[href*='/buy/'], a[href*='track'], td.td-price a"
-                                )
+                                buy_link_el = await row.query_selector("a[href]")
                                 buy_url = ""
                                 if buy_link_el:
                                     href = await buy_link_el.get_attribute("href")
                                     if href:
-                                        if href.startswith("//"):
-                                            buy_url = "https:" + href
-                                        elif href.startswith("/"):
-                                            buy_url = "https://www.findchips.com" + href
-                                        else:
-                                            buy_url = href
+                                        if href.startswith("//"): buy_url = "https:" + href
+                                        elif href.startswith("/"): buy_url = "https://www.findchips.com" + href
+                                        else: buy_url = href
 
-                                mfg_text = (
-                                    (await mfg_el.inner_text()).strip()
-                                    if mfg_el
-                                    else ""
-                                )
-                                pkg_text = (
-                                    (await pkg_el.inner_text()).strip()
-                                    if pkg_el
-                                    else "N/A"
-                                )
-                                spec_text = (
-                                    (await desc_el.inner_text()).strip()
-                                    if desc_el
-                                    else ""
-                                )
-
-                                # Heuristic: If dedicated package cell is missing, try to find it in description
-                                final_package = (
-                                    pkg_text if pkg_text and pkg_text != "N/A" else ""
-                                )
-                                if not final_package:
-                                    # Look for common package patterns in description
-                                    # (flexible match including prefixes like 64LQFP)
-                                    pkg_match = re.search(
-                                        r"([a-z0-9-]* (?:SOIC|SOP|SSOP|TSSOP|HTSSOP|QFP|LQFP|TQFP|"
-                                        r"BGA|DIP|SOT|TO-\d+|VSSOP|MSOP|SC-\d+)[a-z0-9-]*)",
-                                        spec_text,
-                                        re.IGNORECASE,
-                                    )
-                                    if not pkg_match:
-                                        # Try without space
-                                        pkg_match = re.search(
-                                            r"([a-z0-9-]*(?:SOIC|SOP|SSOP|TSSOP|HTSSOP|QFP|LQFP|TQFP|"
-                                            r"BGA|DIP|SOT|TO-\d+|VSSOP|MSOP|SC-\d+)[a-z0-9-]*)",
-                                            spec_text,
-                                            re.IGNORECASE,
-                                        )
-
-                                    if pkg_match:
-                                        final_package = (
-                                            pkg_match.group(0).strip().upper()
-                                        )
-                                    else:
-                                        # Try another common pattern: at the end of a comma-separated list
-                                        parts = [
-                                            p.strip() for p in spec_text.split(",")
-                                        ]
-                                        if (
-                                            parts
-                                            and len(parts[-1]) < 15
-                                            and any(c.isdigit() for c in parts[-1])
-                                        ):
-                                            final_package = parts[-1]
-
-                                if not final_package or final_package == "N/A":
-                                    final_package = "N/A"
-
+                                spec_text = (await desc_el.inner_text()).strip() if desc_el else ""
+                                
                                 if actual_mpn:
-                                    # Clean manufacturer encoding artifacts
-                                    mfg_clean = re.sub(
-                                        r"[^\x00-\x7F]+", " ", mfg_text
-                                    ).strip()
-                                    manufacturer = (
-                                        mfg_clean
-                                        or PartNormalizer.guess_manufacturer(actual_mpn)
-                                    )
+                                    norm_mpn = PartNormalizer.clean_mpn(actual_mpn)
+                                    search_norm = PartNormalizer.clean_mpn(mpn)
+                                    
+                                    # Ranking Logic
+                                    relevance = 0
+                                    if norm_mpn == search_norm: relevance = 1000
+                                    elif norm_mpn.startswith(search_norm): relevance = 500
+                                    elif search_norm in norm_mpn: relevance = 200
+                                    
+                                    # Penalty for EVB
+                                    if ("-EVB" in actual_mpn.upper() or "EVAL" in actual_mpn.upper()) and \
+                                       ("-EVB" not in mpn.upper() and "EVAL" not in mpn.upper()):
+                                        relevance -= 300
 
-                                    risk_score = PartNormalizer.calculate_risk_score(
-                                        actual_mpn, stock, "Active"
-                                    )
-                                    market_notes = PartNormalizer.generate_market_notes(
-                                        actual_mpn, stock, price, "Active"
-                                    )
-
-                                    results.append(
-                                        {
-                                            "distributor": dist_name,
-                                            "mpn": actual_mpn,
-                                            "normalized_mpn": PartNormalizer.clean_mpn(
-                                                actual_mpn
-                                            ),
-                                            "manufacturer": manufacturer,
-                                            "stock": stock,
-                                            "price": price,
-                                            "risk_level": (
-                                                "High"
-                                                if risk_score > 70
-                                                else (
-                                                    "Medium"
-                                                    if risk_score > 30
-                                                    else "Low"
-                                                )
-                                            ),
-                                            "risk_score": risk_score,
-                                            "market_notes": market_notes,
-                                            "lifecycle": PartNormalizer.get_lifecycle_status(
-                                                actual_mpn, stock
-                                            ),
-                                            "source_type": "Market Aggregator",
-                                            "product_url": buy_url,
-                                            "is_alternative": depth > 0,
-                                            "package": final_package,
-                                            "description": spec_text,
-                                        }
-                                    )
+                                    risk_score = PartNormalizer.calculate_risk_score(actual_mpn, stock, "Active")
+                                    
+                                    results.append({
+                                        "distributor": dist_name,
+                                        "mpn": actual_mpn,
+                                        "normalized_mpn": norm_mpn,
+                                        "manufacturer": (await mfg_el.inner_text()).strip() if mfg_el else PartNormalizer.guess_manufacturer(actual_mpn),
+                                        "stock": stock,
+                                        "price": price,
+                                        "relevance_score": relevance,
+                                        "risk_level": "High" if risk_score > 70 else ("Medium" if risk_score > 30 else "Low"),
+                                        "risk_score": risk_score,
+                                        "lifecycle": PartNormalizer.get_lifecycle_status(actual_mpn, stock),
+                                        "source_type": "Market Aggregator",
+                                        "product_url": buy_url,
+                                        "package": (await pkg_el.inner_text()).strip() if pkg_el else "N/A",
+                                        "description": spec_text,
+                                    })
                             except Exception:
                                 continue
                     except Exception:
@@ -625,71 +549,63 @@ class SearchAggregator:
 
                 # Deduplicate and prioritize better matches
                 unique_results = {}
-                search_q_norm = PartNormalizer.clean_mpn(mpn)
-
                 for r in results:
-                    # HEURISTIC: Skip parts that don't even contain the searched string
-                    # (prevents too broad generic matches)
-                    if search_q_norm not in r["normalized_mpn"]:
-                        continue
-
                     key = f"{r['distributor']}_{r['normalized_mpn']}"
-                    if key not in unique_results:
+                    if key not in unique_results or r['relevance_score'] > unique_results[key]['relevance_score']:
                         unique_results[key] = r
-                    else:
-                        existing = unique_results[key]
-                        # Prefer results with non-zero price, or higher stock if prices are equal/zero
-                        if (
-                            (r["price"] > 0 and existing["price"] == 0)
-                            or (r["price"] > 0 and r["price"] < existing["price"])
-                            or (
-                                r["price"] == existing["price"]
-                                and r["stock"] > existing["stock"]
-                            )
-                        ):
+                    elif r['relevance_score'] == unique_results[key]['relevance_score']:
+                        if r['stock'] > unique_results[key]['stock']:
                             unique_results[key] = r
 
                 final_list = list(unique_results.values())
+                
+                # Hybrid Sorting: Relevance -> Stock -> Price
+                final_list.sort(key=lambda x: (-x['relevance_score'], x['stock'] == 0, x['price'] if x['price'] > 0 else float('inf')))
 
-                # Sort: Exact match first, then by stock/price
-                def rank_result(r):
-                    score = 0
-                    r_mpn = r["mpn"].upper()
-                    q_up = mpn.strip().upper()
-
-                    if r_mpn == q_up:
-                        score -= 1000  # Highest priority
-                    elif r_mpn.startswith(q_up):
-                        score -= 500
-
-                    # Deprioritize Evaluation Boards if the original query wasn't an EVB
-                    if ("-EVB" in r_mpn or "EVAL" in r_mpn) and (
-                        "-EVB" not in q_up and "EVAL" not in q_up
-                    ):
-                        score += 800
-
-                    return score
-
-                final_list.sort(key=rank_result)
-
-                # RECURSIVE FALLBACK: If no stock found for exact MPN, search for its family
-                if len(final_list) > 0:
-                    total_stock = sum(r["stock"] for r in final_list)
-                    if total_stock == 0 and depth == 0:
+                # RECURSIVE FALLBACK (If no prefix match found)
+                if len(final_list) == 0 or all(r['relevance_score'] < 500 for r in final_list):
+                    if depth == 0:
                         family_mpn = PartNormalizer.get_base_family(mpn)
                         if family_mpn and family_mpn != mpn:
-                            print(
-                                f"⚠️ [AGGREGATOR] Exact Match '{mpn}' is OOS. "
-                                f"Trying Family Search for '{family_mpn}'..."
-                            )
-                            family_results = await self.search_market_intel(
-                                family_mpn, depth=depth + 1
-                            )
-                            # Merge but flag them as alternatives
+                            family_results = await self.search_market_intel(family_mpn, depth=depth + 1)
+                            for fr in family_results: fr['is_alternative'] = True
                             return final_list + family_results
 
-                print(f"✅ [AGGREGATOR] Returning {len(final_list)} results for {mpn}")
                 return final_list
+
+        except Exception as e:
+            print(f"❌ [AGGREGATOR] Critical Failure: {e}")
+            return []
+
+    async def get_part_details(self, product_url: str) -> Dict:
+        """
+        [LAZY LOADING] Fetches extended specs from the part's detail page only on-demand.
+        """
+        if not product_url or "findchips.com" not in product_url:
+            return {}
+
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                context = await browser.new_context(user_agent=self.user_agent)
+                page = await context.new_page()
+                
+                await page.goto(product_url, wait_until="domcontentloaded", timeout=15000)
+                
+                # Extract specific specs often found only on detail pages
+                specs = {}
+                rows = await page.query_selector_all(".spec-row, .product-specs tr")
+                for row in rows:
+                    text = await row.inner_text()
+                    if ":" in text:
+                        k, v = text.split(":", 1)
+                        specs[k.strip()] = v.strip()
+                
+                await browser.close()
+                return specs
+        except Exception as e:
+            print(f"⚠️ [LAZY] Detail fetch failed: {e}")
+            return {}
 
         except Exception as e:
             print(f"❌ [AGGREGATOR] Critical Failure: {e}")

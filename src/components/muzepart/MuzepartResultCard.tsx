@@ -6,17 +6,22 @@ import {
   getStockClass, 
   getDistributorUrl,
   getRiskScoreClass,
-  getRiskLabel
+  getRiskLabel,
+  getRelevanceBadgeClass,
+  getRelevanceLabel
 } from './MuzepartUI';
+import { Info } from 'lucide-react';
 
 interface MuzepartResultCardProps {
   part: ComponentPart;
   handleLock: (part: ComponentPart) => void;
+  onShowDetails: (part: ComponentPart) => void;
 }
 
 export const MuzepartResultCard: React.FC<MuzepartResultCardProps> = ({ 
   part, 
-  handleLock 
+  handleLock,
+  onShowDetails
 }) => {
   return (
     <div className="sfdc-card p-5 hover:shadow-lg transition-all border-slate-200">
@@ -28,9 +33,16 @@ export const MuzepartResultCard: React.FC<MuzepartResultCardProps> = ({
             <span className="text-[10px] font-bold text-slate-400 uppercase">{part.manufacturer}</span>
           </div>
         </div>
-        <span className={`distributor-badge ${getDistributorBadgeClass(part.distributor)}`}>
-          {part.distributor}
-        </span>
+        <div className="flex flex-col items-end gap-1.5">
+          <span className={`distributor-badge ${getDistributorBadgeClass(part.distributor)}`}>
+            {part.distributor}
+          </span>
+          {part.relevance_score !== undefined && (
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold border ${getRelevanceBadgeClass(part.relevance_score)}`}>
+              {getRelevanceLabel(part.relevance_score)}
+            </span>
+          )}
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div className="p-3 bg-slate-50 rounded-lg">
@@ -75,6 +87,12 @@ export const MuzepartResultCard: React.FC<MuzepartResultCardProps> = ({
         >
           사이트 방문
         </a>
+        <button
+          onClick={() => onShowDetails(part)}
+          className="flex-1 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50 transition-all text-center flex items-center justify-center gap-2"
+        >
+          <Info className="w-3.5 h-3.5" /> Details
+        </button>
         <button 
           onClick={() => handleLock(part)}
           disabled={part.is_locked || part.is_processing}
