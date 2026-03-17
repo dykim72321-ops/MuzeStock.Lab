@@ -19,13 +19,47 @@ CREATE TABLE IF NOT EXISTS public.realtime_signals (
     price NUMERIC,
     signal TEXT,
     strength TEXT,
-    ai_report TEXT,
+    -- 추가 분석 지표 및 메타데이터
+    adx NUMERIC,
+    rvol NUMERIC,
+    is_extended BOOLEAN DEFAULT FALSE,
+    indicator TEXT,
+    value NUMERIC,
+    ai_metadata JSONB,
     timestamp TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. 기존 테이블에 누락된 컬럼 추가 (결과가 에러가 나더라도 안전하게 무시됨)
--- 에러 방지를 위해 BEGIN ... EXCEPTION 블록을 사용한 동적 컬럼 추가
+-- 2. search_cache 테이블 생성
+CREATE TABLE IF NOT EXISTS public.search_cache (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    part_number TEXT NOT NULL,
+    results JSONB NOT NULL,
+    source_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    search_count INTEGER DEFAULT 1,
+    last_accessed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_search_cache_part_number ON search_cache(part_number);
+
+-- 3. member_inventory 테이블 생성
+CREATE TABLE IF NOT EXISTS public.member_inventory (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id TEXT,
+    mpn TEXT NOT NULL,
+    manufacturer TEXT,
+    quantity INTEGER DEFAULT 0,
+    price_usd NUMERIC DEFAULT 0,
+    description TEXT,
+    condition TEXT,
+    risk_level TEXT DEFAULT 'Low',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_member_inventory_mpn ON member_inventory(mpn);
+
+-- 4. 기존 테이블에 누락된 컬럼 추가 (결과가 에러가 나더라도 안전하게 무시됨)
 DO $$ 
 BEGIN
     -- MACD
@@ -39,15 +73,21 @@ BEGIN
     BEGIN ALTER TABLE public.realtime_signals ADD COLUMN kelly_f NUMERIC; EXCEPTION WHEN duplicate_column THEN END;
     BEGIN ALTER TABLE public.realtime_signals ADD COLUMN recommended_weight NUMERIC; EXCEPTION WHEN duplicate_column THEN END;
     
+    -- 추가 지표 (v2.1)
+    BEGIN ALTER TABLE public.realtime_signals ADD COLUMN adx NUMERIC; EXCEPTION WHEN duplicate_column THEN END;
+    BEGIN ALTER TABLE public.realtime_signals ADD COLUMN rvol NUMERIC; EXCEPTION WHEN duplicate_column THEN END;
+    BEGIN ALTER TABLE public.realtime_signals ADD COLUMN is_extended BOOLEAN DEFAULT FALSE; EXCEPTION WHEN duplicate_column THEN END;
+    BEGIN ALTER TABLE public.realtime_signals ADD COLUMN indicator TEXT; EXCEPTION WHEN duplicate_column THEN END;
+    BEGIN ALTER TABLE public.realtime_signals ADD COLUMN value NUMERIC; EXCEPTION WHEN duplicate_column THEN END;
+    BEGIN ALTER TABLE public.realtime_signals ADD COLUMN ai_metadata JSONB; EXCEPTION WHEN duplicate_column THEN END;
+
     -- 기타
     BEGIN ALTER TABLE public.realtime_signals ADD COLUMN price NUMERIC; EXCEPTION WHEN duplicate_column THEN END;
     BEGIN ALTER TABLE public.realtime_signals ADD COLUMN ai_report TEXT; EXCEPTION WHEN duplicate_column THEN END;
     BEGIN ALTER TABLE public.realtime_signals ADD COLUMN strength TEXT; EXCEPTION WHEN duplicate_column THEN END;
 END $$;
 
--- 3. 실시간 구독(Realtime) 활성화
--- 이 테이블을 프론트엔드에서 수신할 수 있도록 Replication을 활성화합니다.
--- 이미 등록되어 있는 경우 에러가 발생하므로 DO 블록으로 감쌉니다.
+-- 5. 실시간 구독(Realtime) 활성화
 DO $$
 BEGIN
     IF NOT EXISTS (
