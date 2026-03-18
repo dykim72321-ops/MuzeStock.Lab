@@ -6,14 +6,20 @@ export function calculateDNATargets(
   currentPrice: number,
   currentHigh: number = 0,
   atr5?: number,
-  volatilityStdDev: number = 0
+  volatilityStdDev: number = 0,
+  daysHeld: number = 0
 ) {
   // 1. Fallback: 데이터 없을 시 매수가의 20% 변동성 가정
   const effectiveATR = atr5 && atr5 > 0 ? atr5 : entryPrice * 0.20;
   
   // 2. 동적 멀티플라이어 (1.5 ~ 3.0)
-  // 변동성(StdDev)이 높을수록 휩소를 피하기 위해 멀티플라이어를 높임
-  const multiplierBase = 2.0;
+  // Time-based ATR Tightening: 시간이 지날수록 스탑라인을 바짝 올려 수익을 보존
+  let multiplierBase = 2.0;
+  if (daysHeld > 5) {
+    // 5일 초과 시 하루마다 0.1씩 멀티플라이어 감소 (최소 1.0까지)
+    multiplierBase = Math.max(1.0, 2.0 - ((daysHeld - 5) * 0.1));
+  }
+  
   const volatilityFactor = Math.min(1.0, volatilityStdDev / (entryPrice * 0.05));
   const dynamicMultiplier = multiplierBase + (volatilityFactor * 1.0); 
 

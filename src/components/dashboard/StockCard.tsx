@@ -9,7 +9,7 @@ import clsx from 'clsx';
 
 interface StockCardProps {
   stock: Stock;
-  action?: 'buy' | 'watch' | 'avoid';
+  action?: 'buy' | 'watch' | 'avoid' | 'TIME_STOP' | 'EXIT' | 'HOLD' | string;
   confidence?: 'high' | 'medium' | 'low';
   reason?: string;
   rank?: number;         // 추천 순위
@@ -31,6 +31,8 @@ export const StockCard: React.FC<StockCardProps> = ({
       case 'buy': return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
       case 'watch': return 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20';
       case 'avoid': return 'text-rose-400 bg-rose-500/10 border-rose-500/20';
+      case 'TIME_STOP': return 'text-amber-500 bg-amber-500/10 border-amber-500/20 animate-pulse';
+      case 'EXIT': return 'text-rose-500 bg-rose-500/10 border-rose-500/50 shadow-[0_0_10px_rgba(244,63,94,0.2)]';
       default: return 'text-slate-400 bg-slate-500/10 border-slate-500/20';
     }
   };
@@ -40,13 +42,18 @@ export const StockCard: React.FC<StockCardProps> = ({
       case 'buy': return <TrendingUp className="w-4 h-4" />;
       case 'watch': return <Eye className="w-4 h-4" />;
       case 'avoid': return <span className="text-sm">⚠️</span>;
+      case 'TIME_STOP': return <span className="text-sm">⏱️</span>;
+      case 'EXIT': return <span className="text-sm">🛑</span>;
       default: return null;
     }
   };
 
   const translateAction = (a?: string) => {
     if (!a) return '';
-    const map: Record<string, string> = { buy: '매수', watch: '관찰', avoid: '회피' };
+    const map: Record<string, string> = { 
+      buy: '매수', watch: '관찰', avoid: '회피',
+      'TIME_STOP': '기간 종료', 'EXIT': '비중 축소(EXIT)', 'HOLD': '유지'
+    };
     return map[a] || a;
   };
 
@@ -135,8 +142,8 @@ export const StockCard: React.FC<StockCardProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-2 shrink-0">
-          {action && (
+        <div className="flex flex-col items-end gap-2 shrink-0 z-10 relative">
+          {action && action !== 'HOLD' && (
             <div className={clsx(
               'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold uppercase tracking-wider',
               getActionStyles(action)

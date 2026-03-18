@@ -48,28 +48,42 @@ export function useDNACalculator({
         }, 0) / history.length)
       : buyPrice * 0.05;
 
-    // 3. 고도화된 목표가/손절가 연산 (Chandelier Exit)
-    const { targetPrice: T, stopPrice: S, effectiveATR, isTrailing } = calculateDNATargets(
-      buyPrice, 
-      currentPrice, 
-      currentHigh, 
-      atr5,
-      volatilityStdDev
-    );
-    
-    const GAMMA = 0.8; 
-    const DELTA = 1.5; 
-    const LAMBDA = 2; 
-
-    // 4. 시간 페널티 계산
+    // 3. 시간 계산 (daysHeld를 먼저 계산하여 Time-based ATR Tightening에 전달)
+    // 주말(토, 일)을 제외한 실제 거래일(Trading Days) 기준
     const msPerDay = 1000 * 60 * 60 * 24;
     const now = new Date();
     const utcNow = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
     const added = new Date(buyDate);
     const utcAdded = Date.UTC(added.getUTCFullYear(), added.getUTCMonth(), added.getUTCDate());
     
-    const daysHeld = Math.max(0, Math.floor((utcNow - utcAdded) / msPerDay));
-    const timePenalty = Math.min(40, daysHeld * LAMBDA);
+    let daysHeld = 0;
+    let currentUtc = utcAdded;
+    while (currentUtc < utcNow) {
+      currentUtc += msPerDay;
+      const dayOfWeek = new Date(currentUtc).getUTCDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) { // 0: Sunday, 6: Saturday
+        daysHeld++;
+      }
+    }
+
+    // 4. 고도화된 목표가/손절가 연산 (Chandelier Exit + Time-based Tightening)
+    const { targetPrice: T, stopPrice: S, effectiveATR, isTrailing } = calculateDNATargets(
+      buyPrice, 
+      currentPrice, 
+      currentHigh, 
+      atr5,
+      volatilityStdDev,
+      daysHeld
+    );
+    
+    const GAMMA = 0.8; 
+    const DELTA = 1.5; 
+    const LAMBDA = 2; 
+
+    // 5. 모멘텀 기반 동적 시간 감가 (Dynamic Momentum Decay)
+    // ER(Efficiency Ratio)에 따라 감가 가속/감속: 노이즈가 심할수록(ER 0) 1.5배 감가, 추세가 깔끔할수록(ER 1) 0.5배 감가
+    const decayMultiplier = Math.max(0.5, 1.5 - efficiencyRatio);
+    const timePenalty = Math.min(60, daysHeld * LAMBDA * decayMultiplier);
 
     // 5. DNA 스코어 계산 (ER 가중치 적용)
     let score = 50;
@@ -91,10 +105,23 @@ export function useDNACalculator({
 
     const finalScore = Math.max(0, Math.min(100, Math.round(score)));
 
-    // 6. Kelly Position Sizing (Quarter-Kelly)
+    // 6. Kelly Position Sizing (Quarter-Kelly) + Time Stop
     // 손익비 R = (Target - Entry) / (Entry - Stop)
     const riskRewardRatio = (T - buyPrice) / (buyPrice - S);
-    const kellyWeight = calculateKellyWeight(finalScore, riskRewardRatio);
+    let kellyWeight = calculateKellyWeight(finalScore, riskRewardRatio);
+
+    // Time Stop Logic: 보유 일수가 길어지면 강제로 비중 축소 경고
+    let actionFlag: 'HOLD' | 'TIME_STOP' | 'EXIT' = 'HOLD';
+    if (daysHeld > 14) {
+      kellyWeight = Math.max(0, kellyWeight - ((daysHeld - 14) * 2)); // 14일 초과 시 매일 2%p 타격
+      if (kellyWeight <= 0) {
+        actionFlag = 'EXIT';
+      } else {
+        actionFlag = 'TIME_STOP';
+      }
+    } else if (kellyWeight <= 0) {
+      actionFlag = 'EXIT';
+    }
 
     return {
       dnaScore: finalScore,
@@ -106,7 +133,8 @@ export function useDNACalculator({
       efficiencyRatio: Number(efficiencyRatio.toFixed(2)),
       kellyWeight,
       relativeStrength,
-      isTrailing
+      isTrailing,
+      action: actionFlag
     };
   }, [buyPrice, currentPrice, currentHigh, atr5, buyDate, history, benchmarkHistory]);
 }

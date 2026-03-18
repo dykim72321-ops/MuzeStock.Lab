@@ -229,7 +229,8 @@ const WatchlistItemCard = ({ item, stock, viewMode, onRemove, benchmarkHistory, 
     efficiencyRatio,
     kellyWeight,
     relativeStrength,
-    isTrailing
+    isTrailing,
+    action
   } = useDNACalculator({
     buyPrice: item.buyPrice || stock?.price || 0,
     currentPrice: stock?.price || 0,
@@ -278,9 +279,11 @@ const WatchlistItemCard = ({ item, stock, viewMode, onRemove, benchmarkHistory, 
             });
           }
         }}
-        className={`group relative overflow-hidden transition-all bg-white border border-slate-200 shadow-sm cursor-pointer hover:border-[#0176d3]/40 hover:shadow-md ${
-        viewMode === 'grid' ? 'p-6' : 'p-4 flex items-center justify-between'
-      }`}>
+        className={`group relative overflow-hidden transition-all bg-white border shadow-sm cursor-pointer hover:shadow-md ${
+          action === 'EXIT' ? 'border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)] animate-pulse hover:border-rose-400' :
+          action === 'TIME_STOP' ? 'border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:border-amber-400' : 
+          'border-slate-200 hover:border-[#0176d3]/40'
+        } ${viewMode === 'grid' ? 'p-6' : 'p-4 flex items-center justify-between'}`}>
         {/* Background Glow */}
         <div className={`absolute inset-0 opacity-0 group-hover:opacity-[0.03] transition-opacity bg-gradient-to-br ${
           isProfit ? 'from-emerald-500' : 'from-rose-500'
@@ -398,9 +401,21 @@ const WatchlistItemCard = ({ item, stock, viewMode, onRemove, benchmarkHistory, 
                       수익성(승률)과 손익비를 수학적으로 계산한 추천 투자 비중. 안정성을 위해 <span className="text-indigo-400">Quarter-Kelly</span>가 적용되었습니다.
                     </div>
                   </p>
-                  <p className="text-sm font-black text-indigo-500 font-mono">
-                    {kellyWeight}%
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <p className="text-sm font-black text-indigo-500 font-mono">
+                      {kellyWeight}%
+                    </p>
+                    {action === 'TIME_STOP' && (
+                      <span className="text-[8px] bg-amber-500/10 text-amber-500 px-1 py-0.5 rounded font-bold uppercase tracking-wider animate-pulse whitespace-nowrap">
+                        Time Stop
+                      </span>
+                    )}
+                    {action === 'EXIT' && (
+                      <span className="text-[8px] bg-rose-500/10 text-rose-500 px-1 py-0.5 rounded font-bold uppercase tracking-wider animate-pulse whitespace-nowrap">
+                        Exit
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -547,6 +562,16 @@ const WatchlistItemCard = ({ item, stock, viewMode, onRemove, benchmarkHistory, 
                   {timePenalty > 0 && (
                     <span className="text-[8px] text-rose-400 font-bold mt-1 opacity-80 flex items-center gap-1">
                       <TrendingDown className="w-2 h-2" /> {timePenalty.toFixed(0)}pt Decay
+                    </span>
+                  )}
+                  {action === 'TIME_STOP' && (
+                    <span className="text-[8px] bg-amber-500 text-white px-1.5 py-0.5 rounded font-bold mt-1 uppercase animate-pulse">
+                      Time Stop
+                    </span>
+                  )}
+                  {action === 'EXIT' && (
+                    <span className="text-[8px] bg-rose-500 text-white px-1.5 py-0.5 rounded font-bold mt-1 uppercase animate-pulse">
+                      Exit
                     </span>
                   )}
                </div>
