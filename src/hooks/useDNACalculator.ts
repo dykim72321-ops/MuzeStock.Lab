@@ -9,7 +9,6 @@ interface DNAConfig {
   atr5?: number;
   buyDate: string;
   history?: HistoricalDataPoint[];
-  benchmarkHistory?: HistoricalDataPoint[]; // Russell 2000 (IWM)
 }
 
 // 가격 데이터가 미로딩 상태일 때 반환하는 안전한 기본값
@@ -33,8 +32,7 @@ export function useDNACalculator({
   currentHigh = 0, 
   atr5, 
   buyDate,
-  history = [],
-  benchmarkHistory = []
+  history = []
 }: DNAConfig) {
   return useMemo(() => {
     // ✅ 가격 데이터 미로딩 가드: price가 0이면 계산 불가 → 로딩 기본값 반환

@@ -4,7 +4,7 @@ import { fetchDiscoveries, fetchBacktestData, type DiscoveryItem } from '../../s
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Link } from 'react-router-dom';
-import { Zap, TrendingUp, ArrowUpDown, Loader2, List, Sparkles } from 'lucide-react';
+import { Zap, TrendingUp, ArrowUpDown, Loader2, List } from 'lucide-react';
 import clsx from 'clsx';
 import { AddToWatchlistBtn } from '../ui/AddToWatchlistBtn';
 
@@ -38,7 +38,7 @@ export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
         </div>
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-16 bg-slate-800/50 rounded-lg animate-pulse" />
+            <div key={i} className="h-16 bg-slate-800/50 rounded-lg" />
           ))}
         </div>
       </Card>
@@ -59,7 +59,7 @@ export const DailyDiscoveries: React.FC<DailyDiscoveriesProps> = ({
     <Card className={clsx("p-6 shadow-2xl border-slate-800 bg-slate-900/40", className)}>
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
-          <h3 className="text-xl font-black text-white uppercase tracking-tighter">AI 정밀 분석 결과 (Top Picks)</h3>
+          <h3 className="text-xl font-black text-white uppercase tracking-tighter">퀀트 시스템 정밀 분석 (Top Picks)</h3>
           <Badge variant="neutral" className="bg-white/5 text-slate-500 border-white/5 font-mono tracking-tighter px-2">
             {discoveries.length} GEMS FOUND
           </Badge>
@@ -105,8 +105,8 @@ const TopPickHero: React.FC<{ item: DiscoveryItem }> = ({ item }) => {
     <div className="space-y-6">
       <div className="flex items-center gap-2 px-1">
         <Badge variant="primary" className="bg-indigo-600 text-white border-none shadow-lg shadow-indigo-600/30 py-1.5 px-3 text-[10px] font-black tracking-widest uppercase flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5" />
-          MASTER ALGORITHM'S PICK
+          <Zap className="w-3.5 h-3.5 fill-white" />
+          SYSTEM ALGORITHM'S PICK
         </Badge>
         {item.backtest_return !== null && (
           <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1.5 ml-2">
@@ -181,7 +181,7 @@ const DiscoveryCard: React.FC<{ item: DiscoveryItem; rank: number }> = ({ item, 
           <span className="text-[10px] text-slate-500 uppercase tracking-tighter truncate font-medium opacity-60 group-hover:opacity-100">{item.sector}</span>
         </div>
         <p className="text-[11px] text-slate-500 truncate opacity-70 italic font-medium">
-          {item.ai_summary?.split('\n')[0] || 'AI Analysis in progress...'}
+          {item.ai_summary?.split('\n')[0] || 'System Analysis in progress...'}
         </p>
       </div>
 
@@ -247,6 +247,7 @@ const DiscoveryCard: React.FC<{ item: DiscoveryItem; rank: number }> = ({ item, 
         <AddToWatchlistBtn
           ticker={item.ticker}
           dnaScore={item.dna_score}
+          currentPrice={item.price}
           variant="icon"
           className="bg-slate-800/50 border-white/5 hover:border-indigo-500/30 hover:bg-indigo-500/10"
         />

@@ -6,6 +6,7 @@ import clsx from 'clsx';
 interface AddToWatchlistBtnProps {
   ticker: string;
   dnaScore?: number;
+  currentPrice?: number;
   variant?: 'icon' | 'full';
   className?: string;
   onStatusChange?: (isAdded: boolean) => void;
@@ -14,6 +15,7 @@ interface AddToWatchlistBtnProps {
 export const AddToWatchlistBtn: React.FC<AddToWatchlistBtnProps> = ({ 
   ticker, 
   dnaScore,
+  currentPrice,
   variant = 'full', 
   className,
   onStatusChange 
@@ -47,7 +49,7 @@ export const AddToWatchlistBtn: React.FC<AddToWatchlistBtnProps> = ({
         setInWatchlist(false);
         onStatusChange?.(false);
       } else {
-        await addToWatchlist(ticker, undefined, 'WATCHING', undefined, undefined, undefined, dnaScore);
+        await addToWatchlist(ticker, undefined, 'WATCHING', currentPrice, undefined, undefined, dnaScore);
         setInWatchlist(true);
         onStatusChange?.(true);
       }

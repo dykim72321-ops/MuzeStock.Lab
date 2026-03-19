@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import {
     X,
     TrendingUp,
@@ -96,9 +96,9 @@ export const StockTerminalModal = ({
                     // Fallback clearly indicating lack of data instead of spinning
                     setLiveData(prev => ({
                         ...prev,
-                        bullPoints: ["실시간 AI 분석 데이터가 아직 생성되지 않았습니다.", "스캐너를 통해 종목을 다시 스캔해 보세요."],
-                        bearPoints: ["리스크 요인 분석 결과를 기다리는 중입니다."],
-                        aiSummary: "이 종목에 대한 최신 심층 AI 분석 평가지가 존재하지 않습니다."
+                        bullPoints: ["기술적 강세 시그널이 아직 포착되지 않았습니다.", "시스템 스캔을 다시 실행해 보세요."],
+                        bearPoints: ["리스크 요인 분석 중입니다."],
+                        aiSummary: "해당 종목에 대한 시스템 분석 데이터가 존재하지 않습니다."
                     }));
                 }
             } catch (err) {
@@ -142,19 +142,13 @@ export const StockTerminalModal = ({
             {isOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 md:p-10">
                     {/* Backdrop */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
+                    <div
                         onClick={onClose}
                         className="absolute inset-0 bg-[#020617]/90 backdrop-blur-2xl"
                     />
 
                     {/* Modal Container */}
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                    <div
                         className="relative w-full max-w-5xl lg:max-w-6xl max-h-[95vh] md:max-h-[90vh] bg-[#020617]/90 backdrop-blur-3xl border border-white/10 rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-[0_0_80px_rgba(99,102,241,0.2)] flex flex-col md:flex-row"
                     >
                         {/* Terminal Grid Overlay */}
@@ -183,7 +177,7 @@ export const StockTerminalModal = ({
                                             "w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]",
                                             liveData.dnaScore >= 70 ? "bg-emerald-500 shadow-emerald-500/50" : liveData.dnaScore >= 50 ? "bg-amber-500 shadow-amber-500/50" : "bg-rose-500 shadow-rose-500/50"
                                         )} />
-                                        AI 분석 신뢰도: <span className="text-white font-bold">{liveData.dnaScore}%</span>
+                                        시스템 분석 신뢰도: <span className="text-white font-bold">{liveData.dnaScore}%</span>
                                     </p>
                                 </div>
                                 <button
@@ -200,11 +194,7 @@ export const StockTerminalModal = ({
                                     <div className="flex justify-between items-end mb-4">
                                         <span className="text-slate-400 font-black text-xs tracking-widest uppercase flex items-center gap-2 group/dna relative cursor-help">
                                             <Target className="w-4 h-4 text-indigo-400" />
-                                            DNA Power System
-                                            <div className="absolute bottom-full left-0 mb-3 w-72 bg-slate-900/95 backdrop-blur-xl text-white text-[11px] p-4 rounded-xl shadow-2xl opacity-0 group-hover/dna:opacity-100 transition-all z-50 pointer-events-none border border-white/10 leading-relaxed font-normal normal-case tracking-normal">
-                                              <span className="text-indigo-400 font-bold block mb-1 uppercase tracking-widest text-[10px]">DNA Intelligence Score</span>
-                                              AI가 분석한 현재 종목의 종합 상승 잠재력입니다. 기술 지표, 거래량 패턴 및 시장 모멘텀을 결합한 100점 만점의 신뢰 지수입니다.
-                                            </div>
+                                            System Quant Analysis
                                         </span>
                                         <span className="text-4xl md:text-5xl font-black text-white">{liveData.dnaScore}</span>
                                     </div>
@@ -213,33 +203,24 @@ export const StockTerminalModal = ({
                                             const threshold = (i + 1) * 5;
                                             const isActive = liveData.dnaScore >= threshold;
                                             return (
-                                                <motion.div
+                                                <div
                                                     key={i}
-                                                    initial={{ opacity: 0, scaleY: 0.5 }}
-                                                    animate={{ 
-                                                        opacity: isActive ? 1 : 0.1, 
-                                                        scaleY: isActive ? 1 : 0.8,
-                                                        backgroundColor: isActive 
-                                                            ? (liveData.dnaScore >= 70 ? '#10b981' : liveData.dnaScore >= 50 ? '#f59e0b' : '#f43f5e') 
-                                                            : 'rgba(255,255,255,0.1)'
-                                                    }}
-                                                    transition={{ delay: i * 0.03, duration: 0.4 }}
-                                                    className="flex-1 rounded-sm shadow-[0_0_15px_rgba(0,0,0,0.2)]"
+                                                    className={clsx(
+                                                        "flex-1 rounded-sm shadow-[0_0_15px_rgba(0,0,0,0.2)]",
+                                                        isActive 
+                                                            ? (liveData.dnaScore >= 70 ? 'bg-[#10b981]' : liveData.dnaScore >= 50 ? 'bg-[#f59e0b]' : 'bg-[#f43f5e]') 
+                                                            : 'opacity-10 bg-white'
+                                                    )}
+                                                    style={{ transform: isActive ? 'scaleY(1)' : 'scaleY(0.8)' }}
                                                 />
                                             );
                                         })}
-                                        {/* Scanline Effect */}
-                                        <motion.div 
-                                            animate={{ x: ['0%', '1000%'] }}
-                                            transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
-                                            className="absolute inset-y-0 w-20 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 pointer-events-none"
-                                        />
                                     </div>
                                     <div className="flex justify-between text-[9px] items-center text-slate-500 font-black font-mono mt-4 tracking-widest">
-                                        <span>SYSTEM_LOAD: 0%</span>
+                                        <span>STATUS: READY</span>
                                         <div className="flex gap-4">
-                                            <span className="animate-pulse">● ANALYZING</span>
-                                            <span>MAX_CAP: 100%</span>
+                                            <span>● SYSTEM_STABLE</span>
+                                            <span>THROUGHPUT: 100%</span>
                                         </div>
                                     </div>
                                 </div>
@@ -257,21 +238,17 @@ export const StockTerminalModal = ({
                                         </div>
                                         <div className="absolute bottom-full left-0 mb-3 w-72 bg-slate-900/95 backdrop-blur-xl text-white text-[11px] p-4 rounded-xl shadow-2xl opacity-0 group-hover/er:opacity-100 transition-all z-50 pointer-events-none border border-white/10 leading-relaxed font-normal normal-case tracking-normal">
                                             <span className="text-emerald-400 font-bold block mb-1 uppercase tracking-widest text-[10px]">Trend Purity (ER)</span>
-                                            추세의 '순도'를 측정합니다. 1.0에 가까울수록 가격 노이즈가 적고 방향성이 명확하며 강력한 추세임을 의미합니다.
+                                            추세의 방향성을 측정합니다. 1.0에 가까울수록 가격 변동의 노이즈가 적고 한 방향으로의 힘이 강력함을 수학적으로 증명합니다.
                                         </div>
                                     </div>
                                 </div>
 
-                                <motion.div 
-                                    whileHover={{ scale: 1.01 }}
+                                <div 
                                     className="mt-4 bg-indigo-500/10 p-5 rounded-2xl border border-indigo-500/30 group/kelly relative cursor-help shadow-[inset_0_0_20px_rgba(99,102,241,0.1)]"
                                 >
-                                    {/* Pulse Animation */}
-                                    <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 blur-2xl rounded-full animate-pulse" />
-                                    
                                     <p className="text-[10px] text-indigo-300 uppercase font-black tracking-[0.2em] mb-2 flex items-center gap-1">
                                         <ShieldCheck className="w-3 h-3" />
-                                        Fractional Kelly 추천 비중
+                                        사용자 포트폴리오 추천 비중
                                         <HelpCircle className="w-3 h-3 opacity-50" />
                                     </p>
                                     <div className="flex items-center justify-between relative z-10">
@@ -285,9 +262,9 @@ export const StockTerminalModal = ({
                                     </div>
                                     <div className="absolute bottom-full left-0 mb-3 w-full bg-slate-900/95 backdrop-blur-xl text-white text-[11px] p-4 rounded-xl shadow-2xl opacity-0 group-hover/kelly:opacity-100 transition-all z-50 pointer-events-none leading-relaxed font-normal normal-case tracking-normal border border-white/10">
                                         <span className="text-indigo-400 font-bold block mb-1 uppercase tracking-widest text-[10px]">Position Sizing Guide</span> 
-                                        승률과 손익비를 수학적으로 계산한 포트폴리오 비중입니다. 페니 스탁의 높은 변동성을 고려하여 이론값의 25%만 제안하는 보수적 모델(Quarter-Kelly)이 적용되었습니다.
+                                        승률과 손익비를 수학적으로 계산한 포트폴리오 비중입니다. 초저가주의 높은 변동성을 반영하여 이론값의 25%만 제안하는 보수적 수치(Quarter-Kelly)입니다.
                                     </div>
-                                </motion.div>
+                                </div>
                             </div>
                         </div>
 
@@ -300,7 +277,7 @@ export const StockTerminalModal = ({
                                 <div>
                                     <h3 className="text-[10px] md:text-xs font-black text-indigo-400 uppercase tracking-[0.2em] mb-3 md:mb-4 flex items-center gap-2">
                                         <Zap className="w-4 h-4 fill-indigo-400" />
-                                        {liveData.quantData ? "Quant Analysis Verdict" : "AI Intelligence Synthesis"}
+                                        시스템 정밀 분석 리포트 (System Verdict)
                                     </h3>
                                     {(!liveData.aiSummary || liveData.aiSummary.includes("해당 자산에 대한") || liveData.aiSummary.includes("평가지가 존재하지")) ? (
                                         <div className="flex gap-4 mb-4">
@@ -396,7 +373,7 @@ export const StockTerminalModal = ({
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
+                    </div>
                 </div>
             )}
         </AnimatePresence>

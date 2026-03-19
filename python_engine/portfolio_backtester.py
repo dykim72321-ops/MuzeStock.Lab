@@ -212,11 +212,13 @@ class DNAValidator:
                         stock_ret = (current_close / entry_price) - 1
                         bench_start = self.benchmark_data.loc[entry_date]
                         bench_end = self.benchmark_data.loc[current_date]
-                        
+
                         # 만약 Series가 반환되면 첫 번째 값 사용
-                        if isinstance(bench_start, pd.Series): bench_start = bench_start.iloc[0]
-                        if isinstance(bench_end, pd.Series): bench_end = bench_end.iloc[0]
-                        
+                        if isinstance(bench_start, pd.Series):
+                            bench_start = bench_start.iloc[0]
+                        if isinstance(bench_end, pd.Series):
+                            bench_end = bench_end.iloc[0]
+
                         bench_ret = (bench_end / bench_start) - 1
                         rs = (stock_ret - bench_ret) * 100
                     except:

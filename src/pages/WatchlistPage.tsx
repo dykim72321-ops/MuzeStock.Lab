@@ -3,20 +3,18 @@ import { AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { getWatchlist, removeFromWatchlist, addToWatchlist, type WatchlistItem } from '../services/watchlistService';
 import { 
-  fetchMultipleStocksOptimized,
-  fetchStockHistory
+  fetchMultipleStocksOptimized
 } from '../services/stockService';
 import { StockTerminalModal } from '../components/dashboard/StockTerminalModal';
 import { WatchlistItemCard } from '../components/watchlist/WatchlistItemCard';
 import { WatchlistHeader } from '../components/watchlist/WatchlistHeader';
 import { WatchlistEmptyState } from '../components/watchlist/WatchlistEmptyState';
-import type { Stock, HistoricalDataPoint } from '../types';
+import type { Stock } from '../types';
 
 export const WatchlistPage = () => {
   const navigate = useNavigate();
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([]);
   const [stocks, setStocks] = useState<Stock[]>([]);
-  const [benchmarkHistory, setBenchmarkHistory] = useState<HistoricalDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -41,13 +39,9 @@ export const WatchlistPage = () => {
         const diffDays = Math.ceil(Math.abs(now.getTime() - earliestDate.getTime()) / (1000 * 60 * 60 * 24)) + 5;
         const historyRange = diffDays <= 5 ? '5d' : diffDays <= 30 ? '1mo' : diffDays <= 90 ? '3mo' : '1y';
         
-        const [enrichedStocks, iwmHistory] = await Promise.all([
-          fetchMultipleStocksOptimized(tickers, historyRange),
-          fetchStockHistory('IWM', 'D', diffDays).catch(() => [])
-        ]);
+        const enrichedStocks = await fetchMultipleStocksOptimized(tickers, historyRange);
         
         setStocks(enrichedStocks);
-        setBenchmarkHistory(iwmHistory || []);
       }
     } catch (err) {
       console.error('Failed to load watchlist:', err);
@@ -117,7 +111,6 @@ export const WatchlistPage = () => {
                 key={item.ticker} 
                 item={item} 
                 stock={getStock(item.ticker)} 
-                benchmarkHistory={benchmarkHistory}
                 viewMode={viewMode}
                 onRemove={handleRemove}
                 onDeepDive={(data) => setTerminalData(data)}
@@ -132,6 +125,22 @@ export const WatchlistPage = () => {
           isOpen={!!terminalData}
           onClose={() => setTerminalData(null)}
           data={terminalData}
+          onAddToWatchlist={async () => {
+            try {
+              await addToWatchlist(
+                terminalData.ticker, 
+                undefined, 
+                'WATCHING', 
+                terminalData.price, 
+                undefined, 
+                undefined, 
+                terminalData.dnaScore
+              );
+              loadData();
+            } catch (err) {
+              console.error('Failed to update/add to watchlist:', err);
+            }
+          }}
         />
       )}
     </div>

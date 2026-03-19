@@ -1,18 +1,17 @@
-import { motion } from 'framer-motion';
+import React from 'react';
 import { 
   Trash2, ShieldCheck, Activity, Clock, HelpCircle, Zap, TrendingUp
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, Tooltip } from 'recharts';
 import { Card } from '../ui/Card';
 import { useDNACalculator } from '../../hooks/useDNACalculator';
-import type { Stock, HistoricalDataPoint } from '../../types';
+import type { Stock } from '../../types';
 import type { WatchlistItem } from '../../services/watchlistService';
 import clsx from 'clsx';
 
 interface WatchlistItemCardProps {
   item: WatchlistItem;
   stock?: Stock;
-  benchmarkHistory?: HistoricalDataPoint[];
   viewMode: 'grid' | 'list';
   onRemove: (ticker: string) => void;
   onDeepDive: (data: any) => void;
@@ -21,7 +20,6 @@ interface WatchlistItemCardProps {
 export const WatchlistItemCard = ({ 
   item, 
   stock, 
-  benchmarkHistory = [],
   viewMode, 
   onRemove, 
   onDeepDive 
@@ -30,8 +28,7 @@ export const WatchlistItemCard = ({
     buyPrice: item.buyPrice || stock?.price || 0,
     currentPrice: stock?.price || 0,
     buyDate: item.addedAt,
-    history: stock?.history || [],
-    benchmarkHistory
+    history: stock?.history || []
   });
 
   const { 
@@ -56,9 +53,9 @@ export const WatchlistItemCard = ({
   // 가격 데이터가 아직 로딩 중인 경우 스켈레톤 렌더링
   if (isLoading || !stock) {
     return (
-      <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="cursor-pointer">
+      <div className="cursor-pointer">
         <Card className="overflow-hidden bg-white border-slate-200 rounded-2xl p-5">
-          <div className="space-y-4 animate-pulse">
+          <div className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-slate-100" />
               <div className="space-y-1.5">
@@ -77,29 +74,30 @@ export const WatchlistItemCard = ({
             </div>
           </div>
         </Card>
-      </motion.div>
+      </div>
     );
   }
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      onClick={() => onDeepDive({
-        ticker: item.ticker,
-        dnaScore,
-        targetPrice,
-        stopPrice,
-        price: currentPrice,
-        change: `${stock?.changePercent.toFixed(2)}%`,
-        action,
-        daysHeld,
-        timePenalty,
-        efficiencyRatio,
-        kellyWeight
-      })}
+    <div
+      onClick={() => {
+        const riskLevel = dnaScore >= 70 ? 'Low' : dnaScore >= 50 ? 'Medium' : 'High';
+        onDeepDive({
+          ticker: item.ticker,
+          dnaScore,
+          price: currentPrice,
+          change: `${stock?.changePercent.toFixed(2)}%`,
+          efficiencyRatio,
+          kellyWeight,
+          // StockTerminalModal 필수 필드
+          popProbability: Math.round(dnaScore * 0.8),
+          bullPoints: ["모멘텀 지표 분석 중"],
+          bearPoints: ["리스크 요인 스캔 중"],
+          matchedLegend: { ticker: 'N/A', similarity: 0 },
+          riskLevel,
+          aiSummary: "해당 종목에 대한 시스템 분석 데이터가 존재하지 않습니다.",
+        });
+      }}
       className="cursor-pointer group"
     >
       <Card className="overflow-hidden bg-white border-slate-200 hover:border-[#0176d3]/40 transition-all hover:shadow-xl rounded-2xl">
@@ -122,7 +120,7 @@ export const WatchlistItemCard = ({
                     </div>
                     <div className="flex items-center gap-1">
                       <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Verified Signal</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">System Verified</span>
                     </div>
                   </div>
                 </div>
@@ -148,7 +146,7 @@ export const WatchlistItemCard = ({
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100" title="현재가의 종합적인 기술적/통계적 우위 점수">
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1">
-                    DNA Score <HelpCircle className="w-2.5 h-2.5 opacity-50" />
+                    System Score <HelpCircle className="w-2.5 h-2.5 opacity-50" />
                   </p>
                   <div className="flex items-baseline gap-1">
                     <span className="text-xl font-black text-slate-900 font-mono">{dnaScore}</span>
@@ -243,7 +241,7 @@ export const WatchlistItemCard = ({
 
                <div className="flex-1 flex items-center gap-8">
                   <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1 tracking-tighter">DNA Power</p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase mb-1 tracking-tighter">System Power</p>
                     <div className="flex items-center gap-2">
                        <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
                          <div className="h-full bg-[#0176d3] rounded-full" style={{ width: `${dnaScore}%` }} />
@@ -288,7 +286,7 @@ export const WatchlistItemCard = ({
           )}
         </div>
       </Card>
-    </motion.div>
+    </div>
   );
 };
 

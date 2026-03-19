@@ -4,6 +4,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 
+
 class EmailManager:
     def __init__(self):
         self.smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
@@ -37,12 +38,22 @@ class EmailManager:
         except Exception as e:
             print(f"❌ Failed to send email: {e}")
 
-    def send_discovery_alert(self, ticker, price, rsi2, deviation_pct, rvol, target_price, stop_price, is_super=False):
+    def send_discovery_alert(
+        self,
+        ticker,
+        price,
+        rsi2,
+        deviation_pct,
+        rvol,
+        target_price,
+        stop_price,
+        is_super=False,
+    ):
         status_label = "🚨 [SUPER OVERSOLD]" if is_super else "🟢 [OVERSOLD]"
         subject = f"{status_label} {ticker} Discovery alert"
-        
+
         color = "#e74c3c" if is_super else "#27ae60"
-        
+
         html = f"""
         <html>
             <body style="font-family: sans-serif; color: #333;">
@@ -66,7 +77,7 @@ class EmailManager:
 
     def send_daily_summary(self, discovered, validated, super_oversold):
         subject = f"📋 Daily Scan Report - {datetime.now().strftime('%Y-%m-%d')}"
-        
+
         html = f"""
         <html>
             <body style="font-family: sans-serif; color: #333;">

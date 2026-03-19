@@ -185,7 +185,7 @@ class FinvizHunter:
                 {
                     "ticker": row["ticker"],
                     "sector": "Anomaly (AI Detected)",
-                "reason": f"Vol Change: {row['vol_change']:.2f}x, RSI2: {row['rsi2']:.1f}, Dev: {row['deviation']:.1%}",
+                    "reason": f"Vol Change: {row['vol_change']:.2f}x, RSI2: {row['rsi2']:.1f}, Dev: {row['deviation']:.1%}",
                 }
             )
 
@@ -289,15 +289,21 @@ class FinvizHunter:
                 )
                 volume = int(df["Volume"].iloc[-1])
 
-                rsi2 = ta.momentum.RSIIndicator(close=df["Close"], window=2).rsi().iloc[-1]
+                rsi2 = (
+                    ta.momentum.RSIIndicator(close=df["Close"], window=2).rsi().iloc[-1]
+                )
                 ma5 = df["Close"].rolling(window=5).mean().iloc[-1]
                 deviation = (price - ma5) / ma5
                 rvol = volume / (df["Volume"].tail(20).mean() + 1e-9)
 
                 # ATR(5) — 목표가 및 손절가 계산용
-                atr5 = ta.volatility.AverageTrueRange(
-                    high=df["High"], low=df["Low"], close=df["Close"], window=5
-                ).average_true_range().iloc[-1]
+                atr5 = (
+                    ta.volatility.AverageTrueRange(
+                        high=df["High"], low=df["Low"], close=df["Close"], window=5
+                    )
+                    .average_true_range()
+                    .iloc[-1]
+                )
                 target_price = price + (atr5 * 5.0)
                 stop_price = price - (atr5 * 1.5)
 
@@ -315,12 +321,13 @@ class FinvizHunter:
             hist_df = df.copy()
             hist_df["MA5"] = hist_df["Close"].rolling(5).mean()
             hist_df["Deviation"] = (hist_df["Close"] / hist_df["MA5"] - 1) * 100
-            hist_df["RSI2"] = ta.momentum.RSIIndicator(close=hist_df["Close"], window=2).rsi()
+            hist_df["RSI2"] = ta.momentum.RSIIndicator(
+                close=hist_df["Close"], window=2
+            ).rsi()
 
             # Define "similar" conditions for Mean Reversion: RSI2 < 15, Deviation < -5%
             similar_cases = hist_df[
-                (hist_df["RSI2"] <= 15)
-                & (hist_df["Deviation"] <= -5)
+                (hist_df["RSI2"] <= 15) & (hist_df["Deviation"] <= -5)
             ]
 
             # Calculate win rate after 5 days
@@ -404,7 +411,7 @@ class FinvizHunter:
                     atr=float(atr5),
                     is_super_oversold=is_super,
                 )
-                
+
                 # Email (신규) - I/O 블로킹 방지를 위해 to_thread 사용
                 await asyncio.to_thread(
                     self.email.send_discovery_alert,
@@ -415,7 +422,7 @@ class FinvizHunter:
                     rvol=float(rvol),
                     target_price=float(target_price),
                     stop_price=float(stop_price),
-                    is_super=is_super
+                    is_super=is_super,
                 )
 
             await asyncio.sleep(1)  # Be polite
@@ -426,15 +433,17 @@ class FinvizHunter:
             validated=total_validated,
             super_oversold=total_super_oversold,
         )
-        
+
         await asyncio.to_thread(
             self.email.send_daily_summary,
             discovered=total_discovered,
             validated=total_validated,
-            super_oversold=total_super_oversold
+            super_oversold=total_super_oversold,
         )
-        
-        print(f"\n🏁 스캔 완료: 발굴 {total_discovered} → 검증 {total_validated} → Super {total_super_oversold}")
+
+        print(
+            f"\n🏁 스캔 완료: 발굴 {total_discovered} → 검증 {total_validated} → Super {total_super_oversold}"
+        )
 
 
 class SearchAggregator:
