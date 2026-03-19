@@ -5,6 +5,7 @@ from datetime import datetime
 from db_manager import DBManager
 from news_manager import NewsManager
 from webhook_manager import WebhookManager
+from email_manager import EmailManager
 import yfinance as yf
 import ta
 import pandas as pd
@@ -22,6 +23,7 @@ class FinvizHunter:
         self.db = DBManager()
         self.news = NewsManager()
         self.webhook = WebhookManager()
+        self.email = EmailManager()
         self.user_agent = (
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -382,7 +384,7 @@ class FinvizHunter:
                 f"💾 Saved {ticker_symbol} (DNA: {dna_score}, RSI2: {rsi2:.1f}, RVOL: {rvol:.1f}x)"
             )
 
-            # 6. ─── Discord 알림 발송 ───────────────────────────────────────────
+            # 6. ─── Discord & Email 알림 발송 ───────────────────────────────────────────
             # Super Oversold: RSI2 < 10 AND RVOL > 3.0 → 🚨 빨간 긴급 알림
             is_super = (rsi2 < 10) and (rvol > 3.0)
             if is_super:
@@ -390,6 +392,7 @@ class FinvizHunter:
 
             # DNA Score 50 이상 종목만 알림 (노이즈 필터링)
             if dna_score >= 50 or is_super:
+                # Discord (기존)
                 await self.webhook.send_discovery_alert(
                     ticker=ticker_symbol,
                     price=float(price),
@@ -401,6 +404,19 @@ class FinvizHunter:
                     atr=float(atr5),
                     is_super_oversold=is_super,
                 )
+                
+                # Email (신규) - I/O 블로킹 방지를 위해 to_thread 사용
+                await asyncio.to_thread(
+                    self.email.send_discovery_alert,
+                    ticker=ticker_symbol,
+                    price=float(price),
+                    rsi2=float(rsi2),
+                    deviation_pct=float(deviation * 100),
+                    rvol=float(rvol),
+                    target_price=float(target_price),
+                    stop_price=float(stop_price),
+                    is_super=is_super
+                )
 
             await asyncio.sleep(1)  # Be polite
 
@@ -410,6 +426,14 @@ class FinvizHunter:
             validated=total_validated,
             super_oversold=total_super_oversold,
         )
+        
+        await asyncio.to_thread(
+            self.email.send_daily_summary,
+            discovered=total_discovered,
+            validated=total_validated,
+            super_oversold=total_super_oversold
+        )
+        
         print(f"\n🏁 스캔 완료: 발굴 {total_discovered} → 검증 {total_validated} → Super {total_super_oversold}")
 
 
