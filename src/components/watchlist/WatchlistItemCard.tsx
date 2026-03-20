@@ -130,6 +130,7 @@ export const WatchlistItemCard = ({
                       "px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border",
                       action === 'HOLD' ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
                         : action === 'REJECT' ? "bg-amber-50 text-amber-600 border-amber-200" 
+                        : action === 'TIME_STOP' ? "bg-orange-50 text-orange-600 border-orange-200"
                         : "bg-rose-50 text-rose-600 border-rose-100"
                     )}
                     title={action === 'REJECT' ? (dna.rejectReason || 'R/R Ratio 미달 — 진입 회피 권고') : ''}
@@ -225,7 +226,7 @@ export const WatchlistItemCard = ({
                 </div>
                 <div className="text-right" title="켈리 기준 적정 투자 비중 (Quarter-Kelly)">
                   <span className="text-[10px] font-black text-slate-400 uppercase mr-1.5">Kelly</span>
-                  <span className="text-xs font-black text-[#0176d3] font-mono">{(kellyWeight * 100).toFixed(1)}%</span>
+                  <span className="text-xs font-black text-[#0176d3] font-mono">{kellyWeight.toFixed(1)}%</span>
                 </div>
               </div>
             </div>
@@ -275,6 +276,7 @@ export const WatchlistItemCard = ({
                       "px-3 py-1 rounded-lg text-[10px] font-black uppercase border",
                       action === 'HOLD' ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
                         : action === 'REJECT' ? "bg-amber-50 text-amber-600 border-amber-200"
+                        : action === 'TIME_STOP' ? "bg-orange-50 text-orange-600 border-orange-200"
                         : "bg-rose-50 text-rose-600 border-rose-100"
                     )}
                     title={action === 'REJECT' ? (dna.rejectReason || 'R/R Ratio 미달') : ''}

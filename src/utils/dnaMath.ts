@@ -31,30 +31,33 @@ export function calculateDNATargets(
   const effectiveATR = Math.max(minAtr, atr5 && atr5 > 0 ? atr5 : entryPrice * fallbackVolatility);
 
   // ─────────────────────────────────────────────────────────────
-  // STEP 2. 자연스러운 목표가 계산 (ATR × 4.0 — 강제 보정 없음)
+  // STEP 2. 자연스러운 목표가 계산 (ATR × 5.0 — 강제 보정 없음)
   // ─────────────────────────────────────────────────────────────
-  const targetPrice = entryPrice + (effectiveATR * 4.0);
+  const targetPrice = entryPrice + (effectiveATR * 5.0);
 
   // ─────────────────────────────────────────────────────────────
   // STEP 3. 손절가 계산 (Chandelier Exit + Time-based Tightening)
   // ─────────────────────────────────────────────────────────────
-  let multiplierBase = 2.5;
+  let multiplierBase = 3.0;
   if (daysHeld > 1) {
-    multiplierBase = Math.max(1.5, 2.5 - (daysHeld * 0.4));
+    multiplierBase = Math.max(1.5, 3.0 - (daysHeld * 0.4));
   }
 
   const volatilityFactor = Math.min(1.0, volatilityStdDev / (entryPrice * 0.05));
   const dynamicMultiplier = multiplierBase + (volatilityFactor * 0.5);
 
-  const initialStop = entryPrice - (effectiveATR * 2.5);
+  const initialStop = entryPrice - (effectiveATR * 3.0);
   const highSoFar = Math.max(currentHigh, currentPrice, entryPrice);
   const trailingStop = highSoFar - (effectiveATR * dynamicMultiplier);
   
   // 손절가: 매수가의 50% 하방 방어선 유지
   let stopPrice = Math.max(initialStop, trailingStop, entryPrice * 0.5);
   
-  // 손절가는 현재가를 반드시 하회해야 함 (직격 손절 방지)
-  stopPrice = Math.min(stopPrice, currentPrice * 0.98);
+  // [FIX] 직격 손절 방지는 '진입 전(daysHeld === 0)'에만 적용해야 합니다.
+  // 보유 중인 종목이 급락했을 때 손절선을 현재가 밑으로 같이 끌어내리는 대참사를 방지합니다.
+  if (daysHeld === 0) {
+    stopPrice = Math.min(stopPrice, currentPrice * 0.98);
+  }
 
   // ─────────────────────────────────────────────────────────────
   // STEP 4. R/R Ratio 검증 및 REJECT 로직

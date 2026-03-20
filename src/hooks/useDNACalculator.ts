@@ -130,8 +130,8 @@ export function useDNACalculator({
     const riskDenominator = buyPrice - S;
     const riskRewardRatio = riskDenominator <= 0 ? 0.1 : (T - buyPrice) / riskDenominator;
     const kellyResult = calculateKellyWeight(finalScore, riskRewardRatio);
-    // ✅ Kelly 상한선: 실제 투자에서 100% 이상은 불가능하므로 1.0으로 클램프
-    let kellyWeight = Math.min(1.0, Math.max(0, kellyResult.weight));
+    // ✅ Kelly 상한선: dnaMath가 0~100을 반환하므로, 상한선도 100.0(%)으로 설정
+    let kellyWeight = Math.min(100.0, Math.max(0, kellyResult.weight));
 
     let actionFlag: 'HOLD' | 'TIME_STOP' | 'EXIT' | 'REJECT' = 'HOLD';
     
@@ -144,7 +144,7 @@ export function useDNACalculator({
       actionFlag = 'EXIT';
     } else if (daysHeld > 3) {
       kellyWeight = 0; 
-      actionFlag = 'EXIT';
+      actionFlag = 'TIME_STOP';
     } else if (kellyWeight <= 0) {
       actionFlag = 'EXIT';
     }

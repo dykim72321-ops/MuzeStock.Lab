@@ -504,12 +504,31 @@ export async function getTopStocks(historical: boolean = false): Promise<Stock[]
 }
 
 function calculateDnaScore(price: number, change: number, volume: number): number {
+  // 1. Baseline: 퀀트 터미널은 50점을 '중립'으로 시작한다.
   let score = 50;
-  if (price < 1.0) score += 30;
-  else if (price < 3.0) score += 20;
-  if (change > 15) score += 20;
-  else if (change > 5) score += 10;
-  if (volume > 10000000) score += 20;
+  
+  // 2. 가격 기반 가산점: 페니스탁($5 미만)에 대한 변동성 프리미엄 반영
+  // 하지만 무조건적인 가산이 아니라, $1 미만 극위험군은 15점으로 하향 조정 (기존 30점)
+  if (price < 1.0) score += 15;
+  else if (price < 5.0) score += 10;
+  
+  // 3. 변동성 페널티 (핵심 수정): 급락에 대한 강력한 감점 (Falling Knife 방지)
+  if (change < -30) score -= 50;      // -30% 이상 폭락: 회복 불능 수준의 타격
+  else if (change < -15) score -= 30; // -15% 이상 급락: 기술적 손실
+  else if (change < -5) score -= 10;  // -5% 하락: 단기 조정
+  
+  // 4. 상승 모멘텀 가산점: 상승 추세일 때만 점수 부여
+  if (change > 20) score += 20;
+  else if (change > 10) score += 15;
+  else if (change > 3) score += 5;
+  
+  // 5. 유동성(Volume) 보정: 거래량이 실린 움직임에 신뢰도 부여
+  if (volume > 10000000) {
+    if (change > 0) score += 10;      // 거래량 실린 상승
+    else if (change < 0) score -= 10; // 거래량 실린 하락 (투매 확인)
+  }
+
+  // 6. 결과 클램핑
   return Math.min(100, Math.max(0, score));
 }
 
