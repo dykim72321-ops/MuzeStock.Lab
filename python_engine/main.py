@@ -32,6 +32,7 @@ import random
 from webhook_manager import WebhookManager
 from paper_engine import PaperTradingManager
 from utils import PartNormalizer
+
 # from backtester import run_backtest (Removed for modern TS engine)
 from cache_manager import get_cache_manager
 from inventory_service import inventory_service
@@ -823,24 +824,26 @@ backtest_cache = TTLCache(maxsize=100, ttl=900)
 async def get_strategy_stats():
     """전달된 유니버스 전체에 대한 퀀트 전략 통계 매트릭스 반환"""
     from portfolio_backtester import DNAValidator
-    
+
     try:
         # DB에서 현재 활성화된 티커 10개를 샘플로 백테스트
         active_tickers = await asyncio.to_thread(db.get_active_tickers, limit=10)
-        
+
         # 1년치 데이터로 퀵 백테스트 실행
         validator = DNAValidator(tickers=active_tickers, start_date="2023-01-01")
-        
+
         # I/O Bound 작업을 스레드풀에서 실행
         raw_data = await asyncio.to_thread(validator.fetch_data)
         precalculated = await asyncio.to_thread(validator.preprocess_data, raw_data)
-        
+
         all_trades = []
         for ticker, ticker_data in precalculated.items():
-            trades = await asyncio.to_thread(validator.simulate_ticker, ticker, ticker_data)
+            trades = await asyncio.to_thread(
+                validator.simulate_ticker, ticker, ticker_data
+            )
             if trades:
                 all_trades.extend(trades)
-        
+
         # 통계 리포트 생성 및 반환
         stats = validator.report(all_trades)
         return stats
@@ -854,8 +857,11 @@ async def get_strategy_stats():
             "recovery_days": 14.2,
             "avg_pnl": 4.2,
             "total_trades": 120,
-            "is_simulated": True
+            "is_simulated": True,
         }
+
+
+def calculate_advanced_signals(df: pd.DataFrame):
     """
     RSI와 MACD를 결합한 고도화된 신호 엔진
     """

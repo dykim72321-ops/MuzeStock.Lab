@@ -313,46 +313,62 @@ class DNAValidator:
 
         return trades
 
-    def run(self):
-        raw_data = self.fetch_data()
-        precalculated_catalog = self.preprocess_data(raw_data)
-        all_trades = []
+    def report(self, trades):
+        """백테스트 결과 통계 리포트 생성"""
+        if not trades:
+            print("⚠️ 거래 내역이 없습니다.")
+            return {
+                "total_trades": 0,
+                "win_rate": 0,
+                "avg_pnl": 0,
+                "avg_win": 0,
+                "avg_loss": 0,
+                "profit_factor": 0,
+                "mdd": 0,
+                "recovery_days": 0,
+                "avg_days": 0,
+            }
 
-        for ticker, ticker_data in precalculated_catalog.items():
-            try:
-                trades = self.simulate_ticker(ticker, ticker_data)
-                if trades:
-                    all_trades.extend(trades)
-            except Exception as e:
-                print(f"⚠️ {ticker} 에러: {e}")
+        df_trades = pd.DataFrame(trades)
+        total_trades = len(df_trades)
+        win_trades = df_trades[df_trades["result"] == "WIN"]
+        loss_trades = df_trades[df_trades["result"] == "LOSS"]
 
-        self.report(all_trades)
+        win_rate = (len(win_trades) / total_trades) * 100
+        avg_pnl = df_trades["pnl"].mean() * 100
+        avg_win = win_trades["pnl"].mean() * 100 if not win_trades.empty else 0
+        avg_loss = loss_trades["pnl"].mean() * 100 if not loss_trades.empty else 0
 
-        # MDD 및 회복력 계산 (Equity Curve 기반)
-        if len(df) > 0:
-            df = df.sort_index() if hasattr(df, "index") else df
-            # 단순 누적 수익률로 Equity Curve 근사치 계산
-            df["cum_pnl"] = (1 + df["pnl"]).cumprod()
-            df["peak"] = df["cum_pnl"].cummax()
-            df["drawdown"] = (df["cum_pnl"] - df["peak"]) / df["peak"]
-            mdd = df["drawdown"].min() * 100
-            
-            # 회복력 (평균 보유일 기반 추정 또는 실제 데이터)
-            recovery_days = df["days"].mean() * 1.5 # 보수적 추정치
-        else:
-            mdd = 0
-            recovery_days = 0
+        sum_win = win_trades["pnl"].sum()
+        sum_loss = abs(loss_trades["pnl"].sum())
+        profit_factor = (
+            sum_win / sum_loss if sum_loss > 0 else (float("inf") if sum_win > 0 else 0)
+        )
+
+        # Drawdown calculation
+        df_trades = df_trades.sort_index()
+        df_trades["cum_pnl"] = (1 + df_trades["pnl"]).cumprod()
+        df_trades["peak"] = df_trades["cum_pnl"].cummax()
+        df_trades["drawdown"] = (df_trades["cum_pnl"] - df_trades["peak"]) / df_trades[
+            "peak"
+        ]
+        mdd = df_trades["drawdown"].min() * 100
+
+        recovery_days = df_trades["days"].mean() * 1.5
+        avg_days = df_trades["days"].mean()
 
         stats = {
-            "total_trades": len(df),
+            "total_trades": total_trades,
             "win_rate": round(win_rate, 2),
             "avg_pnl": round(avg_pnl, 2),
             "avg_win": round(avg_win, 2),
             "avg_loss": round(avg_loss, 2),
-            "profit_factor": round(profit_factor, 2) if profit_factor != float("inf") else 99,
+            "profit_factor": (
+                round(profit_factor, 2) if profit_factor != float("inf") else 99
+            ),
             "mdd": round(mdd, 2),
             "recovery_days": round(recovery_days, 1),
-            "avg_days": round(df["days"].mean(), 1) if not df.empty else 0
+            "avg_days": round(avg_days, 1),
         }
 
         print("\n" + "=" * 60)
@@ -367,9 +383,24 @@ class DNAValidator:
         print(f"  📉 MDD (최대 낙폭) : {stats['mdd']}%")
         print(f"  ⏱️ 평균 보유일 : {stats['avg_days']}일")
         print("-" * 60)
-
         print("=" * 60 + "\n")
+
         return stats
+
+    def run(self):
+        raw_data = self.fetch_data()
+        precalculated_catalog = self.preprocess_data(raw_data)
+        all_trades = []
+
+        for ticker, ticker_data in precalculated_catalog.items():
+            try:
+                trades = self.simulate_ticker(ticker, ticker_data)
+                if trades:
+                    all_trades.extend(trades)
+            except Exception as e:
+                print(f"⚠️ {ticker} 에러: {e}")
+
+        return self.report(all_trades)
 
     def walk_forward_optimization(self, train_months=6, test_months=2):
         """Walk-Forward Analysis (완전 전진 분석)"""
