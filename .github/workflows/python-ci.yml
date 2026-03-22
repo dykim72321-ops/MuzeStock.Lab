@@ -5,10 +5,16 @@ on:
     branches: [main]
     paths:
       - 'python_engine/**'
+      - 'python_engine/Dockerfile'
+      - 'python_engine/docker-compose.yml'
+      - '.github/workflows/python-ci.yml'
   pull_request:
     branches: [main]
     paths:
       - 'python_engine/**'
+      - 'python_engine/Dockerfile'
+      - 'python_engine/docker-compose.yml'
+      - '.github/workflows/python-ci.yml'
   workflow_dispatch: # 수동 실행 허용
 
 jobs:
@@ -23,10 +29,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.9
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
           cache: 'pip'
           cache-dependency-path: python_engine/requirements.txt
 
@@ -34,7 +40,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install flake8 black
+          pip install flake8 black pytest
 
       - name: Lint with flake8
         run: |
@@ -47,9 +53,14 @@ jobs:
         run: |
           black --check --diff .
 
-      - name: Verify imports
+      - name: Verify critical imports
         run: |
-          python -c "import fastapi; import uvicorn; import pandas; import ta; import yfinance; print('✅ All imports successful!')"
+          python -c "import fastapi; import uvicorn; import pandas; import ta; import yfinance; import sklearn; import supabase; import alpaca.data.live; import playwright; print('✅ All critical imports successful!')"
+
+      - name: Run placeholder tests
+        run: |
+          # No user tests found in python_engine root, running a basic sanity check
+          python -m pytest --version
 
       - name: Summary
-        run: echo "🐍 Python Engine CI completed successfully!"
+        run: echo "🐍 Python Engine CI (3.11) completed successfully!"

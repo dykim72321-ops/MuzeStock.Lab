@@ -152,13 +152,14 @@ class TickerDataState:
         if api_key and api_secret:
             try:
                 from alpaca.data.requests import StockBarsRequest, DataFeed
+
                 client = StockHistoricalDataClient(api_key, api_secret)
                 for ticker in tickers:
                     request_params = StockBarsRequest(
                         symbol_or_symbols=ticker,
                         timeframe=TimeFrame.Minute,
                         limit=self.max_bars,
-                        feed=DataFeed.IEX  # Paper keys typically only have access to IEX feed
+                        feed=DataFeed.IEX,  # Paper keys typically only have access to IEX feed
                     )
                     bars = await asyncio.to_thread(
                         client.get_stock_bars, request_params
@@ -815,8 +816,11 @@ async def get_portfolio():
 
 # --- [NEW] Broker (Alpaca) Control Endpoints ---
 
+
 @app.post("/api/broker/liquidate-all")
-async def liquidate_all_positions(req: PanicSellRequest, api_key: str = Security(get_api_key)):
+async def liquidate_all_positions(
+    req: PanicSellRequest, api_key: str = Security(get_api_key)
+):
     """🚨 Master Kill Switch: Cancels all orders and liquidates all positions"""
     if not req.confirm:
         raise HTTPException(status_code=400, detail="Confirmation required")
@@ -832,20 +836,22 @@ async def liquidate_all_positions(req: PanicSellRequest, api_key: str = Security
 
         # 1. Cancel all open orders
         await asyncio.to_thread(trading_client.cancel_orders)
-        
+
         # 2. Liquidate all positions
-        liquidate_result = await asyncio.to_thread(trading_client.close_all_positions, cancel_orders=True)
+        liquidate_result = await asyncio.to_thread(
+            trading_client.close_all_positions, cancel_orders=True
+        )
 
         await webhook.send_alert(
             title="🚨 [DEFCON 1] PANIC LIQUIDATE TRIGGERED",
             description="사령관의 명령으로 모든 미체결 주문이 취소되고 포지션 청산이 시작되었습니다.",
-            color=0xFF0000
+            color=0xFF0000,
         )
 
         return {
-            "status": "success", 
-            "message": "All orders cancelled and positions liquidation initiated.", 
-            "details": str(liquidate_result)
+            "status": "success",
+            "message": "All orders cancelled and positions liquidation initiated.",
+            "details": str(liquidate_result),
         }
 
     except Exception as e:
@@ -859,14 +865,14 @@ async def get_broker_account_status(api_key: str = Security(get_api_key)):
     try:
         api_key_id = os.getenv("APCA_API_KEY_ID")
         api_secret = os.getenv("APCA_API_SECRET_KEY")
-        
+
         if not api_key_id or not api_secret:
             return {
-                "buying_power": 0, 
-                "today_pnl": 0, 
-                "today_pnl_pct": 0, 
+                "buying_power": 0,
+                "today_pnl": 0,
+                "today_pnl_pct": 0,
                 "current_drawdown": 0,
-                "error": "Credentials missing"
+                "error": "Credentials missing",
             }
 
         trading_client = TradingClient(api_key_id, api_secret, paper=True)
@@ -882,16 +888,16 @@ async def get_broker_account_status(api_key: str = Security(get_api_key)):
             "buying_power": round(float(account.buying_power), 2),
             "today_pnl": round(float(today_pnl), 2),
             "today_pnl_pct": round(float(today_pnl_pct), 2),
-            "current_drawdown": round(float(current_drawdown), 2)
+            "current_drawdown": round(float(current_drawdown), 2),
         }
     except Exception as e:
         print(f"❌ Account Status Error: {e}")
         return {
-            "buying_power": 0, 
-            "today_pnl": 0, 
-            "today_pnl_pct": 0, 
+            "buying_power": 0,
+            "today_pnl": 0,
+            "today_pnl_pct": 0,
             "current_drawdown": 0,
-            "error": str(e)
+            "error": str(e),
         }
 
 
