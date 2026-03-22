@@ -51,7 +51,7 @@ jobs:
 
       - name: Check formatting with Black
         run: |
-          black --check --diff .
+          black --check --diff --exclude venv .
 
       - name: Verify critical imports
         run: |
