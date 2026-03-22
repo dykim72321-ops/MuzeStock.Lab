@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePulseSocket } from './usePulseSocket';
 
 /**
@@ -12,7 +12,25 @@ export const useMarketEngine = () => {
   // 1. WebSocket을 통한 v4 펄스 엔진 실시간 데이터 수신
   // PulseDashboard와 Dashboard에서 공통으로 사용하는 엔드포인트 적용
   const pulseUrl = `ws://${window.location.host}/py-api/ws/pulse`;
-  const { pulseMap, isConnected, lastUpdatedTicker, error } = usePulseSocket(pulseUrl);
+  const { pulseMap, isConnected, lastUpdatedTicker, error, seedMap } = usePulseSocket(pulseUrl);
+
+  // 1.1 초기 히스토리 데이터 획득 및 시딩
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const response = await fetch('/py-api/api/pulse/history');
+        if (response.ok) {
+          const history = await response.json();
+          if (Array.isArray(history)) {
+            seedMap(history);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch pulse history:', err);
+      }
+    };
+    fetchHistory();
+  }, [seedMap]);
 
   // 2. 하이브리드 수동 탐색(Hunting) 상태 관리
   const [isHunting, setIsHunting] = useState(false);

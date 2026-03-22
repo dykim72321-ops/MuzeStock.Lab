@@ -6,8 +6,8 @@ CREATE EXTENSION IF NOT EXISTS pg_cron;
 GRANT USAGE ON SCHEMA cron TO postgres;
 
 -- 3. Schedule the Daily Quant Scan (Mon-Fri 21:00 UTC / Tue-Sat 06:00 KST)
--- Note: Replace [PROJECT_REF] with your actual project reference ID
--- Note: Replace [SERVICE_ROLE_KEY] with your actual service role key
+-- Note: Project Ref: drnxydtrsjumjksqmdgi
+-- Note: Service Role Key: ejY... (from .env.local)
 SELECT cron.schedule(
     'daily-quant-scan-autopilot',
     '0 21 * * 1-5', -- Every Monday to Friday at 21:00 UTC (Post Market Close)

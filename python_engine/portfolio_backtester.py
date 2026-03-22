@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import ta
 import warnings
+from datetime import datetime
 
 
 # 경고 무시
@@ -14,7 +15,7 @@ class DNAValidator:
         self,
         tickers: list,
         start_date: str = "2023-01-01",
-        end_date: str = "2024-03-01",
+        end_date: str = None,
         gamma: float = 0.8,  # 수익 모멘텀
         delta: float = 1.5,  # 손실 공포
         lambda_val: float = 2.0,  # 시간 감가
@@ -24,7 +25,7 @@ class DNAValidator:
     ):
         self.tickers = tickers
         self.start_date = start_date
-        self.end_date = end_date
+        self.end_date = end_date or datetime.now().strftime("%Y-%m-%d")
         self.gamma = gamma
         self.delta = delta
         self.lambda_val = lambda_val
@@ -314,19 +315,20 @@ class DNAValidator:
         return trades
 
     def report(self, trades):
-        """백테스트 결과 통계 리포트 생성"""
+        """거래 내역을 바탕으로 성과 지표 산출 (MDD, 승률, 손익비 등)"""
         if not trades:
             print("⚠️ 거래 내역이 없습니다.")
             return {
                 "total_trades": 0,
-                "win_rate": 0,
-                "avg_pnl": 0,
-                "avg_win": 0,
-                "avg_loss": 0,
-                "profit_factor": 0,
-                "mdd": 0,
+                "win_rate": 0.0,
+                "avg_pnl": 0.0,
+                "avg_win": 0.0,
+                "avg_loss": 0.0,
+                "profit_factor": 0.0,
+                "mdd": 0.0,
                 "recovery_days": 0,
                 "avg_days": 0,
+                "is_empty": True,
             }
 
         df_trades = pd.DataFrame(trades)

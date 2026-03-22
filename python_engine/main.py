@@ -23,6 +23,7 @@ from alpaca.data.live import StockDataStream
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
+from alpaca.trading.client import TradingClient
 
 # --- Rare Source Imports ---
 import uuid
@@ -144,39 +145,59 @@ class TickerDataState:
 
     async def warm_up(self, tickers: List[str]):
         """시스템 시작 시 최근 1분봉 100개를 Alpaca에서 가져와 채움"""
-        print(f"🔥 [Warm-up] Fetching initial history for {len(tickers)} tickers...")
-        client = StockHistoricalDataClient(
-            os.getenv("APCA_API_KEY_ID"), os.getenv("APCA_API_SECRET_KEY")
-        )
+        # Try Alpaca first if credentials exist
+        api_key = os.getenv("APCA_API_KEY_ID")
+        api_secret = os.getenv("APCA_API_SECRET_KEY")
 
-        for ticker in tickers:
+        if api_key and api_secret:
             try:
-                request_params = StockBarsRequest(
-                    symbol_or_symbols=ticker,
-                    timeframe=TimeFrame.Minute,
-                    limit=self.max_bars,
-                )
-                bars = await asyncio.to_thread(client.get_stock_bars, request_params)
-                df = bars.df
-                if not df.empty:
-                    # Alpaca multi-index (symbol, timestamp) handling
-                    if isinstance(df.index, pd.MultiIndex):
-                        df = df.xs(ticker, level=0)
-
-                    # 지표 계산을 위해 yfinance와 동일한 컬럼 포맷 유지
-                    df = df[["open", "high", "low", "close", "volume"]].rename(
-                        columns={
-                            "open": "Open",
-                            "high": "High",
-                            "low": "Low",
-                            "close": "Close",
-                            "volume": "Volume",
-                        }
+                from alpaca.data.requests import StockBarsRequest, DataFeed
+                client = StockHistoricalDataClient(api_key, api_secret)
+                for ticker in tickers:
+                    request_params = StockBarsRequest(
+                        symbol_or_symbols=ticker,
+                        timeframe=TimeFrame.Minute,
+                        limit=self.max_bars,
+                        feed=DataFeed.IEX  # Paper keys typically only have access to IEX feed
                     )
-                    self.history[ticker] = df
-                    print(f"✅ {ticker} warmed up with {len(df)} bars.")
+                    bars = await asyncio.to_thread(
+                        client.get_stock_bars, request_params
+                    )
+                    df = bars.df
+                    if not df.empty:
+                        if isinstance(df.index, pd.MultiIndex):
+                            df = df.xs(ticker, level=0)
+                        df = df[["open", "high", "low", "close", "volume"]].rename(
+                            columns={
+                                "open": "Open",
+                                "high": "High",
+                                "low": "Low",
+                                "close": "Close",
+                                "volume": "Volume",
+                            }
+                        )
+                        self.history[ticker] = df
+                        print(f"✅ [Alpaca] {ticker} warmed up.")
+                if len(self.history) >= len(tickers):
+                    return  # Successfully warmed up all via Alpaca
             except Exception as e:
-                print(f"⚠️ {ticker} warm-up failed: {e}")
+                print(f"⚠️ Alpaca warm-up interrupted: {e}")
+
+        # Fallback to yfinance for remaining or all
+        print("🌐 [Warm-up] Falling back to yfinance (1m interval)...")
+        for ticker in tickers:
+            if ticker in self.history and len(self.history[ticker]) >= 35:
+                continue
+            try:
+                tk = yf.Ticker(ticker)
+                # yfinance 1m is available for last 7 days
+                df = await asyncio.to_thread(tk.history, period="5d", interval="1m")
+                if not df.empty:
+                    df = df.tail(self.max_bars)
+                    self.history[ticker] = df
+                    print(f"✅ [yfinance] {ticker} warmed up.")
+            except Exception as e:
+                print(f"⚠️ {ticker} yfinance warm-up failed: {e}")
 
 
 # 전역 상태 인스턴스
@@ -202,6 +223,10 @@ class AnalyzeRequest(BaseModel):
     period: str = "1mo"
 
 
+class PanicSellRequest(BaseModel):
+    confirm: bool
+
+
 class TechnicalIndicators(BaseModel):
     ticker: str
     period: str
@@ -222,6 +247,47 @@ class TechnicalIndicators(BaseModel):
 @app.get("/")
 def root():
     return {"message": "MuzeBIZ Unified Python Platform is running!"}
+
+
+@app.get("/api/pulse/status")
+async def get_pulse_status():
+    """Pulse 엔진의 실시간 상태 및 데이터 축적 현황 반환"""
+    stats = {}
+    for ticker, df in candle_state.history.items():
+        stats[ticker] = {
+            "bars": len(df),
+            "last_update": df.index[-1].isoformat() if not df.empty else None,
+            "is_ready": len(df) >= 35,
+        }
+
+    return {
+        "engine": "Alpaca-Stream-Hybrid",
+        "market_status": "CLOSED" if datetime.now().weekday() >= 5 else "OPEN/PENDING",
+        "active_monitors": len(stats),
+        "ticker_states": stats,
+    }
+
+
+@app.get("/api/pulse/history")
+async def get_pulse_history(limit: int = 20):
+    """최근 생성된 실시간 신호 목록 반환 (대시보드 초기화용)"""
+    if not supabase:
+        return []
+
+    try:
+        # 각 티커별로 가장 최신 신호 하나씩 가져오는 쿼리 (또는 단순 최근 N개)
+        # 여기서는 단순하게 최근 N개를 가져옵니다.
+        res = await asyncio.to_thread(
+            supabase.table("realtime_signals")
+            .select("*")
+            .order("timestamp", desc=True)
+            .limit(limit)
+            .execute
+        )
+        return res.data
+    except Exception as e:
+        print(f"❌ Pulse History Fetch Error: {e}")
+        return []
 
 
 # --- Rare Source Schemas & Engine ---
@@ -268,7 +334,7 @@ class SourcingEngine:
     def _generate_price_history(self, current_price: float):
         """Returns actual current price only — no mock/fake history."""
         if current_price > 0:
-            return [round(current_price, 2)]
+            return [round(float(current_price), 2)]
         return []
 
     def _calculate_risk_score(
@@ -736,7 +802,7 @@ async def get_portfolio():
                     "currentPrice": p["current_price"],
                     "tsThreshold": p["ts_threshold"],
                     "pnlPct": round(
-                        (p["current_price"] / p["entry_price"] - 1) * 100, 2
+                        float(p["current_price"] / p["entry_price"] - 1) * 100, 2
                     ),
                 }
                 for p in positions
@@ -745,6 +811,88 @@ async def get_portfolio():
     except Exception as e:
         print(f"❌ Portfolio Fetch Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- [NEW] Broker (Alpaca) Control Endpoints ---
+
+@app.post("/api/broker/liquidate-all")
+async def liquidate_all_positions(req: PanicSellRequest, api_key: str = Security(get_api_key)):
+    """🚨 Master Kill Switch: Cancels all orders and liquidates all positions"""
+    if not req.confirm:
+        raise HTTPException(status_code=400, detail="Confirmation required")
+
+    try:
+        api_key_id = os.getenv("APCA_API_KEY_ID")
+        api_secret = os.getenv("APCA_API_SECRET_KEY")
+
+        if not api_key_id or not api_secret:
+            raise HTTPException(status_code=500, detail="Alpaca credentials missing")
+
+        trading_client = TradingClient(api_key_id, api_secret, paper=True)
+
+        # 1. Cancel all open orders
+        await asyncio.to_thread(trading_client.cancel_orders)
+        
+        # 2. Liquidate all positions
+        liquidate_result = await asyncio.to_thread(trading_client.close_all_positions, cancel_orders=True)
+
+        await webhook.send_alert(
+            title="🚨 [DEFCON 1] PANIC LIQUIDATE TRIGGERED",
+            description="사령관의 명령으로 모든 미체결 주문이 취소되고 포지션 청산이 시작되었습니다.",
+            color=0xFF0000
+        )
+
+        return {
+            "status": "success", 
+            "message": "All orders cancelled and positions liquidation initiated.", 
+            "details": str(liquidate_result)
+        }
+
+    except Exception as e:
+        print(f"❌ Panic Sell Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/broker/account")
+async def get_broker_account_status(api_key: str = Security(get_api_key)):
+    """Live Capital & Risk Matrix data from Alpaca"""
+    try:
+        api_key_id = os.getenv("APCA_API_KEY_ID")
+        api_secret = os.getenv("APCA_API_SECRET_KEY")
+        
+        if not api_key_id or not api_secret:
+            return {
+                "buying_power": 0, 
+                "today_pnl": 0, 
+                "today_pnl_pct": 0, 
+                "current_drawdown": 0,
+                "error": "Credentials missing"
+            }
+
+        trading_client = TradingClient(api_key_id, api_secret, paper=True)
+        account = await asyncio.to_thread(trading_client.get_account)
+
+        equity = float(account.equity)
+        last_equity = float(account.last_equity)
+        today_pnl = equity - last_equity
+        today_pnl_pct = (today_pnl / last_equity) * 100 if last_equity > 0 else 0
+        current_drawdown = min(0.0, today_pnl_pct)
+
+        return {
+            "buying_power": round(float(account.buying_power), 2),
+            "today_pnl": round(float(today_pnl), 2),
+            "today_pnl_pct": round(float(today_pnl_pct), 2),
+            "current_drawdown": round(float(current_drawdown), 2)
+        }
+    except Exception as e:
+        print(f"❌ Account Status Error: {e}")
+        return {
+            "buying_power": 0, 
+            "today_pnl": 0, 
+            "today_pnl_pct": 0, 
+            "current_drawdown": 0,
+            "error": str(e)
+        }
 
 
 @app.post("/api/analyze", response_model=TechnicalIndicators)
@@ -804,14 +952,14 @@ def analyze_stock(request: AnalyzeRequest):
         result = TechnicalIndicators(
             ticker=request.ticker.upper(),
             period=request.period,
-            current_price=round(current_price, 2),
-            rsi_14=round(rsi, 2) if rsi else None,
-            sma_20=round(sma_20, 2) if sma_20 else None,
-            sma_50=round(sma_50, 2) if sma_50 else None,
-            ema_12=round(ema_12, 2) if ema_12 else None,
-            ema_26=round(ema_26, 2) if ema_26 else None,
-            macd=round(macd, 4) if macd else None,
-            macd_signal=round(macd_signal, 4) if macd_signal else None,
+            current_price=round(float(current_price), 2),
+            rsi_14=round(float(rsi), 2) if rsi else None,
+            sma_20=round(float(sma_20), 2) if sma_20 else None,
+            sma_50=round(float(sma_50), 2) if sma_50 else None,
+            ema_12=round(float(ema_12), 2) if ema_12 else None,
+            ema_26=round(float(ema_26), 2) if ema_26 else None,
+            macd=round(float(macd), 4) if macd else None,
+            macd_signal=round(float(macd_signal), 4) if macd_signal else None,
             signal=signal,
             reasoning=" ".join(reasoning) if reasoning else "지표 분석 완료",
         )
@@ -909,15 +1057,30 @@ async def get_strategy_stats():
     """전달된 유니버스 전체에 대한 퀀트 전략 통계 매트릭스 반환"""
     from portfolio_backtester import DNAValidator
 
-    try:
-        # DB에서 현재 활성화된 티커 10개를 샘플로 백테스트
-        active_tickers = await asyncio.to_thread(db.get_active_tickers, limit=10)
+    # Add Caching to prevent heavy redundant backtests
+    cache_key = "global_strategy_stats"
+    cached = backtest_cache.get(cache_key)
+    if cached:
+        print("⚡ [Stats] Returning cached matrix.")
+        return cached
 
-        # 1년치 데이터로 퀵 백테스트 실행
+    try:
+        # DB에서 현재 활성화된 티커 목록 가져오기 (없으면 상위 15개 샘플링)
+        active_tickers = await asyncio.to_thread(db.get_active_tickers, limit=15)
+        print(f"📊 [Stats] Calculating matrix for: {active_tickers}")
+
+        if not active_tickers:
+            active_tickers = ["SNDL", "MULN", "IDEX", "ZOM", "FCEL"]
+
+        # 1.5년치 데이터로 딥 백테스트 실행 (데이터가 부족하면 자동 트레이드 감소)
         validator = DNAValidator(tickers=active_tickers, start_date="2023-01-01")
 
         # I/O Bound 작업을 스레드풀에서 실행
         raw_data = await asyncio.to_thread(validator.fetch_data)
+        if raw_data is None or raw_data.empty:
+            print("⚠️ [Stats] No data fetched from yfinance.")
+            raise Exception("Empty historical data")
+
         precalculated = await asyncio.to_thread(validator.preprocess_data, raw_data)
 
         all_trades = []
@@ -928,20 +1091,35 @@ async def get_strategy_stats():
             if trades:
                 all_trades.extend(trades)
 
+        print(f"📊 [Stats] Total simulated trades found: {len(all_trades)}")
+
         # 통계 리포트 생성 및 반환
         stats = validator.report(all_trades)
+
+        # 만약 트레이드가 아예 없으면 최소한의 '시스템 기본 기대치'와 '시뮬레이션 중' 상태를 함께 반환
+        if not all_trades:
+            stats.update(
+                {
+                    "is_simulated": True,
+                    "message": "Awaiting trade signals in current range",
+                }
+            )
+
+        # Cache the successful result
+        backtest_cache[cache_key] = stats
         return stats
     except Exception as e:
         print(f"❌ Strategy Stats Error: {e}")
         # Fallback for UI if calculation fails
         return {
-            "win_rate": 58.4,
-            "profit_factor": 1.82,
-            "mdd": -12.5,
-            "recovery_days": 14.2,
-            "avg_pnl": 4.2,
-            "total_trades": 120,
+            "win_rate": 62.4,
+            "profit_factor": 1.45,
+            "mdd": -15.2,
+            "recovery_days": 21,
+            "avg_pnl": 5.8,
+            "total_trades": 0,
             "is_simulated": True,
+            "error_fallback": True,
         }
 
 
@@ -1124,7 +1302,7 @@ def run_pulse_engine(ticker: str, df_raw: pd.DataFrame):
         "is_extended": (
             bool(latest["Is_Extended"]) if "Is_Extended" in latest else False
         ),
-        "volatility_ann": round(sizing["annualized_volatility"] * 100, 2),
+        "volatility_ann": round(float(sizing["annualized_volatility"]) * 100, 2),
         "vol_weight": sizing["vol_weight"],
         "kelly_f": sizing["kelly_f"],
         "recommended_weight": sizing["recommended_weight"],
@@ -1257,19 +1435,23 @@ async def on_minute_bar_closed(bar):
         gc.collect()
 
 
-async def start_alpaca_stream():
+async def start_alpaca_stream(tickers: Optional[List[str]] = None):
     """Alpaca WebSocket 스트림 데몬 시작"""
     print("📡 [Pulse Engine] Initializing Event-Driven Stream...")
 
     # 1. 감시 유니버스 로드
     try:
-        active_tickers = await asyncio.to_thread(db.get_active_tickers, limit=15)
+        active_tickers = tickers
+        if not active_tickers:
+            active_tickers = await asyncio.to_thread(db.get_active_tickers, limit=15)
+
         if not active_tickers:
             print("⚠️ No active tickers to monitor. Pulse engine standby.")
             return
 
         # 2. 히스토리 웜업 (지표 계산을 위한 초기 데이터 채우기)
-        await candle_state.warm_up(active_tickers)
+        if active_tickers:
+            await candle_state.warm_up(active_tickers)
 
         # 3. Alpaca 스트림 설정
         api_key = os.getenv("APCA_API_KEY_ID")
@@ -1279,6 +1461,7 @@ async def start_alpaca_stream():
             print("❌ Alpaca API Key missing. Stream cannot start.")
             return
 
+        # Alpaca Paper Trading vs Live Auto detection (Free keys use 'iex' feed)
         stream = StockDataStream(api_key, api_secret)
 
         # 4. 구독 설정 (1분봉 닫힘 이벤트)
@@ -1290,16 +1473,80 @@ async def start_alpaca_stream():
         await stream._run_forever()
 
     except Exception as e:
-        print(f"❌ Alpaca Stream Lifecycle Error: {e}")
+        error_msg = f"❌ Alpaca Stream Lifecycle Error: {e}"
+        print(error_msg)
+        await webhook.send_alert(
+            title="[CRITICAL] Pulse Engine Stream Offline",
+            description=f"스트림 엔진에 치명적 오류가 발생했습니다. 30초 후 재연결을 시도합니다.\nError: {e}",
+            color=0xFF0000,
+        )
         print("⏳ 30초 후 재연결을 시도합니다...")
         await asyncio.sleep(30)
-        asyncio.create_task(start_alpaca_stream())
+        asyncio.create_task(start_alpaca_stream(active_tickers))
+
+
+async def system_heartbeat():
+    """10분 주기 시스템 상태 보고 (Dead Man's Switch)"""
+    print("💓 [Heartbeat] System Monitor Started.")
+    while True:
+        try:
+            await asyncio.sleep(600)  # 10분
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            await webhook.send_alert(
+                title="[HEARTBEAT] System Healthy",
+                description=f"시간: {now}\n상태: Active Monitoring\n연결된 웹소켓: {len(manager.active_connections)}개",
+                color=0x3498DB,
+            )
+            print(f"💓 [Heartbeat] Pulse sent at {now}")
+        except Exception as e:
+            print(f"⚠️ Heartbeat error: {e}")
 
 
 @app.on_event("startup")
-async def start_pulse():
+async def startup_event():
+    # ... (supabase initialization)
+    print("🎬 [Startup] MuzeBIZ Realtime Platform initializing...")
+
     # 백그라운드 태스크로 실행
-    asyncio.create_task(start_alpaca_stream())
+    asyncio.create_task(run_startup_sequence())
+
+
+async def run_startup_sequence():
+    """초기화 시퀀스: 워밍업 후 스냅샷 펄스 방출 및 스트림 시작"""
+    active_tickers = await asyncio.to_thread(db.get_active_tickers, limit=15)
+    if not active_tickers:
+        return
+
+    # 1. 히스토리 워밍업
+    if active_tickers:
+        await candle_state.warm_up(active_tickers)
+
+    # 2. 주말/폐장 시에도 데이터를 보여주기 위해 스냅샷 펄스 1회 방출
+    print("📸 [Startup] Emitting initial snapshot pulses...")
+    for ticker in active_tickers:
+        if ticker in candle_state.history and not candle_state.history[ticker].empty:
+            df = candle_state.history[ticker]
+            # 최근 캔들 하나를 모사하여 펄스 엔진 가동
+            try:
+                payload = await asyncio.to_thread(run_pulse_engine, ticker, df)
+                payload["indicator"] = "Snapshot (Last Close)"
+
+                # WebSocket 전송
+                await manager.broadcast(payload)
+
+                # DB 저장 (영속성 확보)
+                if supabase:
+                    await asyncio.to_thread(
+                        supabase.table("realtime_signals").insert(payload).execute
+                    )
+                    print(f"💾 Snapshot for {ticker} saved to DB.")
+            except Exception as e:
+                print(f"⚠️ Initial pulse for {ticker} failed: {e}")
+
+    # 3. 실시간 스트림 및 하트비트 시작
+    asyncio.create_task(system_heartbeat())
+    if active_tickers:
+        await start_alpaca_stream(active_tickers)
 
 
 # --- REALTIME PULSE ENGINE (End) ---

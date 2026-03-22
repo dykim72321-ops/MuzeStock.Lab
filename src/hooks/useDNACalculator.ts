@@ -55,21 +55,27 @@ export function useDNACalculator({
       : buyPrice * 0.05;
 
     // 3. 보유 기간 계산 (거래일 기준, 주말 제외)
-    const msPerDay = 1000 * 60 * 60 * 24;
-    const now = new Date();
-    const utcNow = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
     const added = new Date(buyDate);
-    const utcAdded = Date.UTC(added.getUTCFullYear(), added.getUTCMonth(), added.getUTCDate());
+    const now = new Date();
+    
+    // 시간 정보를 00:00:00으로 정규화하여 일수만 계산
+    const d1 = new Date(added.getFullYear(), added.getMonth(), added.getDate());
+    const d2 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
     let daysHeld = 0;
-    let currentUtc = utcAdded;
-    while (currentUtc < utcNow) {
-      currentUtc += msPerDay;
-      const dayOfWeek = new Date(currentUtc).getUTCDay();
+    const tempDate = new Date(d1);
+    
+    while (tempDate < d2) {
+      tempDate.setDate(tempDate.getDate() + 1);
+      const dayOfWeek = tempDate.getDay();
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
         daysHeld++;
       }
     }
+    
+    // 만약 당일이라면 0일이지만, 24시간이 지나지 않았더라도 등록 직후는 0d로 표시되는 것이 맞음.
+    // 다만 사용자가 "정확하게 추적하지 않는다"고 느낀다면, 당일 등록도 1일차로 표시하기를 원할 수도 있음.
+    // 여기서는 기존 로직의 '영업일' 기준을 유지하되 계산 방식을 더 명확히 함.
 
     // 4. 목표가 / 손절가 계산 (Chandelier Exit + Time-based Tightening)
     const { 
@@ -81,11 +87,11 @@ export function useDNACalculator({
       rejectReason,
     } = calculateDNATargets(
       buyPrice, 
+      atr5 || 0,
+      daysHeld,
       currentPrice, 
       currentHigh, 
-      atr5,
-      volatilityStdDev,
-      daysHeld
+      volatilityStdDev
     );
     
     const GAMMA = 0.8; 

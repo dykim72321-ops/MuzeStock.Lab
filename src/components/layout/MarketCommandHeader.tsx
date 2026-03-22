@@ -26,23 +26,31 @@ export const MarketCommandHeader: React.FC<MarketCommandHeaderProps> = ({
   engineVersion = "PULSE ENGINE v4"
 }) => {
   return (
-    <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+    <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 bg-white/60 backdrop-blur-xl p-6 rounded-2xl border border-white/20 shadow-xl overflow-hidden relative">
+      <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
       <div>
         <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-            {title === "Quant Pulse" && (
-              <div className="p-2 bg-indigo-50 rounded-lg">
-                <Activity className="w-7 h-7 text-indigo-600 animate-pulse" />
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+            {title === "통합 지휘 통제실" && (
+              <div className="relative">
+                <div className={clsx(
+                  "w-4 h-4 rounded-full",
+                  isConnected ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.5)]'
+                )} />
+                <div className={clsx(
+                  "absolute inset-0 w-4 h-4 rounded-full animate-ping opacity-75",
+                  isConnected ? 'bg-emerald-400' : 'bg-rose-400'
+                )} />
               </div>
             )}
             {title}
           </h1>
-          <div className="px-3 py-1 bg-blue-50 border border-blue-100 rounded-full flex items-center gap-2">
-            <span className={clsx("w-2 h-2 rounded-full", isConnected ? 'bg-blue-500 animate-pulse' : 'bg-rose-500')} />
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#0176d3]">{engineVersion}</span>
+          <div className="px-3 py-1 bg-white/40 border border-white/20 rounded-full flex items-center gap-2 backdrop-blur-sm">
+            <span className={clsx("w-2 h-2 rounded-full", isConnected ? 'bg-emerald-500' : 'bg-rose-500')} />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">{engineVersion}</span>
           </div>
         </div>
-        <p className="text-sm text-slate-500 font-medium">{subtitle}</p>
+        <p className="text-sm text-slate-500 font-semibold tracking-tight">{subtitle}</p>
       </div>
 
       <div className="flex items-center gap-4">

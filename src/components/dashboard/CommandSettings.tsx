@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Bell, Database, Save, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Settings, Bell, Database, Save, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { toast } from 'sonner';
+import { motion } from 'framer-motion';
+import clsx from 'clsx';
 
 export const CommandSettings: React.FC = () => {
   const [dnaThreshold, setDnaThreshold] = useState<number>(85);
   const [webhookUrl, setWebhookUrl] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-
   // 컴포넌트 마운트 시 DB에서 기존 설정값 불러오기
   useEffect(() => {
     const fetchSettings = async () => {
-      // system_settings 테이블에서 단일 설정 로우를 가져온다고 가정
       const { data, error } = await supabase
         .from('system_settings')
         .select('*')
@@ -25,11 +25,6 @@ export const CommandSettings: React.FC = () => {
     };
     fetchSettings();
   }, []);
-
-  const showToast = (text: string, type: 'success' | 'error') => {
-    setToastMessage({ text, type });
-    setTimeout(() => setToastMessage(null), 3000);
-  };
 
   const handleSaveSettings = async () => {
     setIsSaving(true);
@@ -44,10 +39,14 @@ export const CommandSettings: React.FC = () => {
         });
 
       if (error) throw error;
-      showToast('시스템 설정이 성공적으로 업데이트되었습니다.', 'success');
+      toast.success('Matrix Config Saved', {
+        description: 'System thresholds globally updated.',
+      });
     } catch (error) {
       console.error('Settings save error:', error);
-      showToast('설정 저장 중 오류가 발생했습니다.', 'error');
+      toast.error('Save Failed', {
+        description: 'Check database connectivity.',
+      });
     } finally {
       setIsSaving(false);
     }
@@ -65,32 +64,27 @@ export const CommandSettings: React.FC = () => {
         .neq('ticker', 'dummy'); // 조건 없이 삭제 (또는 TRUNCATE RPC 호출)
 
       if (error) throw error;
-      showToast('백테스트 캐시가 성공적으로 초기화되었습니다.', 'success');
+      toast.success('Cache Flushed', {
+        description: 'All backtest data has been cleared.',
+      });
     } catch (error) {
       console.error('Cache clear error:', error);
-      showToast('캐시 초기화 중 오류가 발생했습니다.', 'error');
+      toast.error('Flush Error', {
+        description: 'Could not purge memory tables.',
+      });
     } finally {
       setIsClearing(false);
     }
   };
 
   return (
-    <div className="w-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mt-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+    <div className="w-full bg-white/60 backdrop-blur-xl rounded-2xl border border-white/20 shadow-xl overflow-hidden mt-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
       {/* Header */}
-      <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+      <div className="bg-white/40 px-6 py-4 border-b border-white/10 flex items-center justify-between">
         <h3 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-tight">
           <Settings className="w-4 h-4 text-slate-500" />
           System Control Panel
         </h3>
-        
-        {toastMessage && (
-          <div className={`text-[11px] font-bold px-3 py-1 rounded flex items-center gap-1.5 animate-pulse ${
-            toastMessage.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-          }`}>
-            {toastMessage.type === 'success' ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
-            {toastMessage.text}
-          </div>
-        )}
       </div>
 
       <div className="p-6 space-y-8">

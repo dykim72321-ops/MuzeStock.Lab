@@ -19,15 +19,35 @@ import { useState, useEffect } from 'react';
 export const Dashboard = () => {
   const { pulseMap, isConnected, lastUpdatedTicker, isHunting, huntStatus, triggerHunt } = useMarketEngine();
   const [stats, setStats] = useState<StrategyStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [pulseStatus, setPulseStatus] = useState<any>(null);
 
   useEffect(() => {
     const loadStats = async () => {
+      setStatsLoading(true);
       const data = await fetchStrategyStats();
       if (data) setStats(data);
+      setStatsLoading(false);
     };
+
+    const loadPulseStatus = async () => {
+      try {
+        const res = await fetch('/py-api/api/pulse/status');
+        const data = await res.json();
+        setPulseStatus(data);
+      } catch (e) {
+        console.warn("Failed to fetch pulse status");
+      }
+    };
+
     loadStats();
+    loadPulseStatus();
+
     // 1분마다 통계 업데이트
-    const timer = setInterval(loadStats, 60000);
+    const timer = setInterval(() => {
+      loadStats();
+      loadPulseStatus();
+    }, 60000);
     return () => clearInterval(timer);
   }, []);
   
@@ -60,9 +80,13 @@ export const Dashboard = () => {
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">시스템 방어력</p>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black text-slate-900 tabular-nums">
-                {stats ? `${stats.mdd.toFixed(2)}%` : '-2.95%'}
+                {statsLoading ? (
+                  <span className="text-sm font-bold text-blue-500 animate-pulse">DATA PROCESSING...</span>
+                ) : (
+                  stats ? `${stats.mdd.toFixed(2)}%` : '-2.95%'
+                )}
               </span>
-              <span className="text-xs font-bold text-emerald-600">vs MKT -29.1%</span>
+              {!statsLoading && <span className="text-xs font-bold text-emerald-600">vs MKT -29.1%</span>}
             </div>
             <p className="text-[10px] text-slate-400 mt-1 font-medium">퀀트 엔진 백테스트 기준</p>
           </div>
@@ -76,11 +100,17 @@ export const Dashboard = () => {
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">엔진 승률</p>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black text-slate-900 tabular-nums">
-                {stats ? `${stats.win_rate.toFixed(1)}%` : '68.7%'}
+                {statsLoading ? (
+                  <span className="text-sm font-bold text-purple-500 animate-pulse">CALCULATING...</span>
+                ) : (
+                  stats ? `${stats.win_rate.toFixed(1)}%` : '68.7%'
+                )}
               </span>
-              <span className="text-xs font-bold text-purple-600">
-                PF: {stats ? stats.profit_factor.toFixed(2) : '1.14'}x
-              </span>
+              {!statsLoading && (
+                <span className="text-xs font-bold text-purple-600">
+                  PF: {stats ? stats.profit_factor.toFixed(2) : '1.14'}x
+                </span>
+              )}
             </div>
             <p className="text-[10px] text-slate-400 mt-1 font-medium">퀀트 엔진 백테스트 기준</p>
           </div>
@@ -95,13 +125,15 @@ export const Dashboard = () => {
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black text-slate-900 tabular-nums">{buyTickers.length}</span>
               <span className="text-xs font-bold text-[#0176d3]">
-                BUY SIGNALS
+                {pulseStatus?.market_status === 'CLOSED' ? 'LAST SESSION' : 'BUY SIGNALS'}
                 {allTickers.length > 0 && (
                   <span className="ml-1 text-slate-400">/ {allTickers.length} SCANNING</span>
                 )}
               </span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-1 font-medium font-mono uppercase tracking-tighter">Live v4 Pulse Feed</p>
+            <p className="text-[10px] text-slate-400 mt-1 font-medium font-mono uppercase tracking-tighter">
+              {pulseStatus?.market_status === 'CLOSED' ? '🌙 Market Closed (Snapshot View)' : '⚡ Live v4 Pulse Feed'}
+            </p>
           </div>
         </div>
       </div>

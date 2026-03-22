@@ -14,7 +14,7 @@ import random
 import re
 from typing import List, Dict
 import json
-from backtester import run_backtest
+# from backtester import run_backtest (Removed)
 from utils import PartNormalizer
 
 
@@ -356,10 +356,8 @@ class FinvizHunter:
                 "volume_surge_multiplier": round(rvol, 2),
             }
 
-            # 4. Auto Backtest
-            backtest_result = await asyncio.to_thread(
-                run_backtest, ticker_symbol, period="1y"
-            )
+            # 4. Auto Backtest (Disabled - using modern portfolio_backtester for batch)
+            backtest_result = {"error": "Legacy backtester removed"}
             backtest_return = None
             if "error" not in backtest_result:
                 backtest_return = backtest_result.get("total_return_pct", 0)

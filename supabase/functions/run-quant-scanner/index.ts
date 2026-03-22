@@ -114,7 +114,43 @@ async function fetchHistory(ticker: string): Promise<Candle[] | null> {
   })).filter((c: any) => c.close != null && c.open != null && c.high != null && c.low != null);
 }
 
-serve(async (req: Request) => {
+async function fetchNews(ticker: string): Promise<string[]> {
+  const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${ticker}`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.news || []).map((item: any) => `${item.title}: ${item.publisher}`).slice(0, 5);
+}
+
+async function analyzeSentiment(ticker: string, news: string[]): Promise<{ decision: 'PASS' | 'FAIL', reasoning: string }> {
+  const openaiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!openaiKey || news.length === 0) return { decision: 'PASS', reasoning: 'AI 분석 생략 (뉴스 없음 or API 키 없음)' };
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${openaiKey}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'You are a professional quant analyst. Analyze the following news for a stock and decide if it is safe to trade. Evade stocks with bankruptcy, delisting, or major scandals. Output JSON: { "decision": "PASS" | "FAIL", "reasoning": "brief explanation in Korean" }' },
+          { role: 'user', content: `Ticker: ${ticker}\nNews:\n${news.join('\n')}` }
+        ],
+        response_format: { type: "json_object" }
+      })
+    });
+
+    const data = await res.json();
+    const result = JSON.parse(data.choices[0].message.content);
+    return result;
+  } catch (err) {
+    console.error('[AI] Sentiment analysis failed:', err);
+    return { decision: 'PASS', reasoning: 'AI 엔진 오류로 인한 패스 자동 승인' };
+  }
+}
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -180,24 +216,37 @@ serve(async (req: Request) => {
                 status: 'PENDING'
             });
 
-            // [Webhook] Dynamic Threshold
+            // [Smart Filter] AI Sentiment Analysis for high confidence signals
+            let aiDecision = { decision: 'PASS', reasoning: 'AI 분석 임계치 미달' };
             if (dnaScore >= ALERT_THRESHOLD) {
-              if (DISCORD_WEBHOOK) {
+                console.log(`🧠 [AI] Fetching news and analyzing sentiment for ${ticker}...`);
+                const news = await fetchNews(ticker);
+                aiDecision = await analyzeSentiment(ticker, news);
+                console.log(`🧠 [AI] Result for ${ticker}: ${aiDecision.decision} - ${aiDecision.reasoning}`);
+            }
+
+            // [Webhook] Dynamic Threshold & AI Approval
+            if (dnaScore >= ALERT_THRESHOLD) {
+              if (DISCORD_WEBHOOK && aiDecision.decision === 'PASS') {
                 const payload = {
                   embeds: [{
                     title: `🚀 ${ALERT_THRESHOLD <= 75 ? 'SURGE' : 'STRONG BUY'} SIGNAL: ${ticker}`,
                     color: dnaScore >= 90 ? 15277667 : 3447003, // Gold if >= 90
+                    description: `**AI Smart Filter**: ✅ PASS\n> ${aiDecision.reasoning}`,
                     fields: [
                       { name: "DNA Score", value: dnaScore.toFixed(0), inline: true },
                       { name: "Current Price", value: `$${current.close.toFixed(2)}`, inline: true },
                       { name: "RVOL", value: `${rvol.toFixed(2)}x`, inline: true },
                       { name: "Volatility (ATR)", value: `${(atrPercent*100).toFixed(2)}%`, inline: true }
                     ],
-                    footer: { text: `MuzeStock.Lab Quant Engine (Threshold: ${ALERT_THRESHOLD})` },
+                    footer: { text: `MuzeStock.Lab Execution Engine (Threshold: ${ALERT_THRESHOLD})` },
                     timestamp: new Date().toISOString()
                   }]
                 };
                 await sendDiscordWebhook(DISCORD_WEBHOOK, payload);
+              } else if (aiDecision.decision === 'FAIL') {
+                console.log(`🚫 [AI] Signal rejected by sentiment filter: ${ticker}`);
+                await sendDiscordNotification(`[AI Reject] ${ticker} rejected: ${aiDecision.reasoning}`, 'ALERT');
               }
             }
         }

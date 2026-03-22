@@ -11,16 +11,14 @@ import {
   Star
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { fetchStrategyStats, apiFetch } from '../services/pythonApiService';
+import { CommandSettings } from '../components/dashboard/CommandSettings';
 import clsx from 'clsx';
 
 // Hooks & Services
 import { useMarketEngine } from '../hooks/useMarketEngine';
 import { getWatchlist, addToWatchlist, type WatchlistItem } from '../services/watchlistService';
-import { 
-  getTopStocks, 
-  fetchMultipleStocksOptimized
-} from '../services/stockService';
-import { getStrategyStats } from '../services/analysisService.ts';
+import { getTopStocks, fetchMultipleStocksOptimized } from '../services/stockService';
 import { processSignal } from '../utils/signalProcessor';
 import { toast } from 'sonner';
 
@@ -29,7 +27,8 @@ import { MarketCommandHeader } from '../components/layout/MarketCommandHeader';
 import { QuantSignalCard } from '../components/ui/QuantSignalCard';
 import { BacktestChart } from '../components/ui/BacktestChart';
 import { StockTerminalModal } from '../components/dashboard/StockTerminalModal';
-import { QuantLiveTerminal } from '../components/dashboard/QuantLiveTerminal';
+import { LiveExecutionCenter } from '../components/dashboard/LiveExecutionCenter';
+import { PortfolioStatus } from '../components/ui/PortfolioStatus';
 import { Card } from '../components/ui/Card';
 
 export const UnifiedDashboard = () => {
@@ -43,30 +42,41 @@ export const UnifiedDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [terminalData, setTerminalData] = useState<any | null>(null);
   const [strategyStats, setStrategyStats] = useState<any | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [pulseStatus, setPulseStatus] = useState<any>(null);
 
   // 2. Fetch Data
   const loadData = async () => {
-    setLoading(true);
-    try {
-      // Fetch Watchlist & Discovery in Parallel
-      const items = await getWatchlist();
-      setWatchlistItems(items);
-      
-      const [watchlistData, discoveryData, statsData] = await Promise.all([
-        items.length > 0 ? fetchMultipleStocksOptimized(items.map(i => i.ticker)) : Promise.resolve([]),
-        getTopStocks(false, 15),
-        getStrategyStats()
-      ]);
-      
-      setWatchlistStocks(watchlistData);
-      setDiscoveryStocks(discoveryData.slice(0, 10));
-      setStrategyStats(statsData);
-    } catch (err) {
-      console.error('Failed to load unified data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      setLoading(true);
+      setStatsLoading(true);
+      try {
+        // Fetch Watchlist & Discovery in Parallel
+        const items = await getWatchlist();
+        setWatchlistItems(items);
+        
+        const [watchlistData, discoveryData, statsData] = await Promise.all([
+          items.length > 0 ? fetchMultipleStocksOptimized(items.map(i => i.ticker)) : Promise.resolve([]),
+          getTopStocks(false, 15),
+          fetchStrategyStats()
+        ]);
+
+        try {
+          const pData = await apiFetch('/api/pulse/status');
+          setPulseStatus(pData);
+        } catch (e) {
+          console.warn('[Dashboard] Pulse status fetch failed');
+        }
+        
+        setWatchlistStocks(watchlistData);
+        setDiscoveryStocks(discoveryData.slice(0, 10));
+        setStrategyStats(statsData);
+      } catch (err) {
+        console.error('Failed to load unified data:', err);
+      } finally {
+        setLoading(false);
+        setStatsLoading(false);
+      }
+    };
 
   useEffect(() => {
     loadData();
@@ -108,7 +118,7 @@ export const UnifiedDashboard = () => {
       {/* 1. Unified Header */}
       <MarketCommandHeader 
         title="통합 지휘 통제실"
-        subtitle=""
+        subtitle={pulseStatus?.market_status === 'CLOSED' ? "🌙 Market Closed (Snapshot Analysis View)" : "⚡ Real-time Market Pulse Live v4"}
         isConnected={isConnected}
         isHunting={isHunting}
         huntStatus={huntStatus}
@@ -132,8 +142,8 @@ export const UnifiedDashboard = () => {
         {/* LEFT COLUMN: Main Signals & Discovery (8/12) */}
         <div className="lg:col-span-8 space-y-12">
           
-          {/* A. Quant Portfolio Performance (NEW) */}
-          <QuantLiveTerminal />
+          {/* A. 실전 타격 통제실 (Execution Center) */}
+          <LiveExecutionCenter />
 
           {/* B. Live Signal Matrix (Dashboard Part) */}
           <section className="space-y-6">
@@ -357,61 +367,84 @@ export const UnifiedDashboard = () => {
         </div>
       </div>
 
-      {/* 4. Multi-Charts or Summary (Full Width) */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="p-6 bg-white border-slate-200">
+      {/* 시스템 관제 및 통계 그리드 */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+        {/* Left: Control Panel (xl:7) */}
+        <div className="xl:col-span-7">
+          <CommandSettings />
+        </div>
+        
+        {/* Right: Portfolio Status (xl:5) */}
+        <div className="xl:col-span-5">
+          <PortfolioStatus />
+        </div>
+      </div>
+
+      {/* 4. Strategic Performance Matrix (Grid Optimized) */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <Card className="p-6 lg:col-span-4 bg-white/60 backdrop-blur-xl border-white/20 shadow-xl">
             <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-emerald-500" />
-              퀀트 MDD 회복 속도 분석 (Quant MDD)
+              <TrendingUp className="w-4 h-4 text-rose-500" />
+              퀀트 MDD 회복 속도 (Quant MDD)
             </h3>
-            <div className="flex flex-col items-center justify-center bg-slate-50 rounded-xl border border-dashed border-slate-200 py-6">
-               {strategyStats ? (
+            <div className="flex flex-col items-center justify-center bg-slate-900/5 rounded-2xl border border-white/10 py-8 relative overflow-hidden group">
+               <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+               {statsLoading ? (
+                 <span className="text-[10px] font-black text-blue-500 animate-pulse italic uppercase tracking-[0.2em]">Deep Analytics...</span>
+               ) : strategyStats ? (
                  <>
-                   <div className="text-4xl font-black text-rose-500 tracking-tighter mb-1">
+                   <div className="text-5xl font-black text-rose-500 tracking-tighter mb-1 drop-shadow-sm">
                      {strategyStats.mdd}%
                    </div>
-                   <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                   <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-1">
                      Max Drawdown (1Y)
                    </div>
-                   <div className="mt-4 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-black">
+                   <div className="mt-6 px-4 py-1.5 bg-emerald-500/10 text-emerald-600 rounded-full text-[10px] font-black border border-emerald-500/20">
                      평균 회복 기간: {strategyStats.recovery_days}일
                    </div>
                  </>
                ) : (
-                 <span className="text-[10px] font-black text-slate-300 uppercase italic">Data Processing...</span>
+                 <span className="text-[10px] font-black text-slate-300 uppercase italic">Waiting...</span>
                )}
             </div>
           </Card>
           
-          <Card className="p-6 bg-white border-slate-200 md:col-span-2">
+          <Card className="p-6 lg:col-span-8 bg-white/60 backdrop-blur-xl border-white/20 shadow-xl">
              <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-[#0176d3]" />
               전략 통계 효율성 매트릭스 (Strategic Stats Matrix)
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-auto">
-               {strategyStats ? (
+               {statsLoading ? (
+                 <div className="col-span-4 h-32 flex items-center justify-center bg-slate-900/5 rounded-2xl border border-white/10">
+                   <div className="flex flex-col items-center gap-3">
+                      <div className="w-8 h-8 border-[3px] border-[#0176d3]/20 border-t-[#0176d3] rounded-full animate-spin" />
+                      <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] animate-pulse">Running Simulation...</span>
+                   </div>
+                 </div>
+               ) : strategyStats ? (
                  <>
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <div className="text-[10px] font-black text-slate-400 uppercase mb-1">Win Rate</div>
-                    <div className="text-xl font-black text-slate-900">{strategyStats.win_rate}%</div>
-                  </div>
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <div className="text-[10px] font-black text-slate-400 uppercase mb-1">Profit Factor</div>
-                    <div className="text-xl font-black text-indigo-600">{strategyStats.profit_factor}x</div>
-                  </div>
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <div className="text-[10px] font-black text-slate-400 uppercase mb-1">Avg PnL</div>
-                    <div className="text-xl font-black text-emerald-600">+{strategyStats.avg_pnl}%</div>
-                  </div>
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <div className="text-[10px] font-black text-slate-400 uppercase mb-1">Total Trades</div>
-                    <div className="text-xl font-black text-slate-900">{strategyStats.total_trades}</div>
-                  </div>
+                   <div className="bg-slate-900/5 p-5 rounded-2xl border border-white/10 hover:bg-slate-900/10 transition-colors">
+                     <div className="text-[10px] font-black text-slate-400 uppercase mb-2">Win Rate</div>
+                     <div className="text-2xl font-black text-slate-900">{strategyStats.win_rate}%</div>
+                   </div>
+                   <div className="bg-slate-900/5 p-5 rounded-2xl border border-white/10 hover:bg-slate-900/10 transition-colors">
+                     <div className="text-[10px] font-black text-slate-400 uppercase mb-2">Profit Factor</div>
+                     <div className="text-2xl font-black text-indigo-600">{strategyStats.profit_factor}x</div>
+                   </div>
+                   <div className="bg-slate-900/5 p-5 rounded-2xl border border-white/10 hover:bg-slate-900/10 transition-colors">
+                     <div className="text-[10px] font-black text-slate-400 uppercase mb-2">Avg PnL</div>
+                     <div className="text-2xl font-black text-emerald-600">+{strategyStats.avg_pnl}%</div>
+                   </div>
+                   <div className="bg-slate-900/5 p-5 rounded-2xl border border-white/10 hover:bg-slate-900/10 transition-colors">
+                     <div className="text-[10px] font-black text-slate-400 uppercase mb-2">Total Trades</div>
+                     <div className="text-2xl font-black text-slate-900">{strategyStats.total_trades}</div>
+                   </div>
                  </>
                ) : (
-                <div className="col-span-4 h-32 flex items-center justify-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  <span className="text-[10px] font-black text-slate-300 uppercase italic">Waiting for Signal Lock...</span>
-                </div>
+                 <div className="col-span-4 h-32 flex items-center justify-center bg-slate-900/5 rounded-2xl border border-white/10">
+                   <span className="text-[10px] font-black text-slate-300 uppercase italic tracking-widest">Waiting for Signal Lock...</span>
+                 </div>
                )}
             </div>
           </Card>

@@ -57,18 +57,7 @@ export async function fetchTechnicalAnalysis(
   period: string = '1mo'
 ): Promise<TechnicalIndicators | null> {
   try {
-    const response = await fetch(`${PY_API_BASE}/api/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticker, period }),
-    });
-
-    if (!response.ok) {
-      console.warn(`[PythonAPI] Analyze failed for ${ticker}: ${response.status}`);
-      return null;
-    }
-
-    return await response.json();
+    return await apiFetch('/api/analyze', 'POST', { ticker, period });
   } catch (error) {
     console.error(`[PythonAPI] Analyze error for ${ticker}:`, error);
     return null;
@@ -85,14 +74,7 @@ export async function fetchDiscoveries(
   sortBy: 'updated_at' | 'performance' = 'updated_at'
 ): Promise<DiscoveryItem[]> {
   try {
-    const response = await fetch(`${PY_API_BASE}/api/discoveries?limit=${limit}&sort_by=${sortBy}`);
-
-    if (!response.ok) {
-      console.warn(`[PythonAPI] Discoveries fetch failed: ${response.status}`);
-      return [];
-    }
-
-    return await response.json();
+    return await apiFetch(`/api/discoveries?limit=${limit}&sort_by=${sortBy}`);
   } catch (error) {
     console.error('[PythonAPI] Discoveries error:', error);
     return [];
@@ -135,18 +117,7 @@ export async function fetchBacktestData(
   period: string = '1y'
 ): Promise<any | null> {
   try {
-    const response = await fetch(`${PY_API_BASE}/api/backtest`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticker, period }),
-    });
-
-    if (!response.ok) {
-      console.warn(`[PythonAPI] Backtest failed for ${ticker}: ${response.status}`);
-      return null;
-    }
-
-    return await response.json();
+    return await apiFetch('/api/backtest', 'POST', { ticker, period });
   } catch (error) {
     console.error(`[PythonAPI] Backtest error for ${ticker}:`, error);
     return null;
@@ -158,16 +129,45 @@ export async function fetchBacktestData(
  */
 export async function fetchStrategyStats(): Promise<StrategyStats | null> {
   try {
-    const response = await fetch(`${PY_API_BASE}/api/strategy/stats`);
-
-    if (!response.ok) {
-      console.warn(`[PythonAPI] Strategy stats fetch failed: ${response.status}`);
-      return null;
-    }
-
-    return await response.json();
+    return await apiFetch('/api/strategy/stats');
   } catch (error) {
     console.error('[PythonAPI] Strategy stats error:', error);
     return null;
+  }
+}
+
+/**
+ * [NEW] Generic API Fetch Utility
+ * POST/GET 요청 및 Admin Key 인증을 공통 처리
+ */
+export async function apiFetch(
+  endpoint: string, 
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET', 
+  body: any = null
+): Promise<any> {
+  const adminKey = import.meta.env.VITE_ADMIN_SECRET_KEY;
+  
+  const options: RequestInit = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Admin-Key': adminKey || '',
+    },
+  };
+
+  if (body && (method === 'POST' || method === 'PUT')) {
+    options.body = JSON.stringify(body);
+  }
+
+  try {
+    const response = await fetch(`${PY_API_BASE}${endpoint}`, options);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP Error: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`[PythonAPI] apiFetch Error (${endpoint}):`, error);
+    throw error;
   }
 }

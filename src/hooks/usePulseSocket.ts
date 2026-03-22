@@ -129,5 +129,19 @@ export const usePulseSocket = (url: string = 'ws://127.0.0.1:8000/ws/pulse') => 
     connect();
   };
 
-  return { pulseData, pulseMap, isConnected, error, reconnect, lastUpdatedTicker };
+  // 초기 데이터(히스토리)로 맵을 채우는 기능
+  const seedMap = useCallback((data: PulseData[]) => {
+    setPulseMap((prev) => {
+      const newMap = { ...prev };
+      data.forEach((item) => {
+        // 기존 실시간 데이터가 더 최신일 수 있으므로 우선순위 확인 (생략 가능하면 단순 병합)
+        if (!newMap[item.ticker]) {
+          newMap[item.ticker] = item;
+        }
+      });
+      return newMap;
+    });
+  }, []);
+
+  return { pulseData, pulseMap, isConnected, error, reconnect, lastUpdatedTicker, seedMap };
 };

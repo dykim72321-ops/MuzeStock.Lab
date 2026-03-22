@@ -19,3 +19,4 @@ yfinance
 ta
 scikit-learn
 numpy
+alpaca-py>=0.17.0
