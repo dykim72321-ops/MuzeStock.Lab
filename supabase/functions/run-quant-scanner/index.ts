@@ -151,6 +151,8 @@ async function analyzeSentiment(ticker: string, news: string[]): Promise<{ decis
     return { decision: 'PASS', reasoning: 'AI 엔진 오류로 인한 패스 자동 승인' };
   }
 }
+  
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
