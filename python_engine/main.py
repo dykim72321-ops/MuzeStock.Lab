@@ -1432,7 +1432,9 @@ async def on_minute_bar_closed(bar):
                 )
 
             except Exception as service_err:
-                print(f"⚠️ Service Integration Error for {ticker_symbol}: {service_err}")
+                print(
+                    f"⚠️ Service Integration Error for {ticker_symbol}: {service_err}"
+                )
 
     except Exception as e:
         print(f"❌ Pulse Stream Error for {ticker_symbol}: {e}")

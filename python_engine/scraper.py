@@ -222,8 +222,7 @@ class FinvizHunter:
                     await browser.close()
                     return []
 
-                stocks = await page.evaluate(
-                    """() => {
+                stocks = await page.evaluate("""() => {
                     const rows = Array.from(document.querySelectorAll('table[width="100%"] tr[valign="top"]'));
                     return rows.slice(0, 5).map(row => { // 5개로 축소하여 Anomaly와 합칠 여유 확보
                         const cells = row.querySelectorAll('td');
@@ -234,8 +233,7 @@ class FinvizHunter:
                             reason: "Finviz Screened"
                         };
                     }).filter(item => item !== null);
-                }"""
-                )
+                }""")
                 results = stocks
                 await browser.close()
                 return results

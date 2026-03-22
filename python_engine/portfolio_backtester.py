@@ -5,7 +5,6 @@ import ta
 import warnings
 from datetime import datetime
 
-
 # 경고 무시
 warnings.filterwarnings("ignore")
 
