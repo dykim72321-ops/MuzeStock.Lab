@@ -122,7 +122,7 @@ export function useDNACalculator({
     }
 
     const finalScore = Math.max(0, Math.min(100, Math.round(score)));
-
+    
     // 7. Kelly Position Sizing (Quarter-Kelly) + Time Stop
     const riskDenominator = buyPrice - S;
     const riskRewardRatio = riskDenominator <= 0 ? 0.1 : (T - buyPrice) / riskDenominator;
@@ -161,7 +161,8 @@ export function useDNACalculator({
       action: actionFlag,
       isLoading: false,
     };
-  }, [buyPrice, currentPrice, currentHigh, atr5, buyDate, history]);
+    // 💡 Performance Optimization: history 배열의 무분별한 리렌더링 방지를 위해 문자열화하여 비교
+  }, [buyPrice, currentPrice, currentHigh, atr5, buyDate, JSON.stringify(history)]);
 }
 
 

@@ -18,6 +18,7 @@ import {
 import clsx from 'clsx';
 import { fetchQuantSignals, fetchActivePositions, fetchTradeHistory } from '../../services/stockService';
 import { apiFetch } from '../../services/pythonApiService';
+import { Tooltip } from '../ui/Tooltip';
 import { toast } from 'sonner';
 
 interface AccountStatus {
@@ -198,43 +199,47 @@ export const LiveExecutionCenter = () => {
           {/* Center/Right: Action Buttons */}
           <div className="flex items-center gap-4">
               {/* KILL SWITCH */}
-              <button 
-                onClick={handlePanicSell}
-                disabled={isPanicking}
-                className="flex items-center gap-2 px-4 py-3 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white border border-rose-500/30 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 group"
-              >
-                <AlertOctagon className={clsx("w-4 h-4", isPanicking && "animate-spin")} />
-                {isPanicking ? 'LIQUIDATING...' : 'Panic Liquidate All'}
-              </button>
+              <Tooltip content="사용 중인 모든 포지션을 즉시 시장가로 매도하고 모든 미체결 주문을 취소합니다. (Panic Sell)">
+                <button 
+                  onClick={handlePanicSell}
+                  disabled={isPanicking}
+                  className="flex items-center gap-2 px-4 py-3 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white border border-rose-500/30 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 group"
+                >
+                  <AlertOctagon className={clsx("w-4 h-4", isPanicking && "animate-spin")} />
+                  {isPanicking ? 'LIQUIDATING...' : 'Panic Liquidate All'}
+                </button>
+              </Tooltip>
 
               {/* Master Switch */}
-              <button 
-                onClick={() => setIsArmed(!isArmed)}
-                className={clsx(
-                  "group relative px-8 py-3 rounded-2xl flex items-center gap-3 transition-all duration-300 active:scale-95 shadow-2xl overflow-hidden",
-                  isArmed 
-                    ? "bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/20" 
-                    : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20"
-                )}
-              >
-                {isArmed ? (
-                  <>
-                    <Lock className="w-4 h-4" />
-                    <div className="text-left">
-                      <div className="text-[9px] font-black uppercase tracking-tighter opacity-70">Trading Armed</div>
-                      <div className="text-xs font-black uppercase tracking-widest">DISARM</div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <Unlock className="w-4 h-4" />
-                    <div className="text-left">
-                      <div className="text-[9px] font-black uppercase tracking-tighter opacity-70">Standby</div>
-                      <div className="text-xs font-black uppercase tracking-widest">ARM SYSTEM</div>
-                    </div>
-                  </>
-                )}
-              </button>
+              <Tooltip content={isArmed ? "시스템을 대기 상태로 전환합니다. 자동 매매가 중단됩니다." : "시스템을 무장합니다. 이후 발생하는 강력한 퀀트 신호에 따라 자동 매매가 실행됩니다."}>
+                <button 
+                  onClick={() => setIsArmed(!isArmed)}
+                  className={clsx(
+                    "group relative px-8 py-3 rounded-2xl flex items-center gap-3 transition-all duration-300 active:scale-95 shadow-2xl overflow-hidden",
+                    isArmed 
+                      ? "bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/20" 
+                      : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20"
+                  )}
+                >
+                  {isArmed ? (
+                    <>
+                      <Lock className="w-4 h-4" />
+                      <div className="text-left">
+                        <div className="text-[9px] font-black uppercase tracking-tighter opacity-70">Trading Armed</div>
+                        <div className="text-xs font-black uppercase tracking-widest">DISARM</div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Unlock className="w-4 h-4" />
+                      <div className="text-left">
+                        <div className="text-[9px] font-black uppercase tracking-tighter opacity-70">Standby</div>
+                        <div className="text-xs font-black uppercase tracking-widest">ARM SYSTEM</div>
+                      </div>
+                    </>
+                  )}
+                </button>
+              </Tooltip>
           </div>
         </div>
       </div>
@@ -243,70 +248,78 @@ export const LiveExecutionCenter = () => {
       <div className="p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* A. Account Metrics (3/4) */}
           <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white/5 border border-white/5 p-4 rounded-2xl hover:bg-white/[0.07] transition-colors relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                      <DollarSign className="w-8 h-8 text-white" />
+              <Tooltip content="Alpaca 계좌의 현재 주문 가능한 현금 잔고입니다. (Buying Power)">
+                  <div className="bg-white/5 border border-white/5 p-4 rounded-2xl hover:bg-white/[0.07] transition-colors relative overflow-hidden group w-full">
+                      <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                          <DollarSign className="w-8 h-8 text-white" />
+                      </div>
+                      <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.2em] mb-2">Buying Power</p>
+                      <p className="text-2xl font-black text-white tabular-nums tracking-tighter">
+                        ${account ? account.buying_power.toLocaleString() : '---'}
+                      </p>
                   </div>
-                  <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.2em] mb-2">Buying Power</p>
-                  <p className="text-2xl font-black text-white tabular-nums tracking-tighter">
-                    ${account ? account.buying_power.toLocaleString() : '---'}
-                  </p>
-              </div>
+              </Tooltip>
 
-              <div className="bg-white/5 border border-white/5 p-4 rounded-2xl hover:bg-white/[0.07] transition-colors relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                      <Activity className="w-8 h-8 text-white" />
-                  </div>
-                  <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.2em] mb-2">Today's PnL</p>
-                  <div className="flex items-baseline gap-2">
-                    <p className={clsx(
-                        "text-2xl font-black tabular-nums tracking-tighter",
-                        (account?.today_pnl || 0) >= 0 ? "text-emerald-400" : "text-rose-400"
-                    )}>
-                      {account ? `${account.today_pnl >= 0 ? '+' : ''}$${account.today_pnl.toLocaleString()}` : '---'}
-                    </p>
-                    {account && (
-                        <span className={clsx(
-                            "text-[10px] font-black",
-                            account.today_pnl_pct >= 0 ? "text-emerald-500/60" : "text-rose-500/60"
+              <Tooltip content="당일 발생한 총 실현 및 평가 손익 합계입니다.">
+                  <div className="bg-white/5 border border-white/5 p-4 rounded-2xl hover:bg-white/[0.07] transition-colors relative overflow-hidden group w-full">
+                      <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                          <Activity className="w-8 h-8 text-white" />
+                      </div>
+                      <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.2em] mb-2">Today's PnL</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className={clsx(
+                            "text-2xl font-black tabular-nums tracking-tighter",
+                            (account?.today_pnl || 0) >= 0 ? "text-emerald-400" : "text-rose-400"
                         )}>
-                            ({account.today_pnl_pct >= 0 ? '+' : ''}{account.today_pnl_pct}%)
-                        </span>
-                    )}
+                          {account ? `${account.today_pnl >= 0 ? '+' : ''}$${account.today_pnl.toLocaleString()}` : '---'}
+                        </p>
+                        {account && (
+                            <span className={clsx(
+                                "text-[10px] font-black",
+                                account.today_pnl_pct >= 0 ? "text-emerald-500/60" : "text-rose-500/60"
+                            )}>
+                                ({account.today_pnl_pct >= 0 ? '+' : ''}{account.today_pnl_pct}%)
+                            </span>
+                        )}
+                      </div>
                   </div>
-              </div>
+              </Tooltip>
 
-              <div className="bg-rose-500/5 border border-rose-500/10 p-4 rounded-2xl hover:bg-rose-500/10 transition-colors relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity text-rose-500">
-                      <TrendingDown className="w-8 h-8" />
+              <Tooltip content="최고점 대비 현재 자산 하락 폭입니다. 리스크 관리의 핵심 지표입니다.">
+                  <div className="bg-rose-500/5 border border-rose-500/10 p-4 rounded-2xl hover:bg-rose-500/10 transition-colors relative overflow-hidden group w-full">
+                      <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity text-rose-500">
+                          <TrendingDown className="w-8 h-8" />
+                      </div>
+                      <p className="text-rose-500/50 text-[9px] font-black uppercase tracking-[0.2em] mb-2">Current Drawdown</p>
+                      <p className="text-2xl font-black text-rose-500 tabular-nums tracking-tighter">
+                        {account ? `${account.current_drawdown}%` : '---'}
+                      </p>
                   </div>
-                  <p className="text-rose-500/50 text-[9px] font-black uppercase tracking-[0.2em] mb-2">Current Drawdown</p>
-                  <p className="text-2xl font-black text-rose-500 tabular-nums tracking-tighter">
-                    {account ? `${account.current_drawdown}%` : '---'}
-                  </p>
-              </div>
+              </Tooltip>
           </div>
 
           {/* B. Tactical Risk Control (1/4) */}
-          <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl flex flex-col justify-center">
-              <div className="flex justify-between items-center mb-3">
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                    <Zap className="w-3 h-3 text-amber-400" />
-                    Risk Per Trade
-                  </label>
-                  <span className="text-amber-400 font-black text-xs">{riskPerTrade}%</span>
+          <Tooltip content="체결된 각 포지션이 계좌 전체 자산에서 차지하는 최대 리스크 비율을 설정합니다.">
+              <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl flex flex-col justify-center w-full">
+                  <div className="flex justify-between items-center mb-3">
+                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <Zap className="w-3 h-3 text-amber-400" />
+                        Risk Per Trade
+                      </label>
+                      <span className="text-amber-400 font-black text-xs">{riskPerTrade}%</span>
+                  </div>
+                  <input 
+                    type="range" min="1" max="10" step="0.5"
+                    value={riskPerTrade} 
+                    onChange={(e) => setRiskPerTrade(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500 focus:outline-none"
+                  />
+                  <div className="flex justify-between mt-1.5 opacity-30">
+                      <span className="text-[8px] font-bold text-white">1%</span>
+                      <span className="text-[8px] font-bold text-white">10%</span>
+                  </div>
               </div>
-              <input 
-                type="range" min="1" max="10" step="0.5"
-                value={riskPerTrade} 
-                onChange={(e) => setRiskPerTrade(Number(e.target.value))}
-                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500 focus:outline-none"
-              />
-              <div className="flex justify-between mt-1.5 opacity-30">
-                  <span className="text-[8px] font-bold text-white">1%</span>
-                  <span className="text-[8px] font-bold text-white">10%</span>
-              </div>
-          </div>
+          </Tooltip>
       </div>
 
       {/* 3. TAB NAVIGATION */}
@@ -390,30 +403,62 @@ export const LiveExecutionCenter = () => {
 
                 {activeTab === 'positions' && (
                   <div className="space-y-3">
-                    {positions.length > 0 ? positions.map((pos) => (
-                      <div key={pos.id} className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col gap-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="w-9 h-9 bg-indigo-500/10 rounded-xl flex items-center justify-center font-black text-indigo-400 border border-indigo-500/20">
-                              {pos.ticker[0]}
+                    {positions.length > 0 ? positions.map((pos) => {
+                      const currentPrice = pos.current_price || pos.entry_price; // Fallback
+                      const pnlPct = ((currentPrice - pos.entry_price) / pos.entry_price) * 100;
+                      const isProfit = pnlPct >= 0;
+
+                      return (
+                        <div key={pos.id} className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col gap-3 hover:bg-white/[0.08] transition-colors">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center font-black text-indigo-400 border border-indigo-500/20">
+                                {pos.ticker[0]}
+                              </div>
+                              <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-lg font-black text-white">{pos.ticker}</span>
+                                    <span className={clsx(
+                                      "px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter",
+                                      isProfit ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"
+                                    )}>
+                                      {isProfit ? '+' : ''}{pnlPct.toFixed(2)}%
+                                    </span>
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 font-bold flex items-center gap-2 mt-0.5">
+                                      <ShieldCheck className="w-3 h-3 text-emerald-500/50" />
+                                      Entry: ${pos.entry_price.toFixed(2)}
+                                      <span className="w-1 h-1 rounded-full bg-slate-700" />
+                                      Qty: {pos.quantity || 0}
+                                  </div>
+                              </div>
                             </div>
-                            <div>
-                                <span className="text-lg font-black text-white">{pos.ticker}</span>
-                                <div className="text-[10px] text-slate-500 font-bold flex items-center gap-2 mt-0.5">
-                                    <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                                    Entry: ${pos.entry_price}
-                                </div>
+                            <div className="text-right">
+                              <div className="text-[8px] font-black text-slate-600 tracking-widest uppercase mb-1">Trailing Stop</div>
+                              <div className="text-sm font-black text-rose-400 font-mono">
+                                ${pos.current_stop_price ? pos.current_stop_price.toFixed(2) : '---'}
+                              </div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-[8px] font-black text-slate-600 tracking-widest uppercase mb-1">Trailing Stop</div>
-                            <div className="text-sm font-black text-rose-400 font-mono">
-                              ${pos.current_stop_price ? pos.current_stop_price.toFixed(2) : '---'}
+                          
+                          <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                            <div className="flex items-center gap-4">
+                               <div className="flex flex-col">
+                                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Held Since</span>
+                                  <span className="text-[10px] font-bold text-slate-400">{pos.entry_date ? new Date(pos.entry_date).toLocaleDateString() : 'N/A'}</span>
+                               </div>
+                               <div className="flex flex-col">
+                                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Market Value</span>
+                                  <span className="text-[10px] font-bold text-white font-mono">${(currentPrice * (pos.quantity || 0)).toLocaleString()}</span>
+                               </div>
                             </div>
+                            <button className="px-2 py-1 bg-white/5 hover:bg-rose-500/20 text-[9px] font-black text-slate-400 hover:text-rose-400 rounded-lg border border-transparent hover:border-rose-500/30 transition-all uppercase tracking-tighter">
+                               Close Position
+                            </button>
                           </div>
                         </div>
-                      </div>
-                    )) : (
+                      );
+                    }) : (
                       <div className="py-20 text-center opacity-20">
                         <Target className="w-8 h-8 mx-auto mb-2" />
                         <p className="text-[9px] font-black uppercase tracking-widest">No Active Positions</p>
@@ -423,10 +468,50 @@ export const LiveExecutionCenter = () => {
                 )}
                 
                 {activeTab === 'history' && (
-                    <div className="text-center py-20 opacity-20">
-                        <History className="w-8 h-8 mx-auto mb-2" />
+                  <div className="space-y-3">
+                    {history.length > 0 ? history.map((trade) => {
+                      const isWin = trade.pnl_percent > 0;
+                      return (
+                        <div key={trade.id} className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between group hover:bg-white/[0.08] transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center font-black text-slate-400 border border-white/5">
+                              {trade.ticker[0]}
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg font-black text-white">{trade.ticker}</span>
+                                  <span className={clsx(
+                                    "px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter",
+                                    isWin ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"
+                                  )}>
+                                    {isWin ? '+' : ''}{trade.pnl_percent.toFixed(2)}%
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-slate-500 font-bold flex items-center gap-2 mt-0.5">
+                                    <History className="w-3 h-3 opacity-50" />
+                                    Exit: {trade.exit_date ? new Date(trade.exit_date).toLocaleDateString() : 'N/A'}
+                                    <span className="w-1 h-1 rounded-full bg-slate-700" />
+                                    <span className={isWin ? "text-emerald-500/60" : "text-rose-500/60"}>
+                                      {trade.exit_reason || 'MANUAL'}
+                                    </span>
+                                </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[8px] font-black text-slate-600 tracking-widest uppercase mb-1">Exit Price</div>
+                            <div className="text-sm font-black text-white font-mono">
+                              ${trade.exit_price.toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }) : (
+                      <div className="py-20 text-center opacity-20">
+                        <History className="w-8 h-8 mx-auto mb-2 text-slate-500" />
                         <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">History Log Empty</p>
-                    </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </motion.div>
             </AnimatePresence>

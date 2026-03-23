@@ -24,9 +24,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m
 const UnifiedDashboard = lazy(() => import('./pages/UnifiedDashboard').then(m => ({ default: m.UnifiedDashboard })));
 
 
-const SimulatorView = lazy(() => import('./components/dashboard/SimulatorView').then(m => ({ default: m.SimulatorView })));
 const PersonaPerformance = lazy(() => import('./components/dashboard/PersonaPerformance').then(m => ({ default: m.PersonaPerformance })));
-const BacktestingDashboard = lazy(() => import('./components/dashboard/BacktestingDashboard').then(m => ({ default: m.BacktestingDashboard })));
 const SettingsView = lazy(() => import('./components/dashboard/SettingsView').then(m => ({ default: m.SettingsView })));
 
 // 로딩 폴백 컴포넌트
@@ -67,17 +65,7 @@ function App() {
                 {/* 알파 펀드 */}
                 <Route path="portfolio" element={<AlphaFundView />} />
 
-                {/* 관심 종목 */}
-                <Route path="watchlist" element={<WatchlistPage />} />
-
-
-                {/* 백테스팅 */}
-                <Route path="backtesting" element={<BacktestingDashboard />} />
-
-
-
                 {/* 기타 도구 */}
-                <Route path="simulator" element={<SimulatorView />} />
                 <Route path="personas" element={<PersonaPerformance />} />
 
                 {/* 기타 백그라운드 라우트 (비공개/테스트용) */}

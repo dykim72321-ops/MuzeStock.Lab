@@ -25,10 +25,8 @@ import { toast } from 'sonner';
 // Components
 import { MarketCommandHeader } from '../components/layout/MarketCommandHeader';
 import { QuantSignalCard } from '../components/ui/QuantSignalCard';
-import { BacktestChart } from '../components/ui/BacktestChart';
 import { StockTerminalModal } from '../components/dashboard/StockTerminalModal';
 import { LiveExecutionCenter } from '../components/dashboard/LiveExecutionCenter';
-import { PortfolioStatus } from '../components/ui/PortfolioStatus';
 import { Card } from '../components/ui/Card';
 
 export const UnifiedDashboard = () => {
@@ -100,15 +98,20 @@ export const UnifiedDashboard = () => {
 
   const handleDeepDive = (stock: any) => {
     const displaySignal = processSignal(stock);
+    
+    // 💡 융합 아키텍처 반영: Modal에서 요구하는 확장 필드(ER, Kelly)를 포함하여 전달합니다.
     setTerminalData({
       ticker: stock.ticker,
-      dnaScore: stock.dnaScore,
+      dnaScore: stock.dnaScore || 0,
       bullPoints: displaySignal.bullPoints,
       bearPoints: displaySignal.bearPoints,
-      riskLevel: stock.dnaScore >= 70 ? 'Low' : 'Medium',
+      riskLevel: (stock.dnaScore || 0) >= 70 ? 'Low' : (stock.dnaScore || 0) >= 50 ? 'Medium' : 'High',
       formulaVerdict: displaySignal.reasoning,
-      price: stock.price,
-      change: `${stock.changePercent.toFixed(2)}%`,
+      price: stock.price || 0,
+      change: `${(stock.changePercent || 0).toFixed(2)}%`,
+      efficiencyRatio: stock.efficiencyRatio || 0,
+      kellyWeight: stock.kellyWeight || 0,
+      quantData: stock.quant_metadata || null
     });
   };
 
@@ -150,7 +153,7 @@ export const UnifiedDashboard = () => {
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
                 <Activity className="w-5 h-5 text-indigo-600" />
-                Live Command Matrix
+                Tactical Signal Matrix
               </h2>
               <span className="text-[10px] font-black text-emerald-600 px-2 py-0.5 bg-emerald-50 rounded border border-emerald-100 uppercase tracking-widest">
                 {strongTickers.length + normalTickers.length} active signals
@@ -181,9 +184,13 @@ export const UnifiedDashboard = () => {
                            <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full uppercase">Mathematical Signal Triggered</span>
                         </div>
                         <QuantSignalCard data={cardData} />
-                        <div className="mt-6 pt-6 border-t border-slate-100 bg-slate-50/50 rounded-2xl p-4">
-                           <BacktestChart ticker={ticker} />
-                        </div>
+                        {strategyStats?.badge && (
+                          <div className="mt-4 flex items-center justify-end">
+                             <div className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-slate-700 text-[11px] font-black shadow-sm">
+                                {strategyStats.badge}
+                             </div>
+                          </div>
+                        )}
                      </div>
                    );
                 })}
@@ -290,7 +297,9 @@ export const UnifiedDashboard = () => {
               {watchlistItems.length > 0 ? (
                 watchlistItems.map((item, idx) => {
                   const stock = watchlistStocks.find(s => s.ticker === item.ticker);
-                  const isProfit = stock && item.buyPrice ? stock.price >= item.buyPrice : true;
+                  const buyPrice = item.buyPrice || stock?.price || 0;
+                  const currentReturnPct = buyPrice > 0 ? ((stock?.price || 0) - buyPrice) / buyPrice * 100 : 0;
+                  const isProfit = currentReturnPct > 0;
                   
                   return (
                     <motion.div 
@@ -313,23 +322,34 @@ export const UnifiedDashboard = () => {
                         </div>
                         <div className="text-right">
                           <div className={clsx(
-                            "text-sm font-black font-mono",
-                            isProfit ? "text-emerald-400" : "text-rose-400"
+                            "text-xs font-black font-mono",
+                            currentReturnPct >= 0 ? "text-emerald-400" : "text-rose-400"
                           )}>
-                            {stock ? `$${stock.price.toFixed(2)}` : '---'}
+                            {currentReturnPct >= 0 ? '+' : ''}{currentReturnPct.toFixed(1)}%
+                          </div>
+                          <div className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter opacity-70">
+                            Orbit Return
                           </div>
                           {stock && (
-                            <div className={clsx(
-                              "text-[9px] font-black",
-                              stock.changePercent >= 0 ? "text-emerald-500" : "text-rose-500"
-                            )}>
-                              {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                            <div className="mt-1 text-[10px] font-black text-white/90 font-mono">
+                              ${stock.price.toFixed(2)}
                             </div>
                           )}
                         </div>
                       </div>
                       
-                      {/* Condensed DNA Bar */}
+                      {/* Condensed Daily Change and DNA */}
+                      <div className="flex items-center justify-between mb-2">
+                        {stock && (
+                          <span className={clsx(
+                            "text-[9px] font-black px-1.5 py-0.5 rounded bg-white/5",
+                            stock.changePercent >= 0 ? "text-emerald-500" : "text-rose-500"
+                          )}>
+                            Day {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                          </span>
+                        )}
+                        <span className="text-[8px] text-slate-500 font-bold uppercase">Basis: ${buyPrice.toFixed(2)}</span>
+                      </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-1 bg-slate-700 rounded-full overflow-hidden">
                           <div 
@@ -367,88 +387,12 @@ export const UnifiedDashboard = () => {
         </div>
       </div>
 
-      {/* 시스템 관제 및 통계 그리드 */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-        {/* Left: Control Panel (xl:7) */}
-        <div className="xl:col-span-7">
-          <CommandSettings />
-        </div>
-        
-        {/* Right: Portfolio Status (xl:5) */}
-        <div className="xl:col-span-5">
-          <PortfolioStatus />
-        </div>
+      {/* 시스템 관제 패널 */}
+      <div className="grid grid-cols-1 gap-8">
+        <CommandSettings />
       </div>
 
-      {/* 4. Strategic Performance Matrix (Grid Optimized) */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <Card className="p-6 lg:col-span-4 bg-white/60 backdrop-blur-xl border-white/20 shadow-xl">
-            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-rose-500" />
-              퀀트 MDD 회복 속도 (Quant MDD)
-            </h3>
-            <div className="flex flex-col items-center justify-center bg-slate-900/5 rounded-2xl border border-white/10 py-8 relative overflow-hidden group">
-               <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-               {statsLoading ? (
-                 <span className="text-[10px] font-black text-blue-500 animate-pulse italic uppercase tracking-[0.2em]">Deep Analytics...</span>
-               ) : strategyStats ? (
-                 <>
-                   <div className="text-5xl font-black text-rose-500 tracking-tighter mb-1 drop-shadow-sm">
-                     {strategyStats.mdd}%
-                   </div>
-                   <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-1">
-                     Max Drawdown (1Y)
-                   </div>
-                   <div className="mt-6 px-4 py-1.5 bg-emerald-500/10 text-emerald-600 rounded-full text-[10px] font-black border border-emerald-500/20">
-                     평균 회복 기간: {strategyStats.recovery_days}일
-                   </div>
-                 </>
-               ) : (
-                 <span className="text-[10px] font-black text-slate-300 uppercase italic">Waiting...</span>
-               )}
-            </div>
-          </Card>
-          
-          <Card className="p-6 lg:col-span-8 bg-white/60 backdrop-blur-xl border-white/20 shadow-xl">
-             <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[#0176d3]" />
-              전략 통계 효율성 매트릭스 (Strategic Stats Matrix)
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-auto">
-               {statsLoading ? (
-                 <div className="col-span-4 h-32 flex items-center justify-center bg-slate-900/5 rounded-2xl border border-white/10">
-                   <div className="flex flex-col items-center gap-3">
-                      <div className="w-8 h-8 border-[3px] border-[#0176d3]/20 border-t-[#0176d3] rounded-full animate-spin" />
-                      <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] animate-pulse">Running Simulation...</span>
-                   </div>
-                 </div>
-               ) : strategyStats ? (
-                 <>
-                   <div className="bg-slate-900/5 p-5 rounded-2xl border border-white/10 hover:bg-slate-900/10 transition-colors">
-                     <div className="text-[10px] font-black text-slate-400 uppercase mb-2">Win Rate</div>
-                     <div className="text-2xl font-black text-slate-900">{strategyStats.win_rate}%</div>
-                   </div>
-                   <div className="bg-slate-900/5 p-5 rounded-2xl border border-white/10 hover:bg-slate-900/10 transition-colors">
-                     <div className="text-[10px] font-black text-slate-400 uppercase mb-2">Profit Factor</div>
-                     <div className="text-2xl font-black text-indigo-600">{strategyStats.profit_factor}x</div>
-                   </div>
-                   <div className="bg-slate-900/5 p-5 rounded-2xl border border-white/10 hover:bg-slate-900/10 transition-colors">
-                     <div className="text-[10px] font-black text-slate-400 uppercase mb-2">Avg PnL</div>
-                     <div className="text-2xl font-black text-emerald-600">+{strategyStats.avg_pnl}%</div>
-                   </div>
-                   <div className="bg-slate-900/5 p-5 rounded-2xl border border-white/10 hover:bg-slate-900/10 transition-colors">
-                     <div className="text-[10px] font-black text-slate-400 uppercase mb-2">Total Trades</div>
-                     <div className="text-2xl font-black text-slate-900">{strategyStats.total_trades}</div>
-                   </div>
-                 </>
-               ) : (
-                 <div className="col-span-4 h-32 flex items-center justify-center bg-slate-900/5 rounded-2xl border border-white/10">
-                   <span className="text-[10px] font-black text-slate-300 uppercase italic tracking-widest">Waiting for Signal Lock...</span>
-                 </div>
-               )}
-            </div>
-          </Card>
-      </section>
+
     </>
   )}
 

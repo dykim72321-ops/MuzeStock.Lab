@@ -16,14 +16,17 @@ export const WatchlistPage = () => {
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([]);
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false); // 🆕 Silent refresh state
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Terminal Modal State
   const [terminalData, setTerminalData] = useState<any | null>(null);
+  const [addLoading, setAddLoading] = useState(false); // 🆕 Ticker adding state
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (silent = false) => {
+    if (!silent) setLoading(true);
+    else setIsRefreshing(true);
     try {
       const items = await getWatchlist();
       setWatchlistItems(items);
@@ -47,11 +50,19 @@ export const WatchlistPage = () => {
       console.error('Failed to load watchlist:', err);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
   useEffect(() => {
     loadData();
+    
+    // 🆕 Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const filteredItems = watchlistItems.filter(item => 
@@ -69,20 +80,48 @@ export const WatchlistPage = () => {
     if (e.key === 'Enter' && e.currentTarget.value) {
       const val = e.currentTarget.value.trim().toUpperCase();
       if (val) {
+        setAddLoading(true);
         try {
-          await addToWatchlist(val, undefined, 'WATCHING', undefined, undefined, undefined);
+          // 🆕 Step 1: Fetch current price first to use as buyPrice
+          const { fetchStockQuote } = await import('../services/stockService');
+          const stockData = await fetchStockQuote(val);
+          
+          const initialPrice = stockData?.price;
+          const initialDna = stockData?.dnaScore;
+
+          // 🆕 Step 2: Add with captured price
+          await addToWatchlist(
+            val, 
+            undefined, 
+            'WATCHING', 
+            initialPrice, 
+            undefined, 
+            undefined, 
+            initialDna
+          );
+          
           e.currentTarget.value = '';
-          loadData();
+          loadData(true);
         } catch (err) {
           console.error('Failed to add ticker:', err);
-          alert(`종목 추가 실패: ${val}. 데이터베이스 컬럼(initial_dna_score)이 없거나 네트워크 오류일 수 있습니다.`);
+          alert(`종목 추가 실패: ${val}. 유효한 티커인지 확인해 주세요.`);
+        } finally {
+          setAddLoading(false);
         }
       }
     }
   };
 
   return (
-    <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-8 animate-in fade-in duration-500 bg-slate-50 min-h-screen">
+    <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-8 animate-in fade-in duration-500 bg-slate-50 min-h-screen relative">
+      {/* 🆕 Global Refresh Indicator */}
+      {isRefreshing && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-2">
+          <div className="w-2 h-2 bg-[#0176d3] rounded-full animate-pulse" />
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Refreshing Orbit...</span>
+        </div>
+      )}
+
       <WatchlistHeader 
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
@@ -96,10 +135,12 @@ export const WatchlistPage = () => {
           <p className="font-mono text-xs text-slate-500 tracking-widest">SYNCHRONIZING ORBIT...</p>
         </div>
       ) : filteredItems.length === 0 ? (
-        <WatchlistEmptyState 
-          onAddTicker={handleAddTicker}
-          onNavigateScanner={() => navigate('/scanner')}
-        />
+        <div className={addLoading ? "opacity-50 pointer-events-none transition-opacity" : ""}>
+          <WatchlistEmptyState 
+            onAddTicker={handleAddTicker}
+            onNavigateScanner={() => navigate('/scanner')}
+          />
+        </div>
       ) : (
         <div className={viewMode === 'grid' 
           ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"

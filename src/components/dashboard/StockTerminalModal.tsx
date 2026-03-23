@@ -132,22 +132,28 @@ export const StockTerminalModal = ({
     onAddToWatchlist
 }: StockTerminalModalProps) => {
     const [isAddingWatchlist, setIsAddingWatchlist] = useState(false);
-    const [liveData, setLiveData] = useState(data);
-    const isMounted = useRef(true);
+    
+    // 💡 융합된 프론트엔드 아키텍처: Props 데이터와 "추가로 불러온 상세 데이터"를 분리하여 관리합니다.
+    const [fetchedAnalysis, setFetchedAnalysis] = useState<Partial<typeof data> | null>(null);
 
-    // Sync state with incoming prop data
-    useEffect(() => {
-        setLiveData(data);
-    }, [data]);
+    // 💡 렌더링 시점에 Props 데이터와 추가 분석 데이터를 병합 (Derived State 안티패턴 제거)
+    const displayData = { ...data, ...fetchedAnalysis };
 
-    // Fetch missing analysis data if it wasn't pre-loaded
+    // 상세 분석 데이터(bullPoints 등)가 부족할 경우 Supabase에서 비동기로 보완
     useEffect(() => {
+        // 모달이 열리거나 대상 종목이 바뀔 때 이전 상세 데이터 초기화
+        setFetchedAnalysis(null);
+
         const fetchMissingData = async () => {
-            if (data.bullPoints[0] !== "No details" && data.bullPoints[0] !== "모멘텀 지표 분석 중") return;
+            // 이미 데이터가 충분하거나 기본 안내 문구가 아닌 경우 중복 호출 방지
+            const hasDetailedPoints = data.bullPoints && 
+                                     data.bullPoints.length > 0 && 
+                                     data.bullPoints[0] !== "No details" && 
+                                     data.bullPoints[0] !== "모멘텀 지표 분석 중";
+            
+            if (hasDetailedPoints) return;
             
             try {
-                // Import supabase directly in this async closure or use global if available.
-                // It's better to fetch from daily_discovery or stock_analysis_cache.
                 const { supabase } = await import('../../lib/supabase');
                 const { data: cacheData, error } = await supabase
                     .from('stock_analysis_cache')
@@ -157,42 +163,32 @@ export const StockTerminalModal = ({
                     .limit(1)
                     .maybeSingle();
 
-                if (error) {
-                    console.error("Supabase fetch error for analysis:", error);
-                }
+                if (error) throw error;
 
-                if (cacheData && cacheData.analysis && isMounted.current) {
+                if (cacheData?.analysis) {
                     const analysis = cacheData.analysis;
-                    setLiveData(prev => ({
-                        ...prev,
+                    setFetchedAnalysis({
                         bullPoints: analysis.bullCase || ["강세 요인 데이터가 부족합니다."],
                         bearPoints: analysis.bearCase || ["약세 요인 데이터가 부족합니다."],
-                        formulaVerdict: analysis.matchReasoning || prev.formulaVerdict,
-                        riskLevel: analysis.riskLevel || prev.riskLevel,
-                    }));
-                } else if (isMounted.current) {
-                    // Fallback clearly indicating lack of data instead of spinning
-                    setLiveData(prev => ({
-                        ...prev,
+                        formulaVerdict: analysis.matchReasoning || data.formulaVerdict,
+                        riskLevel: analysis.riskLevel || data.riskLevel,
+                    });
+                } else {
+                    setFetchedAnalysis({
                         bullPoints: ["기술적 강세 시그널이 아직 포착되지 않았습니다.", "시스템 스캔을 다시 실행해 보세요."],
                         bearPoints: ["리스크 요인 분석 중입니다."],
                         formulaVerdict: "해당 종목에 대한 시스템 분석 데이터가 존재하지 않습니다."
-                    }));
+                    });
                 }
             } catch (err) {
                 console.error("Failed to fetch missing analysis:", err);
             }
         };
 
-        fetchMissingData();
-    }, [data.ticker]);
-
-    useEffect(() => {
-        isMounted.current = true;
-        return () => {
-            isMounted.current = false;
-        };
-    }, []);
+        if (isOpen) {
+            fetchMissingData();
+        }
+    }, [data.ticker, isOpen]); // data 전체가 아닌 고유 식별자 ticker와 열림 상태에만 의존
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -247,15 +243,15 @@ export const StockTerminalModal = ({
                                         </span>
                                     </div>
                                     <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white tracking-tighter flex items-center gap-3">
-                                        {liveData.ticker}
+                                        {displayData.ticker}
                                         <Fingerprint className="w-6 h-6 md:w-8 md:h-8 text-indigo-400 opacity-50" />
                                     </h1>
                                     <p className="text-slate-400 text-[10px] md:text-sm font-medium flex items-center gap-2 mt-1 md:mt-2">
                                         <span className={clsx(
                                             "w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]",
-                                            liveData.dnaScore >= 70 ? "bg-emerald-500 shadow-emerald-500/50" : liveData.dnaScore >= 50 ? "bg-amber-500 shadow-amber-500/50" : "bg-rose-500 shadow-rose-500/50"
+                                            displayData.dnaScore >= 70 ? "bg-emerald-500 shadow-emerald-500/50" : displayData.dnaScore >= 50 ? "bg-amber-500 shadow-amber-500/50" : "bg-rose-500 shadow-rose-500/50"
                                         )} />
-                                        시스템 분석 신뢰도: <span className="text-white font-bold">{liveData.dnaScore}%</span>
+                                        시스템 분석 신뢰도: <span className="text-white font-bold">{displayData.dnaScore}%</span>
                                     </p>
                                 </div>
                                 <button
@@ -274,19 +270,19 @@ export const StockTerminalModal = ({
                                             <Target className="w-4 h-4 text-indigo-400" />
                                             System Quant Analysis
                                         </span>
-                                        <span className="text-4xl md:text-5xl font-black text-white">{liveData.dnaScore}</span>
+                                        <span className="text-4xl md:text-5xl font-black text-white">{displayData.dnaScore}</span>
                                     </div>
                                     <div className="w-full h-8 md:h-10 flex gap-[2px] md:gap-1 relative">
                                         {[...Array(20)].map((_, i) => {
                                             const threshold = (i + 1) * 5;
-                                            const isActive = liveData.dnaScore >= threshold;
+                                            const isActive = displayData.dnaScore >= threshold;
                                             return (
                                                 <div
                                                     key={i}
                                                     className={clsx(
                                                         "flex-1 rounded-[2px] transition-all duration-500",
                                                         isActive 
-                                                            ? (liveData.dnaScore >= 70 ? 'bg-gradient-to-t from-emerald-600 to-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : liveData.dnaScore >= 50 ? 'bg-gradient-to-t from-amber-600 to-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'bg-gradient-to-t from-rose-600 to-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.3)]') 
+                                                            ? (displayData.dnaScore >= 70 ? 'bg-gradient-to-t from-emerald-600 to-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : displayData.dnaScore >= 50 ? 'bg-gradient-to-t from-amber-600 to-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'bg-gradient-to-t from-rose-600 to-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.3)]') 
                                                             : 'bg-white/5 border border-white/5'
                                                     )}
                                                     style={{ 
@@ -318,7 +314,7 @@ export const StockTerminalModal = ({
                                     </p>
                                     <div className="flex items-center justify-between relative z-10">
                                         <span className="text-4xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-                                            {liveData.kellyWeight || 0}%
+                                            {displayData.kellyWeight || 0}%
                                         </span>
                                         <div className="text-right">
                                             <span className="text-[10px] text-indigo-300/80 font-bold block uppercase tracking-tighter">Safe Allocation</span>
@@ -344,28 +340,28 @@ export const StockTerminalModal = ({
                                         <Zap className="w-4 h-4 fill-indigo-400" />
                                         시스템 전략 리포트 (System Verdict)
                                     </h3>
-                                    {(!liveData.formulaVerdict || liveData.formulaVerdict.includes("해당 자산에 대한") || liveData.formulaVerdict.includes("평가지가 존재하지")) ? (
+                                    {(!displayData.formulaVerdict || displayData.formulaVerdict.includes("해당 자산에 대한") || displayData.formulaVerdict.includes("평가지가 존재하지")) ? (
                                         <div className="flex gap-4 mb-4">
-                                            {liveData.quantData ? (
+                                            {displayData.quantData ? (
                                                 <>
                                                     <div className="bg-white/5 px-4 py-2 rounded-xl border border-white/10">
                                                         <p className="text-[9px] text-slate-500 font-bold uppercase mb-1">Win Rate</p>
-                                                        <p className="text-lg font-black text-emerald-400">{liveData.quantData.historical_win_rate_pct}%</p>
+                                                        <p className="text-lg font-black text-emerald-400">{displayData.quantData.historical_win_rate_pct}%</p>
                                                     </div>
                                                     <div className="bg-white/5 px-4 py-2 rounded-xl border border-white/10">
                                                         <p className="text-[9px] text-slate-500 font-bold uppercase mb-1">Sim. Cases</p>
-                                                        <p className="text-lg font-black text-indigo-400">{liveData.quantData.similar_historical_cases}</p>
+                                                        <p className="text-lg font-black text-indigo-400">{displayData.quantData.similar_historical_cases}</p>
                                                     </div>
                                                 </>
                                             ) : (
                                                 <p className="text-sm text-slate-400 font-medium italic mb-4 mt-2 px-2">
-                                                    {liveData.formulaVerdict}
+                                                    {displayData.formulaVerdict}
                                                 </p>
                                             )}
                                         </div>
                                     ) : (
                                         <p className="text-sm sm:text-base md:text-lg lg:text-xl text-slate-200 font-medium leading-relaxed tracking-tight">
-                                            {liveData.formulaVerdict}
+                                            {displayData.formulaVerdict}
                                         </p>
                                     )}
                                 </div>
@@ -378,7 +374,7 @@ export const StockTerminalModal = ({
                                             <HelpCircle className="w-2.5 h-2.5 opacity-30" />
                                         </p>
                                         <div className="flex items-end gap-1 md:gap-2 text-2xl md:text-3xl font-black text-emerald-400">
-                                            {liveData.efficiencyRatio || '0.00'}
+                                            {displayData.efficiencyRatio || '0.00'}
                                             <Activity className="w-4 h-4 md:w-5 md:h-5 mb-0.5 md:mb-1" />
                                         </div>
                                         <div className="absolute bottom-full left-0 mb-3 w-72 bg-slate-900/95 backdrop-blur-xl text-white text-[11px] p-4 rounded-xl shadow-2xl opacity-0 group-hover/er:opacity-100 transition-all z-50 pointer-events-none border border-white/10 leading-relaxed font-normal normal-case tracking-normal">
@@ -391,13 +387,13 @@ export const StockTerminalModal = ({
                                     <div className="sm:col-span-2 grid grid-cols-2 gap-3">
                                         <TechnicalGauge 
                                             label="RVOL (Relative Vol)" 
-                                            value={liveData.quantData?.volume_surge_multiplier || 1.0} 
+                                            value={displayData.quantData?.volume_surge_multiplier || 1.0} 
                                             type="surge" 
                                             unit="x"
                                         />
                                         <TechnicalGauge 
                                             label="RSI (Daily)" 
-                                            value={liveData.quantData?.rsi_14 || 50} 
+                                            value={displayData.quantData?.rsi_14 || 50} 
                                             unit=""
                                             zones={{ low: 30, high: 70 }}
                                         />
@@ -409,11 +405,11 @@ export const StockTerminalModal = ({
                                     <div className="space-y-3 md:space-y-4">
                                         <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
                                             <TrendingUp className="w-3 h-3" />
-                                            {liveData.quantData ? '수치 기반 강세 지표' : '강세 요인 (Bullish)'}
+                                            {displayData.quantData ? '수치 기반 강세 지표' : '강세 요인 (Bullish)'}
                                         </h4>
                                         <ul className="space-y-3">
-                                            {liveData.bullPoints && liveData.bullPoints.length > 0 && liveData.bullPoints[0] !== "No details" && liveData.bullPoints[0] !== "모멘텀 지표 분석 중" ? (
-                                                liveData.bullPoints.map((point, i) => (
+                                            {displayData.bullPoints && displayData.bullPoints.length > 0 && displayData.bullPoints[0] !== "No details" && displayData.bullPoints[0] !== "모멘텀 지표 분석 중" ? (
+                                                displayData.bullPoints.map((point, i) => (
                                                     <li key={i} className="flex gap-3 text-slate-300 text-sm font-medium leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5 hover:border-emerald-500/30 transition-colors shadow-sm">
                                                         <ChevronRight className="w-5 h-5 text-emerald-400 shrink-0" />
                                                         {point}
@@ -430,11 +426,11 @@ export const StockTerminalModal = ({
                                     <div className="space-y-4">
                                         <h4 className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-2">
                                             <TrendingDown className="w-3 h-3" />
-                                            {liveData.quantData ? '수치 기반 약세/변동성 지표' : '약세 요인 (Bearish)'}
+                                            {displayData.quantData ? '수치 기반 약세/변동성 지표' : '약세 요인 (Bearish)'}
                                         </h4>
                                         <ul className="space-y-3">
-                                            {liveData.bearPoints && liveData.bearPoints.length > 0 && liveData.bearPoints[0] !== "No details" && liveData.bearPoints[0] !== "리스크 요인 스캔 중" ? (
-                                                liveData.bearPoints.map((point, i) => (
+                                            {displayData.bearPoints && displayData.bearPoints.length > 0 && displayData.bearPoints[0] !== "No details" && displayData.bearPoints[0] !== "리스크 요인 스캔 중" ? (
+                                                displayData.bearPoints.map((point, i) => (
                                                     <li key={i} className="flex gap-3 text-slate-300 text-sm font-medium leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5 hover:border-rose-500/30 transition-colors shadow-sm">
                                                         <ChevronRight className="w-5 h-5 text-rose-400 shrink-0" />
                                                         {point}
@@ -457,8 +453,11 @@ export const StockTerminalModal = ({
                                         onClick={async () => {
                                             if (onAddToWatchlist) {
                                                 setIsAddingWatchlist(true);
-                                                await onAddToWatchlist();
-                                                if (isMounted.current) {
+                                                try {
+                                                    await onAddToWatchlist();
+                                                } catch (error) {
+                                                    console.error("Failed to add to watchlist:", error);
+                                                } finally {
                                                     setIsAddingWatchlist(false);
                                                 }
                                             }

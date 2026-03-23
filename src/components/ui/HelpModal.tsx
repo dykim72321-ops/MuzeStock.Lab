@@ -74,6 +74,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                    {/* 1. Quick Tutorial Steps */}
                     <div className="grid gap-4">
                         {steps.map((step, idx) => (
                             <div key={idx} className="group relative flex gap-4 p-4 rounded-xl bg-white/5 border border-transparent hover:border-white/10 transition-all">
@@ -90,6 +91,40 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                         ))}
                     </div>
 
+                    {/* 2. Dashboard Glossary (NEW) */}
+                    <div className="border-t border-white/5 pt-6">
+                        <h3 className="text-sm font-black text-indigo-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <LayoutDashboard className="w-4 h-4" />
+                            대시보드 지표 가이드 (Glossary)
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                <p className="text-[10px] font-black text-white uppercase mb-1">Win Rate (승률)</p>
+                                <p className="text-[10px] text-slate-400 font-medium leading-normal">
+                                    전체 종료된 매매 중 수익으로 마감된 비율입니다. 50% 이상을 유지하는 것이 전략의 기본 목표입니다.
+                                </p>
+                            </div>
+                            <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                <p className="text-[10px] font-black text-white uppercase mb-1">Profit Factor</p>
+                                <p className="text-[10px] text-slate-400 font-medium leading-normal">
+                                    총 이익을 총 손실로 나눈 값입니다. 1.5x 이상이면 매우 효율적인 전략으로 간주됩니다.
+                                </p>
+                            </div>
+                            <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                <p className="text-[10px] font-black text-rose-400 uppercase mb-1">Drawdown (낙폭)</p>
+                                <p className="text-[10px] text-slate-400 font-medium leading-normal">
+                                    자산 최고점 대비 현재 하락률입니다. -10%를 넘지 않도록 리스크 슬라이더를 조절하세요.
+                                </p>
+                            </div>
+                            <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                <p className="text-[10px] font-black text-amber-400 uppercase mb-1">Panic Liquidate</p>
+                                <p className="text-[10px] text-slate-400 font-medium leading-normal">
+                                    시장 급변 시 모든 포지션을 즉시 정리하는 마스터 킬스위치입니다. 위급 상황에서만 사용하세요.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-4 flex items-center gap-4">
                         <div className="p-2 bg-indigo-500/20 rounded-lg shrink-0">
                             <Zap className="w-5 h-5 text-indigo-400 animate-pulse" />
@@ -97,7 +132,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                         <div className="flex-1">
                             <p className="text-xs font-bold text-indigo-300">💡 핵심 활용 루틴</p>
                             <p className="text-[11px] text-slate-400 mt-1">
-                            장 시작 시 [퀀트 펄스] 우상단의 **"딥 헌팅 실행"** 버튼을 눌러 스캔 루프를 동작시키는 것이 오퍼레이션의 시작입니다.
+                            장 시작 시 [퀀트 펄스] 우상단의 **"🚀 딥 헌팅 실행"** 버튼을 눌러 스캔 루프를 동작시키는 것이 오퍼레이션의 시작입니다.
                             </p>
                         </div>
                     </div>

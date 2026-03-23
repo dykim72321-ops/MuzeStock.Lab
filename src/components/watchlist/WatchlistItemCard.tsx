@@ -1,20 +1,34 @@
 // WatchlistItemCard.tsx
 import { 
-  Trash2, ShieldCheck, Activity, Clock, HelpCircle, Zap, TrendingUp
+  Trash2, ShieldCheck, Activity, Clock, HelpCircle, Zap, TrendingUp, Calendar
 } from 'lucide-react';
-import { ResponsiveContainer, AreaChart, Area, Tooltip } from 'recharts';
+import { useMemo } from 'react';
+import { ResponsiveContainer, AreaChart, Area, Tooltip, ReferenceLine, YAxis } from 'recharts';
 import { Card } from '../ui/Card';
 import { useDNACalculator } from '../../hooks/useDNACalculator';
 import type { Stock } from '../../types';
 import type { WatchlistItem } from '../../services/watchlistService';
 import clsx from 'clsx';
 
+interface DeepDiveData {
+  ticker: string;
+  dnaScore: number;
+  price: number;
+  change: string;
+  efficiencyRatio: number;
+  kellyWeight: number;
+  bullPoints: string[];
+  bearPoints: string[];
+  riskLevel: 'Low' | 'Medium' | 'High';
+  quantSummary: string;
+}
+
 interface WatchlistItemCardProps {
   item: WatchlistItem;
   stock?: Stock;
   viewMode: 'grid' | 'list';
   onRemove: (ticker: string) => void;
-  onDeepDive: (data: any) => void;
+  onDeepDive: (data: DeepDiveData) => void;
 }
 
 export const WatchlistItemCard = ({ 
@@ -44,11 +58,27 @@ export const WatchlistItemCard = ({
     isLoading
   } = dna;
 
-  const chartData = stock?.history?.map(h => ({ value: h.price, date: h.date })) || [];
   const currentPrice = stock?.price || 0;
   const buyPrice = item.buyPrice || stock?.price || 0;
+  
+  const chartData = useMemo(() => {
+    if (!stock?.history) return [];
+    const data = stock.history.map(h => ({ value: h.price, date: h.date }));
+    
+    // 🆕 Append the actual current price to ensure the graph ends at the displayed price
+    const lastHistoryValue = data.length > 0 ? data[data.length - 1].value : null;
+    if (currentPrice > 0 && currentPrice !== lastHistoryValue) {
+      data.push({ value: currentPrice, date: new Date().toISOString() });
+    }
+    return data;
+  }, [stock?.history, currentPrice]);
+
   const currentReturnPct = buyPrice > 0 ? ((currentPrice - buyPrice) / buyPrice) * 100 : 0;
-  const isProfit = currentReturnPct >= 0;
+
+  
+  // 🆕 Refined profitability logic
+  const isProfit = currentReturnPct > 0.01;
+  const isLoss = currentReturnPct < -0.01;
 
   // 가격 데이터가 아직 로딩 중인 경우 스켈레톤 렌더링
   if (isLoading || !stock) {
@@ -78,25 +108,36 @@ export const WatchlistItemCard = ({
     );
   }
 
+  const handleCardClick = () => {
+    const analysisCache = stock?.stock_analysis_cache?.[0]?.analysis;
+    const riskLevel: 'Low' | 'Medium' | 'High' = dnaScore >= 70 ? 'Low' : dnaScore >= 50 ? 'Medium' : 'High';
+    
+    onDeepDive({
+      ticker: item.ticker,
+      dnaScore,
+      price: currentPrice,
+      change: `${stock?.changePercent.toFixed(2)}%`,
+      efficiencyRatio,
+      kellyWeight,
+      bullPoints: analysisCache?.bullCase || ["모멘텀 지표 분석 중"],
+      bearPoints: analysisCache?.bearCase || ["리스크 요인 스캔 중"],
+      riskLevel,
+      quantSummary: analysisCache?.quantSummary || "해당 종목에 대한 시스템 분석 데이터가 존재하지 않습니다.",
+    });
+  };
+
   return (
     <div
-      onClick={() => {
-        const riskLevel = dnaScore >= 70 ? 'Low' : dnaScore >= 50 ? 'Medium' : 'High';
-        onDeepDive({
-          ticker: item.ticker,
-          dnaScore,
-          price: currentPrice,
-          change: `${stock?.changePercent.toFixed(2)}%`,
-          efficiencyRatio,
-          kellyWeight,
-          // StockTerminalModal 필수 필드
-          bullPoints: stock?.stock_analysis_cache?.[0]?.analysis?.bullCase || ["모멘텀 지표 분석 중"],
-          bearPoints: stock?.stock_analysis_cache?.[0]?.analysis?.bearCase || ["리스크 요인 스캔 중"],
-          riskLevel,
-          quantSummary: stock?.stock_analysis_cache?.[0]?.analysis?.quantSummary || "해당 종목에 대한 시스템 분석 데이터가 존재하지 않습니다.",
-        });
+      role="button"
+      tabIndex={0}
+      onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleCardClick();
+        }
       }}
-      className="cursor-pointer group"
+      className="cursor-pointer group outline-none focus-visible:ring-2 focus-visible:ring-[#0176d3] focus-visible:ring-offset-2 rounded-2xl"
     >
       <Card className="overflow-hidden bg-white border-slate-200 hover:border-[#0176d3]/40 transition-all hover:shadow-xl rounded-2xl">
         <div className={viewMode === 'grid' ? "p-5" : "p-4 flex items-center justify-between"}>
@@ -157,42 +198,88 @@ export const WatchlistItemCard = ({
                     <span className="text-[10px] font-bold text-[#0176d3]">PTS</span>
                   </div>
                 </div>
-                <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100" title="진입가 대비 현재 수익률">
+                 <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100" title="진입가 대비 현재 수익률">
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1">
-                    Return <TrendingUp className="w-2.5 h-2.5 opacity-50" />
+                    Orbit Return <TrendingUp className="w-2.5 h-2.5 opacity-50" />
                   </p>
-                  <div className={isProfit ? "text-emerald-600" : "text-rose-600"}>
-                    <span className="text-xl font-black font-mono">{isProfit ? '+' : ''}{currentReturnPct.toFixed(1)}%</span>
+                  <div className={clsx(
+                    "font-mono text-xl font-black",
+                    isProfit ? "text-emerald-600" : isLoss ? "text-rose-600" : "text-slate-400"
+                  )}>
+                    <span>{isProfit ? '+' : ''}{currentReturnPct.toFixed(1)}%</span>
                   </div>
+                  <p className="text-[8px] font-bold text-slate-400 mt-1">Basis: ${buyPrice.toFixed(2)}</p>
                 </div>
+
+              <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100" title="오늘의 가격 변동">
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1">
+                  Day Change <Activity className="w-2.5 h-2.5 opacity-50" />
+                </p>
+                <div className={clsx(
+                  "font-mono text-xl font-black",
+                  stock.changePercent >= 0 ? "text-emerald-600" : "text-rose-600"
+                )}>
+                  <span>{stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(1)}%</span>
+                </div>
+                <p className="text-[8px] font-bold text-slate-400 mt-1">Current: ${currentPrice.toFixed(2)}</p>
               </div>
 
-              <div className="h-16 w-full -mx-5 px-5 group/chart relative">
+              <div className="h-16 bg-slate-50 rounded-xl border border-slate-100 p-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0176d3" stopOpacity={0.1} />
+                        <stop offset="95%" stopColor="#0176d3" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <YAxis hide domain={['auto', 'auto']} />
                     <Tooltip 
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          return (
-                            <div className="bg-slate-900 text-white px-2 py-1 rounded text-[10px] font-mono border border-slate-700 shadow-xl">
-                              ${Number(payload[0].value).toFixed(2)}
-                            </div>
-                          );
-                        }
-                        return null;
+                      contentStyle={{ 
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+                        border: '1px solid #e2e8f0', 
+                        borderRadius: '8px', 
+                        fontSize: '10px', 
+                        padding: '4px 8px' 
                       }}
-                      cursor={{ stroke: '#0176d3', strokeWidth: 1, strokeDasharray: '3 3' }}
+                      labelStyle={{ color: '#64748b', fontWeight: 'bold' }}
+                      itemStyle={{ color: '#0176d3', fontWeight: 'bold' }}
+                      formatter={(value: any) => [`$${Number(value).toFixed(2)}`, 'Price']}
+                      labelFormatter={(label: any) => label ? new Date(label).toLocaleDateString() : ''}
                     />
                     <Area 
                       type="monotone" 
                       dataKey="value" 
-                      stroke={isProfit ? '#10b981' : '#f43f5e'} 
-                      fill={isProfit ? '#10b98120' : '#f43f5e20'} 
-                      strokeWidth={2}
+                      stroke="#0176d3" 
+                      fillOpacity={1} 
+                      fill="url(#colorUv)" 
+                      strokeWidth={2} 
+                      connectNulls
+                      animationDuration={1000}
                     />
+                    {buyPrice > 0 && (
+                      <ReferenceLine 
+                        y={buyPrice} 
+                        stroke="#f97316" 
+                        strokeDasharray="3 3" 
+                        strokeWidth={1} 
+                        ifOverflow="extendDomain" 
+                        label={{ 
+                          value: `Entry: $${buyPrice.toFixed(2)}`, 
+                          position: 'right', 
+                          fill: '#f97316', 
+                          fontSize: 8,
+                          fontWeight: 'bold',
+                          offset: 5 
+                        }} 
+                      />
+                    )}
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
+              </div>
+
+
 
               <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-50">
                 <div title="목표가 (적정 익절 라인)">
@@ -218,7 +305,7 @@ export const WatchlistItemCard = ({
 
               <div className="flex items-center justify-between pt-2 border-t border-indigo-50/50 bg-indigo-50/30 -mx-5 px-5 py-2">
                 <div className="flex items-center gap-1.5" title="실제 보유 영업일 (주말 제외)">
-                  <CalendarIcon className="w-3 h-3 text-slate-400" />
+                  <Calendar className="w-3 h-3 text-slate-400" />
                   <span className="text-[10px] font-black text-slate-500 uppercase">Days Held</span>
                   <span className="text-[10px] font-black text-slate-700 font-mono">{daysHeld}d</span>
                 </div>
@@ -254,22 +341,33 @@ export const WatchlistItemCard = ({
                     </div>
                   </div>
 
-                  <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1 tracking-tighter">Efficiency</p>
-                    <p className="text-xs font-black text-slate-700 font-mono">{(efficiencyRatio * 100).toFixed(1)}%</p>
-                  </div>
+                   <div>
+                     <p className="text-[9px] font-black text-slate-400 uppercase mb-1 tracking-tighter">Efficiency</p>
+                     <p className="text-xs font-black text-slate-700 font-mono">{(efficiencyRatio * 100).toFixed(1)}%</p>
+                   </div>
+ 
+                   <div>
+                     <p className="text-[9px] font-black text-slate-400 uppercase mb-1 tracking-tighter">Day Change</p>
+                     <p className={clsx(
+                       "text-xs font-black font-mono flex items-center gap-1",
+                       stock.changePercent >= 0 ? "text-emerald-600" : "text-rose-600"
+                     )}>
+                       {stock.changePercent >= 0 ? '▲' : '▼'}{Math.abs(stock.changePercent).toFixed(2)}%
+                     </p>
+                   </div>
+ 
+                    <div>
+                     <p className="text-[9px] font-black text-slate-400 uppercase mb-1 tracking-tighter">Orbit Return</p>
+                     <p className={clsx(
+                       "text-xs font-black font-mono flex items-center gap-1",
+                       isProfit ? "text-emerald-600" : isLoss ? "text-rose-600" : "text-slate-400"
+                     )}>
+                       {isProfit ? '+' : ''}{currentReturnPct.toFixed(2)}%
+                     </p>
+                     <p className="text-[7px] font-bold text-slate-400 mt-0.5">Basis: ${buyPrice.toFixed(2)}</p>
+                   </div>
 
-                  <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1 tracking-tighter">P/L Performance</p>
-                    <p className={clsx(
-                      "text-xs font-black font-mono flex items-center gap-1",
-                      isProfit ? "text-emerald-600" : "text-rose-600"
-                    )}>
-                      {isProfit ? '+' : ''}{currentReturnPct.toFixed(2)}%
-                    </p>
-                  </div>
-
-                   <div 
+                   <div
                     className={clsx(
                       "px-3 py-1 rounded-lg text-[10px] font-black uppercase border",
                       action === 'HOLD' ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
@@ -300,8 +398,4 @@ export const WatchlistItemCard = ({
   );
 };
 
-const CalendarIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-  </svg>
-);
+
