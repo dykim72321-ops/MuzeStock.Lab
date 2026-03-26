@@ -127,39 +127,6 @@ async def test_data_source_tagging():
 
 
 # =============================================================================
-# Test 4: Finviz News Method Exists and is Callable
-# =============================================================================
-async def test_finviz_news_method():
-    print("\n[Test 4] Finviz News Method (_scrape_finviz_news) Exists")
-    from scraper import FinvizHunter
-    import inspect
-
-    hunter = FinvizHunter()
-    assert hasattr(
-        hunter, "_scrape_finviz_news"
-    ), "_scrape_finviz_news method not found on FinvizHunter"
-    assert inspect.iscoroutinefunction(
-        hunter._scrape_finviz_news
-    ), "_scrape_finviz_news is not async"
-
-    print(f"  {PASS}: _scrape_finviz_news is present and is async coroutine")
-
-    # 선택적: 실제 스크래핑 테스트 (네트워크 필요, 기본 스킵)
-    RUN_LIVE = os.getenv("TEST_LIVE_SCRAPE", "false").lower() == "true"
-    if RUN_LIVE:
-        print("  🔄 [LIVE] Running live Finviz scrape for AAPL...")
-        headlines = await hunter._scrape_finviz_news("AAPL")
-        assert isinstance(headlines, list), "Expected list from _scrape_finviz_news"
-        print(
-            f"  {PASS if len(headlines) > 0 else FAIL}: Got {len(headlines)} headlines for AAPL"
-        )
-    else:
-        print("  ⏭️ Live scrape skipped (set TEST_LIVE_SCRAPE=true to enable)")
-
-    return True
-
-
-# =============================================================================
 # Main Runner
 # =============================================================================
 async def main():
@@ -171,7 +138,6 @@ async def main():
         ("Volume Calibration", test_volume_calibration),
         ("Smart Cache TTL Logic", test_smart_cache_ttl),
         ("Data Source Tagging", test_data_source_tagging),
-        ("Finviz News Method", test_finviz_news_method),
     ]
 
     results = []
@@ -195,7 +161,7 @@ async def main():
 
     print()
     if all_passed:
-        print("🎉 All 4 optimizations verified successfully!")
+        print("🎉 All 3 optimizations verified successfully!")
     else:
         print("⚠️ Some tests failed. Please check the output above.")
     print("=" * 60)

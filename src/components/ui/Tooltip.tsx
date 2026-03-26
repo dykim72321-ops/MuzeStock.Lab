@@ -44,7 +44,8 @@ export const Tooltip: React.FC<TooltipProps> = ({
             transition={{ duration: 0.1, ease: "easeOut" }}
             className={`absolute z-[100] ${positionStyles[position]}`}
           >
-            <div className="bg-slate-900 border border-slate-800 text-white text-[10px] font-bold px-3 py-2 rounded-lg shadow-2xl whitespace-nowrap min-w-[120px] max-w-[240px] leading-relaxed">
+            {/* Glassmorphism Tooltip with Indigo Glow */}
+            <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700/50 text-white text-[10px] font-bold px-3 py-2 rounded-xl shadow-[0_0_20px_rgba(99,102,241,0.2)] whitespace-normal min-w-[140px] max-w-[280px] leading-relaxed break-keep">
               {content}
               <div className={`absolute border-4 ${arrowStyles[position]}`} />
             </div>

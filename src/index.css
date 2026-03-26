@@ -14,6 +14,12 @@
   --color-sfdc-bg: #f3f3f3;
 
   --animate-fade-in-up: fadeInUp 0.4s ease-out forwards;
+  --animate-pulse-indigo: pulseIndigo 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulseIndigo {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .7; transform: scale(1.02); }
 }
 
 @layer base {
@@ -84,9 +90,22 @@
     scrollbar-width: none;
   }
 
-  /* Salesforce Stepper Connector */
-  .stepper-line {
-    @apply h-px bg-slate-300 flex-1 mx-2;
+  /* Premium Glassmorphism */
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-xl border border-white/40 shadow-xl;
+  }
+  
+  .glass-dark {
+    @apply bg-slate-950/80 backdrop-blur-2xl border border-white/10 shadow-2xl;
+  }
+
+  /* Interactive Elements */
+  .hover-glow:hover {
+    @apply shadow-[0_0_20px_rgba(99,102,241,0.15)] border-indigo-500/30 transition-all duration-300;
+  }
+
+  .armed-glow {
+    @apply shadow-[0_0_30px_rgba(244,63,94,0.3)] border-rose-500/50 animate-pulse;
   }
 }
 

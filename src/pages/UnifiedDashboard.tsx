@@ -26,6 +26,7 @@ import { MarketCommandHeader } from '../components/layout/MarketCommandHeader';
 import { QuantSignalCard } from '../components/ui/QuantSignalCard';
 import { StockTerminalModal } from '../components/dashboard/StockTerminalModal';
 import { LiveExecutionCenter } from '../components/dashboard/LiveExecutionCenter';
+import { PerformanceSummary } from '../components/dashboard/PerformanceSummary';
 
 export const UnifiedDashboard = () => {
   const navigate = useNavigate();
@@ -44,7 +45,6 @@ export const UnifiedDashboard = () => {
   const loadData = async () => {
       setLoading(true);
       try {
-        // Fetch Watchlist & Discovery in Parallel
         const items = await getWatchlist();
         setWatchlistItems(items);
         
@@ -93,8 +93,6 @@ export const UnifiedDashboard = () => {
 
   const handleDeepDive = (stock: any) => {
     const displaySignal = processSignal(stock);
-    
-    // 💡 융합 아키텍처 반영: Modal에서 요구하는 확장 필드(ER, Kelly)를 포함하여 전달합니다.
     setTerminalData({
       ticker: stock.ticker,
       dnaScore: stock.dnaScore || 0,
@@ -111,8 +109,11 @@ export const UnifiedDashboard = () => {
   };
 
   return (
-    <div className="max-w-[1800px] mx-auto px-4 md:px-8 py-8 space-y-8 animate-in fade-in duration-700 bg-slate-50 min-h-screen">
-      
+    <div className="max-w-[1800px] mx-auto px-4 md:px-8 py-8 space-y-8 animate-in fade-in duration-700 bg-slate-50 min-h-screen relative overflow-hidden">
+      {/* Background Decorative Gradients */}
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-500/5 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-emerald-500/5 blur-[120px] rounded-full pointer-events-none" />
+
       {/* 1. Unified Header */}
       <MarketCommandHeader 
         title="통합 지휘 통제실"
@@ -135,20 +136,25 @@ export const UnifiedDashboard = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* LEFT COLUMN: Main Signals & Discovery (8/12) */}
-        <div className="lg:col-span-8 space-y-12">
+        {/* LEFT COLUMN: Strategic Execution & Trading (8/12) */}
+        <div className="lg:col-span-8 space-y-8 relative z-10">
           
-          {/* A. 실전 타격 통제실 (Execution Center) */}
-          <LiveExecutionCenter />
+          {/* A. 실전 타격 통제실 (Execution Center) - HIGHLIGHTED TOP POSITION */}
+          <div className="relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-[32px] blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
+            <div className="relative">
+              <LiveExecutionCenter />
+            </div>
+          </div>
 
           {/* B. Live Signal Matrix (Dashboard Part) */}
           <section className="space-y-6">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
                 <Activity className="w-5 h-5 text-indigo-600" />
-                Tactical Signal Matrix
+                Strategic Signal Matrix
               </h2>
               <span className="text-[10px] font-black text-emerald-600 px-2 py-0.5 bg-emerald-50 rounded border border-emerald-100 uppercase tracking-widest">
                 {strongTickers.length + normalTickers.length} active signals
@@ -170,22 +176,15 @@ export const UnifiedDashboard = () => {
                    };
 
                    return (
-                     <div key={ticker} className="bg-white border-2 border-indigo-100 rounded-3xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
+                     <div key={ticker} className="glass-card rounded-3xl p-6 hover-glow animate-in fade-in slide-in-from-bottom-4 transition-all duration-500">
                         <div className="flex items-center justify-between mb-4">
                            <div className="flex items-center gap-3">
-                              <div className="w-1.5 h-8 bg-indigo-500 rounded-full" />
+                              <div className="w-1.5 h-8 bg-indigo-500 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
                               <h3 className="text-4xl font-black text-slate-900 tracking-tighter">{ticker}</h3>
                            </div>
-                           <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full uppercase">Mathematical Signal Triggered</span>
+                           <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full uppercase border border-indigo-100">Mathematical Signal Triggered</span>
                         </div>
                         <QuantSignalCard data={cardData} />
-                        {strategyStats?.badge && (
-                          <div className="mt-4 flex items-center justify-end">
-                             <div className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-slate-700 text-[11px] font-black shadow-sm">
-                                {strategyStats.badge}
-                             </div>
-                          </div>
-                        )}
                      </div>
                    );
                 })}
@@ -196,16 +195,17 @@ export const UnifiedDashboard = () => {
             {normalTickers.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {normalTickers.map((ticker) => (
-                  <QuantSignalCard 
-                    key={ticker} 
-                    data={pulseMap[ticker].quant_metadata || null} 
-                  />
+                  <div key={ticker} className="glass-card rounded-2xl p-0 overflow-hidden hover-glow transition-all">
+                    <QuantSignalCard 
+                      data={pulseMap[ticker].quant_metadata || null} 
+                    />
+                  </div>
                 ))}
               </div>
             )}
 
             {strongTickers.length === 0 && normalTickers.length === 0 && (
-              <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-16 text-center">
+              <div className="glass-card rounded-3xl border border-dashed border-slate-300 p-16 text-center">
                 <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Activity className="w-8 h-8 text-slate-200 animate-pulse" />
                 </div>
@@ -214,18 +214,18 @@ export const UnifiedDashboard = () => {
             )}
           </section>
 
-          {/* B. Market Discovery -> 퀀트 핫 아이템 (TOP 5) */}
+          {/* C. Market Discovery -> 퀀트 핫 아이템 (TOP 5) */}
           <section className="space-y-6">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-amber-500" />
-                퀀트 핫 아이템 (TOP 5)
+                Alpha Discovery (Top Picks)
               </h2>
               <button 
                 onClick={() => navigate('/scanner')}
-                className="text-[10px] font-black text-[#0176d3] hover:underline flex items-center gap-1 uppercase tracking-widest"
+                className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 flex items-center gap-1 uppercase tracking-widest transition-colors"
               >
-                Scan More <ArrowRight className="w-3 h-3" />
+                Scan Intelligence <ArrowRight className="w-3 h-3" />
               </button>
             </div>
 
@@ -239,12 +239,12 @@ export const UnifiedDashboard = () => {
                   onClick={() => handleDeepDive(stock)}
                   className="relative group cursor-pointer"
                 >
-                  <div className="absolute -top-3 -left-3 w-7 h-7 rounded-full bg-slate-900 border-2 border-white text-white flex items-center justify-center font-black text-[10px] z-20 shadow-lg group-hover:bg-[#0176d3] transition-colors">
+                  <div className="absolute -top-3 -left-3 w-7 h-7 rounded-full bg-slate-900 border-2 border-white text-white flex items-center justify-center font-black text-[10px] z-20 shadow-lg group-hover:bg-indigo-600 transition-colors">
                     {idx + 1}
                   </div>
-                  <div className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-[#0176d3] hover:shadow-2xl transition-all h-full flex flex-col">
+                  <div className="glass-card p-5 rounded-2xl hover:border-indigo-500/50 hover-glow transition-all h-full flex flex-col">
                     <div className="flex justify-between items-start mb-3">
-                      <div className="w-9 h-9 bg-slate-50 rounded-lg flex items-center justify-center font-black text-xs text-[#0176d3] group-hover:bg-[#0176d3] group-hover:text-white transition-colors">
+                      <div className="w-9 h-9 bg-slate-50 rounded-lg flex items-center justify-center font-black text-xs text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
                         {stock.ticker[0]}
                       </div>
                       <span className={clsx(
@@ -255,14 +255,14 @@ export const UnifiedDashboard = () => {
                       </span>
                     </div>
                     <div>
-                      <span className="block text-lg font-black text-slate-900 group-hover:text-[#0176d3] transition-colors">{stock.ticker}</span>
+                      <span className="block text-lg font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{stock.ticker}</span>
                       <span className="block text-[8px] text-slate-400 font-bold uppercase truncate">{stock.name}</span>
                     </div>
                     <div className="mt-auto pt-4 flex items-center justify-between">
                       <span className="text-[10px] font-bold text-slate-400 font-mono">${stock.price.toFixed(1)}</span>
-                      <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                        <Zap className="w-3 h-3 text-[#0176d3] fill-current" />
-                        <span className="text-[9px] font-black text-[#0176d3] font-mono">{stock.dnaScore}</span>
+                      <div className="flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                        <Zap className="w-3 h-3 text-indigo-600 fill-current" />
+                        <span className="text-[9px] font-black text-indigo-600 font-mono">{stock.dnaScore}</span>
                       </div>
                     </div>
                   </div>
@@ -272,23 +272,31 @@ export const UnifiedDashboard = () => {
           </section>
         </div>
 
-        {/* RIGHT COLUMN: My Monitoring Orbit (4/12) */}
-        <div className="lg:col-span-4 space-y-6">
-          <section className="bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-800 h-full">
-            <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-black text-white flex items-center gap-2">
-                  <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
-                  My Monitoring Orbit
+        {/* RIGHT COLUMN: Monitoring & Performance Orbit (4/12) */}
+        <div className="lg:col-span-4 space-y-6 relative z-10">
+          
+          {/* 1. Performance Summary Widget (NEW) */}
+          <PerformanceSummary stats={strategyStats} />
+
+          {/* 2. Monitoring Orbit Section */}
+          <section className="bg-slate-950 rounded-3xl p-6 shadow-2xl border border-slate-800 h-full relative overflow-hidden">
+            {/* Background Accent */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/10 blur-[60px] pointer-events-none" />
+            
+            <div className="flex items-center justify-between mb-6 relative z-10">
+                <h2 className="text-sm font-black text-white flex items-center gap-2 uppercase tracking-widest">
+                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  Monitoring Orbit
                 </h2>
                 <button 
                   onClick={() => navigate('/watchlist')}
-                  className="p-1.5 bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors"
+                  className="p-1.5 bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors border border-slate-700"
                 >
                   <List className="w-4 h-4" />
                 </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 relative z-10">
               {watchlistItems.length > 0 ? (
                 watchlistItems.map((item, idx) => {
                   const stock = watchlistStocks.find(s => s.ticker === item.ticker);
@@ -301,17 +309,17 @@ export const UnifiedDashboard = () => {
                       initial={{ x: 20, opacity: 0 }}
                       animate={{ x: 0, opacity: 1 }}
                       transition={{ delay: idx * 0.1 }}
-                      className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700 hover:border-indigo-500/50 transition-all group cursor-pointer"
+                      className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/50 transition-all group cursor-pointer"
                       onClick={() => stock && handleDeepDive(stock)}
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center font-black text-xs text-indigo-400">
+                          <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center font-black text-xs text-indigo-400 border border-slate-700">
                             {item.ticker[0]}
                           </div>
                           <div>
                             <span className="block text-sm font-black text-white tracking-tight">{item.ticker}</span>
-                            <span className="block text-[9px] text-slate-500 font-bold uppercase tracking-widest">{item.status}</span>
+                            <span className="block text-[9px] text-slate-600 font-bold uppercase tracking-widest">{item.status}</span>
                           </div>
                         </div>
                         <div className="text-right">
@@ -321,9 +329,6 @@ export const UnifiedDashboard = () => {
                           )}>
                             {currentReturnPct >= 0 ? '+' : ''}{currentReturnPct.toFixed(1)}%
                           </div>
-                          <div className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter opacity-70">
-                            Orbit Return
-                          </div>
                           {stock && (
                             <div className="mt-1 text-[10px] font-black text-white/90 font-mono">
                               ${stock.price.toFixed(2)}
@@ -332,26 +337,14 @@ export const UnifiedDashboard = () => {
                         </div>
                       </div>
                       
-                      {/* Condensed Daily Change and DNA */}
-                      <div className="flex items-center justify-between mb-2">
-                        {stock && (
-                          <span className={clsx(
-                            "text-[9px] font-black px-1.5 py-0.5 rounded bg-white/5",
-                            stock.changePercent >= 0 ? "text-emerald-500" : "text-rose-500"
-                          )}>
-                            Day {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
-                          </span>
-                        )}
-                        <span className="text-[8px] text-slate-500 font-bold uppercase">Basis: ${buyPrice.toFixed(2)}</span>
-                      </div>
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1 bg-slate-700 rounded-full overflow-hidden">
+                        <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-indigo-500" 
+                            className="h-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" 
                             style={{ width: `${stock?.dnaScore || 50}%` }} 
                           />
                         </div>
-                        <span className="text-[10px] font-black text-slate-400 font-mono">
+                        <span className="text-[10px] font-black text-slate-500 font-mono">
                           {stock?.dnaScore || '--'}
                         </span>
                       </div>
@@ -366,13 +359,13 @@ export const UnifiedDashboard = () => {
               )}
             </div>
 
-            <div className="mt-8 pt-6 border-t border-slate-800/50">
-               <div className="bg-indigo-500/10 p-4 rounded-2xl border border-indigo-500/20">
+            <div className="mt-8 pt-6 border-t border-slate-800/50 relative z-10">
+               <div className="bg-indigo-500/5 p-4 rounded-2xl border border-indigo-500/10">
                   <div className="flex items-center gap-2 mb-2">
                     <ShieldCheck className="w-4 h-4 text-indigo-400" />
-                    <span className="text-xs font-black text-indigo-300 uppercase tracking-tight">System Guard Active</span>
+                    <span className="text-[10px] font-black text-indigo-300 uppercase tracking-tight">System Guard Active</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
+                  <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
                     개인 궤도의 모든 종목은 **Kelly Criterion** 및 **MDD 방어 로직**에 의해 실시간 감시 중입니다.
                   </p>
                </div>
@@ -381,16 +374,14 @@ export const UnifiedDashboard = () => {
         </div>
       </div>
 
-      {/* 시스템 관제 패널 */}
-      <div className="grid grid-cols-1 gap-8">
+      {/* 시스템 관제 패널 - FOOTER AREA */}
+      <div className="grid grid-cols-1 gap-8 relative z-10">
         <CommandSettings />
       </div>
-
-
     </>
   )}
 
-  {/* Modal Integration */}
+      {/* Modal Integration */}
       {terminalData && (
         <StockTerminalModal
           isOpen={!!terminalData}

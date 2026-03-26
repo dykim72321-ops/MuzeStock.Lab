@@ -30,7 +30,7 @@ from alpaca.data.enums import DataFeed
 import uuid
 import re
 from cachetools import TTLCache
-from scraper import FinvizHunter, SearchAggregator
+from scraper import SearchAggregator
 from db_manager import DBManager
 import asyncio
 from datetime import datetime
@@ -250,7 +250,6 @@ candle_state = TickerDataState(max_bars=100)
 
 # Global instances
 db = DBManager()
-hunter = FinvizHunter()
 
 # CORS
 app.add_middleware(
@@ -1073,20 +1072,7 @@ async def validate_candidates(
     return valid_tickers
 
 
-@app.post("/api/hunt")
-async def trigger_hunt(
-    background_tasks: BackgroundTasks, api_key: str = Security(get_api_key)
-):
-    """수동 수집 트리거 (인증 필수, 백그라운드 실행)"""
-    background_tasks.add_task(hunter.scrape)
-    return {"message": "🚀 Hunter Bot has been launched in the background."}
 
-
-@app.get("/api/discoveries")
-def get_recent_discoveries(limit: int = 10, sort_by: str = "updated_at"):
-    """최근 발견된 종목 조회 (sort_by: 'updated_at' 또는 'performance')"""
-    data = db.get_latest_discoveries(limit, sort_by)
-    return data
 
 
 # Backtesting endpoint
