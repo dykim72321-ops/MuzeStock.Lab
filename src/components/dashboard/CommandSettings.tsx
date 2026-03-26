@@ -27,23 +27,21 @@ export const CommandSettings: React.FC = () => {
   const handleSaveSettings = async () => {
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from('system_settings')
-        .upsert({ 
-          id: 1, // 단일 설정 레코드
-          alert_threshold: dnaThreshold, 
-          webhook_url: webhookUrl,
-          updated_at: new Date().toISOString()
-        });
+      // [Fix] RLS 정책 우회를 위해 백엔드 프록시 API 호출
+      const result = await (window as any).apiFetch('/api/system/settings', 'PUT', { 
+        alert_threshold: dnaThreshold, 
+        webhook_url: webhookUrl 
+      });
 
-      if (error) throw error;
+      if (result.error) throw new Error(result.error);
+      
       toast.success('Matrix Config Saved', {
-        description: 'System thresholds globally updated.',
+        description: 'System thresholds globally updated via Secure Proxy.',
       });
     } catch (error) {
       console.error('Settings save error:', error);
       toast.error('Save Failed', {
-        description: 'Check database connectivity.',
+        description: error instanceof Error ? error.message : 'Check database connectivity.',
       });
     } finally {
       setIsSaving(false);

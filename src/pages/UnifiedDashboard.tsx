@@ -148,7 +148,28 @@ export const UnifiedDashboard = () => {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-            {/* LEFT COLUMN: Strategic Execution & Trading (8/12) */}
+            
+        {/* TOP TIPS AREA (New) */}
+        <div className="lg:col-span-12">
+          <div className="bg-indigo-600/5 border border-indigo-500/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center gap-6 animate-in slide-in-from-top-4 duration-1000">
+            <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
+              <Star className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-black text-indigo-900 uppercase tracking-tight mb-1">Commander's Intelligence Brief</h3>
+              <p className="text-xs text-indigo-700/80 leading-relaxed font-medium">
+                현재 알고리즘 v4.2가 활성화되어 있습니다. **DNA Score 85점 이상**의 종목은 즉각적인 타격 신호로 간주되며, 
+                Matrix Cache는 12시간마다 자동 갱신됩니다. 실전 매매 전 반드시 **Live Execution Center**의 모드를 확인하십시오.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <div className="px-3 py-1.5 bg-white/50 border border-indigo-100 rounded-xl text-[10px] font-black text-indigo-600 uppercase tracking-widest">v4.2 Active</div>
+              <div className="px-3 py-1.5 bg-white/50 border border-indigo-100 rounded-xl text-[10px] font-black text-emerald-600 uppercase tracking-widest">Secure Cloud</div>
+            </div>
+          </div>
+        </div>
+
+        {/* LEFT COLUMN: Strategic Execution & Trading (8/12) */}
             <div className="lg:col-span-8 space-y-8 relative z-10">
               
               {/* A. 실전 타격 통제실 (Execution Center) - HIGHLIGHTED TOP POSITION */}
@@ -370,14 +391,27 @@ export const UnifiedDashboard = () => {
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-slate-800/50 relative z-10">
-                   <div className="bg-indigo-500/5 p-4 rounded-2xl border border-indigo-500/10">
-                      <div className="flex items-center gap-2 mb-2">
-                        <ShieldCheck className="w-4 h-4 text-indigo-400" />
-                        <span className="text-[10px] font-black text-indigo-300 uppercase tracking-tight">System Guard Active</span>
+                   <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-5 rounded-2xl border border-indigo-500/20 shadow-inner">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                          <ShieldCheck className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-[11px] font-black text-indigo-300 uppercase tracking-wider">System Guard Advanced Active</span>
                       </div>
-                      <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
-                        개인 궤도의 모든 종목은 **Kelly Criterion** 및 **MDD 방어 로직**에 의해 실시간 감시 중입니다.
+                      <p className="text-[11px] text-slate-400 leading-relaxed font-medium mb-3">
+                        본 시스템은 모든 거래 시 **Kelly Criterion (f*)** 기반의 자산 배분과 **MDD 2.5% 자동 방어** 로직이 실시간으로 작동하고 있습니다. 
                       </p>
+                      <div className="flex items-center gap-4 py-2 border-t border-indigo-500/10">
+                        <div className="flex flex-col">
+                          <span className="text-[8px] text-indigo-400 font-black uppercase">Risk Mode</span>
+                          <span className="text-[10px] text-white font-bold uppercase">Dynamic Defense</span>
+                        </div>
+                        <div className="h-6 w-px bg-indigo-500/10" />
+                        <div className="flex flex-col">
+                          <span className="text-[8px] text-purple-400 font-black uppercase">Protection</span>
+                          <span className="text-[10px] text-white font-bold uppercase">Max MDD 2.5%</span>
+                        </div>
+                      </div>
                    </div>
                 </div>
               </section>

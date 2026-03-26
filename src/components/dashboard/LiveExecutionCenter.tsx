@@ -146,7 +146,8 @@ export const LiveExecutionCenter = () => {
         }
       },
       cancel: {
-        label: '취소'
+        label: '취소',
+        onClick: () => {}
       }
     });
   };
