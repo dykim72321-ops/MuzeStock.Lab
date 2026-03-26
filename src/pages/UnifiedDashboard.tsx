@@ -20,6 +20,7 @@ import { getWatchlist, addToWatchlist, type WatchlistItem } from '../services/wa
 import { fetchMultipleStocksOptimized } from '../services/stockService';
 import { processSignal } from '../utils/signalProcessor';
 import { toast } from 'sonner';
+import { supabase as supabaseClient } from '../lib/supabase';
 
 // Components
 import { MarketCommandHeader } from '../components/layout/MarketCommandHeader';
@@ -54,8 +55,8 @@ export const UnifiedDashboard = () => {
           fetchStrategyStats()
         ]);
 
-        // [Fix] Direct Supabase fetch for discovery to replace deleted 404 endpoint
-        const { data: dData, error: dError } = await (window as any).supabase
+        // [Fix] Direct Supabase fetch using imported client
+        const { data: dData, error: dError } = await supabaseClient
           .from('daily_discovery')
           .select('*')
           .order('dna_score', { ascending: false })

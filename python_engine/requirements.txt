@@ -16,7 +16,5 @@ playwright
 playwright-stealth
 urllib3<2.0.0
 yfinance
-ta
-scikit-learn
 numpy
 alpaca-py>=0.17.0

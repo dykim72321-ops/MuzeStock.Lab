@@ -55,7 +55,7 @@ jobs:
 
       - name: Verify critical imports
         run: |
-          python -c "import fastapi; import uvicorn; import pandas; import ta; import yfinance; import sklearn; import supabase; import alpaca.data.live; import playwright; print('✅ All critical imports successful!')"
+          python -c "import fastapi; import uvicorn; import pandas; import yfinance; import supabase; import alpaca.data.live; import playwright; print('✅ All critical imports successful!')"
 
       - name: Run placeholder tests
         run: |

@@ -5,6 +5,7 @@ import re
 from typing import List, Dict
 from utils import PartNormalizer
 
+
 class SearchAggregator:
     def __init__(self):
         self.user_agent = (
@@ -19,7 +20,9 @@ class SearchAggregator:
         FindChips를 통해 전 세계 유통사의 실시간 재고 및 가격 정보를 통합 수집.
         재고가 없을 경우 'Family Search' (접두어 기반)를 수행하여 대안 제시.
         """
-        print(f"📡 [AGGREGATOR] Hunting Global Intel for MPN: {mpn} (Depth: {depth})...")
+        print(
+            f"📡 [AGGREGATOR] Hunting Global Intel for MPN: {mpn} (Depth: {depth})..."
+        )
         results = []
 
         try:
@@ -43,38 +46,74 @@ class SearchAggregator:
                 except Exception:
                     pass
 
-                distributors = await page.query_selector_all(".distributor-results, .distributor-section")
+                distributors = await page.query_selector_all(
+                    ".distributor-results, .distributor-section"
+                )
 
                 for dist in distributors:
                     try:
                         dist_name_raw = ""
-                        name_el = await dist.query_selector(".distributor-name, .distributor-title, .distributor-header a, h3")
+                        name_el = await dist.query_selector(
+                            ".distributor-name, .distributor-title, .distributor-header a, h3"
+                        )
                         if name_el:
                             dist_name_raw = (await name_el.inner_text()).strip()
 
                         if not dist_name_raw:
-                            img_el = await dist.query_selector(".distributor-header img, img.distributor-logo")
+                            img_el = await dist.query_selector(
+                                ".distributor-header img, img.distributor-logo"
+                            )
                             if img_el:
-                                dist_name_raw = (await img_el.get_attribute("alt") or await img_el.get_attribute("title") or "")
+                                dist_name_raw = (
+                                    await img_el.get_attribute("alt")
+                                    or await img_el.get_attribute("title")
+                                    or ""
+                                )
 
-                        dist_name = PartNormalizer.normalize_distributor(dist_name_raw or "Other")
+                        dist_name = PartNormalizer.normalize_distributor(
+                            dist_name_raw or "Other"
+                        )
 
                         rows = await dist.query_selector_all("tr")
                         for row in rows:
                             try:
-                                stock_el = await row.query_selector("td.td-stock, .stock-info, .inventory")
-                                price_el = await row.query_selector("td.td-price, .price-list, .price")
-                                part_el = await row.query_selector("td.td-part, .part-number, a.mpn-link")
-                                mfg_el = await row.query_selector("td.td-mfg, .mfg-name, .manufacturer")
-                                pkg_el = await row.query_selector("td.td-pkg, .package-name")
-                                desc_el = await row.query_selector("td.td-description, .td-specs, .description")
+                                stock_el = await row.query_selector(
+                                    "td.td-stock, .stock-info, .inventory"
+                                )
+                                price_el = await row.query_selector(
+                                    "td.td-price, .price-list, .price"
+                                )
+                                part_el = await row.query_selector(
+                                    "td.td-part, .part-number, a.mpn-link"
+                                )
+                                mfg_el = await row.query_selector(
+                                    "td.td-mfg, .mfg-name, .manufacturer"
+                                )
+                                pkg_el = await row.query_selector(
+                                    "td.td-pkg, .package-name"
+                                )
+                                desc_el = await row.query_selector(
+                                    "td.td-description, .td-specs, .description"
+                                )
 
                                 if not stock_el and not part_el:
                                     continue
 
-                                stock_text = (await stock_el.inner_text()).strip() if stock_el else "0"
-                                price_text = (await price_el.inner_text()).strip() if price_el else "0"
-                                actual_mpn_raw = (await part_el.inner_text()).strip() if part_el else mpn
+                                stock_text = (
+                                    (await stock_el.inner_text()).strip()
+                                    if stock_el
+                                    else "0"
+                                )
+                                price_text = (
+                                    (await price_el.inner_text()).strip()
+                                    if price_el
+                                    else "0"
+                                )
+                                actual_mpn_raw = (
+                                    (await part_el.inner_text()).strip()
+                                    if part_el
+                                    else mpn
+                                )
 
                                 actual_mpn = actual_mpn_raw.split("\n")[0].strip()
                                 if "Part #" in actual_mpn:
@@ -96,7 +135,11 @@ class SearchAggregator:
                                         else:
                                             buy_url = href
 
-                                spec_text = (await desc_el.inner_text()).strip() if desc_el else ""
+                                spec_text = (
+                                    (await desc_el.inner_text()).strip()
+                                    if desc_el
+                                    else ""
+                                )
 
                                 if actual_mpn:
                                     norm_mpn = PartNormalizer.clean_mpn(actual_mpn)
@@ -109,27 +152,57 @@ class SearchAggregator:
                                     elif search_norm in norm_mpn:
                                         relevance = 200
 
-                                    if ("-EVB" in actual_mpn.upper() or "EVAL" in actual_mpn.upper()) and ("-EVB" not in mpn.upper() and "EVAL" not in mpn.upper()):
+                                    if (
+                                        "-EVB" in actual_mpn.upper()
+                                        or "EVAL" in actual_mpn.upper()
+                                    ) and (
+                                        "-EVB" not in mpn.upper()
+                                        and "EVAL" not in mpn.upper()
+                                    ):
                                         relevance -= 300
 
-                                    risk_score = PartNormalizer.calculate_risk_score(actual_mpn, stock, "Active")
+                                    risk_score = PartNormalizer.calculate_risk_score(
+                                        actual_mpn, stock, "Active"
+                                    )
 
-                                    results.append({
-                                        "distributor": dist_name,
-                                        "mpn": actual_mpn,
-                                        "normalized_mpn": norm_mpn,
-                                        "manufacturer": ((await mfg_el.inner_text()).strip() if mfg_el else PartNormalizer.guess_manufacturer(actual_mpn)),
-                                        "stock": stock,
-                                        "price": price,
-                                        "relevance_score": relevance,
-                                        "risk_level": "High" if risk_score > 70 else ("Medium" if risk_score > 30 else "Low"),
-                                        "risk_score": risk_score,
-                                        "lifecycle": PartNormalizer.get_lifecycle_status(actual_mpn, stock),
-                                        "source_type": "Market Aggregator",
-                                        "product_url": buy_url,
-                                        "package": (await pkg_el.inner_text()).strip() if pkg_el else "N/A",
-                                        "description": spec_text,
-                                    })
+                                    results.append(
+                                        {
+                                            "distributor": dist_name,
+                                            "mpn": actual_mpn,
+                                            "normalized_mpn": norm_mpn,
+                                            "manufacturer": (
+                                                (await mfg_el.inner_text()).strip()
+                                                if mfg_el
+                                                else PartNormalizer.guess_manufacturer(
+                                                    actual_mpn
+                                                )
+                                            ),
+                                            "stock": stock,
+                                            "price": price,
+                                            "relevance_score": relevance,
+                                            "risk_level": (
+                                                "High"
+                                                if risk_score > 70
+                                                else (
+                                                    "Medium"
+                                                    if risk_score > 30
+                                                    else "Low"
+                                                )
+                                            ),
+                                            "risk_score": risk_score,
+                                            "lifecycle": PartNormalizer.get_lifecycle_status(
+                                                actual_mpn, stock
+                                            ),
+                                            "source_type": "Market Aggregator",
+                                            "product_url": buy_url,
+                                            "package": (
+                                                (await pkg_el.inner_text()).strip()
+                                                if pkg_el
+                                                else "N/A"
+                                            ),
+                                            "description": spec_text,
+                                        }
+                                    )
                             except Exception:
                                 continue
                     except Exception:
@@ -140,20 +213,33 @@ class SearchAggregator:
                 unique_results = {}
                 for r in results:
                     key = f"{r['distributor']}_{r['normalized_mpn']}"
-                    if key not in unique_results or r["relevance_score"] > unique_results[key]["relevance_score"]:
+                    if (
+                        key not in unique_results
+                        or r["relevance_score"] > unique_results[key]["relevance_score"]
+                    ):
                         unique_results[key] = r
                     elif r["relevance_score"] == unique_results[key]["relevance_score"]:
                         if r["stock"] > unique_results[key]["stock"]:
                             unique_results[key] = r
 
                 final_list = list(unique_results.values())
-                final_list.sort(key=lambda x: (-x["relevance_score"], x["stock"] == 0, x["price"] if x["price"] > 0 else float("inf")))
+                final_list.sort(
+                    key=lambda x: (
+                        -x["relevance_score"],
+                        x["stock"] == 0,
+                        x["price"] if x["price"] > 0 else float("inf"),
+                    )
+                )
 
-                if len(final_list) == 0 or all(r["relevance_score"] < 500 for r in final_list):
+                if len(final_list) == 0 or all(
+                    r["relevance_score"] < 500 for r in final_list
+                ):
                     if depth == 0:
                         family_mpn = PartNormalizer.get_base_family(mpn)
                         if family_mpn and family_mpn != mpn:
-                            family_results = await self.search_market_intel(family_mpn, depth=depth + 1)
+                            family_results = await self.search_market_intel(
+                                family_mpn, depth=depth + 1
+                            )
                             for fr in family_results:
                                 fr["is_alternative"] = True
                             return final_list + family_results
@@ -173,7 +259,9 @@ class SearchAggregator:
                 browser = await p.chromium.launch(headless=True)
                 context = await browser.new_context(user_agent=self.user_agent)
                 page = await context.new_page()
-                await page.goto(product_url, wait_until="domcontentloaded", timeout=15000)
+                await page.goto(
+                    product_url, wait_until="domcontentloaded", timeout=15000
+                )
                 specs = {}
                 rows = await page.query_selector_all(".spec-row, .product-specs tr")
                 for row in rows:
@@ -187,6 +275,7 @@ class SearchAggregator:
             print(f"⚠️ [LAZY] Detail fetch failed: {e}")
             return {}
 
+
 class MouserHunter:
     def __init__(self):
         pass
@@ -195,7 +284,9 @@ class MouserHunter:
         aggregator = SearchAggregator()
         return await aggregator.search_market_intel(mpn)
 
+
 if __name__ == "__main__":
+
     async def test():
         aggregator = SearchAggregator()
         res1 = await aggregator.search_market_intel("TPS54331")
@@ -203,7 +294,10 @@ if __name__ == "__main__":
         res2 = await aggregator.search_market_intel("STM32F103")
         print(f"\n🔍 [TEST] Results for STM32F103: {len(res2)} items found")
         for r in res2[:3]:
-            print(f"   - MPN: {r['mpn']}, MFG: {r['manufacturer']}, DIST: {r['distributor']}")
-    
+            print(
+                f"   - MPN: {r['mpn']}, MFG: {r['manufacturer']}, DIST: {r['distributor']}"
+            )
+
     import sys
+
     asyncio.run(test())
