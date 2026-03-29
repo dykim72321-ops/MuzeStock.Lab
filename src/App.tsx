@@ -27,15 +27,17 @@ const UnifiedDashboard = lazy(() => import('./pages/UnifiedDashboard').then(m =>
 const PersonaPerformance = lazy(() => import('./components/dashboard/PersonaPerformance').then(m => ({ default: m.PersonaPerformance })));
 const SettingsView = lazy(() => import('./components/dashboard/SettingsView').then(m => ({ default: m.SettingsView })));
 
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+
 // 로딩 폴백 컴포넌트
 const PageLoadingFallback = () => (
-  <div className="p-8 space-y-4">
-    <Skeleton className="h-[60px] w-full" />
+  <div className="p-8 space-y-4 bg-slate-950 min-h-screen">
+    <Skeleton className="h-[60px] w-full bg-slate-800" />
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <Skeleton className="h-[300px] w-full lg:col-span-2" />
-      <Skeleton className="h-[300px] w-full" />
+      <Skeleton className="h-[300px] w-full lg:col-span-2 bg-slate-800" />
+      <Skeleton className="h-[300px] w-full bg-slate-800" />
     </div>
-    <Skeleton className="h-[400px] w-full" />
+    <Skeleton className="h-[400px] w-full bg-slate-800" />
   </div>
 );
 
@@ -46,10 +48,14 @@ function App() {
         <BrowserRouter>
           <Suspense fallback={<PageLoadingFallback />}>
             <Routes>
-              <Route path="/" element={<Layout />}>
+              {/* 랜딩 및 도메인 분기 (Layout.tsx 바깥) */}
+              <Route path="/" element={<LandingPage />} />
+              
+              {/* 내부 플랫폼 레이아웃 (Layout.tsx 적용) */}
+              <Route element={<Layout />}>
                 {/* 1. 홈: 통합 지휘 통제실 (Unified Command Center) */}
-                <Route index element={<UnifiedDashboard />} />
-                <Route path="command" element={<Navigate to="/" replace />} />
+                <Route path="/stock/dashboard" element={<UnifiedDashboard />} />
+                <Route path="command" element={<Navigate to="/stock/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
 
                 {/* 실시간 퀀트 펄스 */}
@@ -75,7 +81,7 @@ function App() {
                 {/* 환경 설정 */}
                 <Route path="settings" element={<SettingsView />} />
 
-                {/* 404 → 홈 */}
+                {/* 404 → 랜딩 */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Routes>

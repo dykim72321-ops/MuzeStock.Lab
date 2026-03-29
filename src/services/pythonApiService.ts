@@ -1,7 +1,4 @@
-/**
- * Python API Service
- * 통합 파이썬 엔진과 통신하는 서비스 모듈
- */
+import { supabase } from '../lib/supabase';
 
 const PY_API_BASE = '/py-api';
 
@@ -66,8 +63,6 @@ export async function fetchTechnicalAnalysis(
 
 /**
  * 최근 발견 종목 조회
- * @param limit 조회 개수
- * @param sortBy 정렬 기준: 'updated_at' (최신순) 또는 'performance' (수익률순)
  */
 export async function fetchDiscoveries(
   limit: number = 10,
@@ -82,33 +77,93 @@ export async function fetchDiscoveries(
 }
 
 /**
- * 수동 수집 트리거 (관리자 전용)
+ * 수동 수집 트리거 (관리자 전용 - Edge Proxy 사용)
  */
-export async function triggerHunt(adminKey: string): Promise<{ success: boolean; message: string }> {
+export async function triggerHunt(): Promise<{ success: boolean; message: string }> {
   try {
-    const response = await fetch(`${PY_API_BASE}/api/hunt`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Key': adminKey,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        message: errorData.detail || `Error: ${response.status}`,
-      };
-    }
-
-    const data = await response.json();
+    const data = await adminApiFetch('/api/hunt', 'POST');
     return { success: true, message: data.message || 'Hunt triggered!' };
-  } catch (error) {
+  } catch (error: any) {
     console.error('[PythonAPI] Hunt trigger error:', error);
-    return { success: false, message: 'Network error' };
+    return { success: false, message: error.message || 'Network error' };
   }
 }
+
+/**
+ * 브로커 계좌 현황 조회 (관리자 전용)
+ */
+export async function fetchBrokerAccount(): Promise<any> {
+  return adminApiFetch('/api/broker/account');
+}
+
+/**
+ * 모든 포지션 청산 (관리자 전용 - Panic Sell)
+ */
+export async function liquidateAllPositions(confirm: boolean = true): Promise<any> {
+  return adminApiFetch('/api/broker/liquidate-all', 'POST', { confirm });
+}
+
+/**
+ * 브로커 및 시스템 상태 조회 (관리자 전용)
+ */
+export async function fetchBrokerStatus(): Promise<any> {
+  return adminApiFetch('/api/broker/status');
+}
+
+/**
+ * 브로커 오픈 포지션 조회 (관리자 전용)
+ */
+export async function fetchBrokerPositions(): Promise<any[]> {
+  try {
+    const data = await adminApiFetch('/api/broker/positions');
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('[PythonAPI] Positions fetch error:', error);
+    return [];
+  }
+}
+
+/**
+ * 브로커 최근 주문 내역 조회 (관리자 전용)
+ */
+export async function fetchBrokerOrders(limit: number = 50): Promise<any[]> {
+  try {
+    const data = await adminApiFetch(`/api/broker/orders?limit=${limit}`);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('[PythonAPI] Orders fetch error:', error);
+    return [];
+  }
+}
+
+
+/**
+ * 시스템 자동 매매 무장/해제 (관리자 전용)
+ */
+export async function toggleSystemArm(arm: boolean): Promise<any> {
+  return adminApiFetch('/api/broker/arm', 'POST', { arm });
+}
+
+/**
+ * 수동 주문 실행 (관리자 전용)
+ */
+export async function executeManualOrder(orderData: {
+  ticker: string;
+  side: 'buy' | 'sell';
+  quantity: number;
+  type?: 'market' | 'limit';
+  price?: number;
+}): Promise<any> {
+  return adminApiFetch('/api/broker/order', 'POST', orderData);
+}
+
+/**
+ * 특정 포지션 청산 (관리자 전용)
+ */
+export async function closePosition(ticker: string): Promise<any> {
+  return adminApiFetch('/api/broker/close-position', 'POST', { ticker });
+}
+
 /**
  * RSI 역추세 전략 백테스팅 실행
  */
@@ -137,21 +192,39 @@ export async function fetchStrategyStats(): Promise<StrategyStats | null> {
 }
 
 /**
- * [NEW] Generic API Fetch Utility
- * POST/GET 요청 및 Admin Key 인증을 공통 처리
+ * [NEW] Admin API Fetch Utility
+ * Supabase Edge Function Proxy를 통해 Python Engine 호출
+ */
+export async function adminApiFetch(
+  endpoint: string,
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
+  body: any = null
+): Promise<any> {
+  const { data, error } = await supabase.functions.invoke(`admin-proxy${endpoint}`, {
+    method,
+    body,
+  });
+
+  if (error) {
+    console.error(`[PythonAPI] adminApiFetch Error (${endpoint}):`, error);
+    throw new Error(error.message || `Edge Function Error: ${error}`);
+  }
+
+  return data;
+}
+
+/**
+ * Generic API Fetch Utility (Public/Non-Admin)
  */
 export async function apiFetch(
   endpoint: string, 
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET', 
   body: any = null
 ): Promise<any> {
-  const adminKey = import.meta.env.VITE_ADMIN_SECRET_KEY;
-  
   const options: RequestInit = {
     method,
     headers: {
       'Content-Type': 'application/json',
-      'X-Admin-Key': adminKey || '',
     },
   };
 

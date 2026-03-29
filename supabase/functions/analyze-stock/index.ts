@@ -115,7 +115,12 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error(`[AnalyzeStock] Critical error: ${error.message}`);
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      status: "error",
+      timestamp: new Date().toISOString()
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });

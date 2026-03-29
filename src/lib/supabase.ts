@@ -9,7 +9,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   realtime: {
-    timeout: 40000, // 40초로 타임아웃 연장 (서버 응답 지연 대비)
+    timeout: 10000, // 10초로 최적화 (실시간성 향상)
     params: {
       events_per_second: 10,
     },

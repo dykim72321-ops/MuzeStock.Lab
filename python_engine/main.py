@@ -23,6 +23,8 @@ from alpaca.data.live import StockDataStream
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.timeframe import TimeFrame
 from alpaca.trading.client import TradingClient
+from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest, GetOrdersRequest
+from alpaca.trading.enums import OrderSide, TimeInForce, OrderStatus
 from alpaca.data.enums import DataFeed
 
 # --- Rare Source Imports ---
@@ -256,6 +258,7 @@ candle_state = TickerDataState(max_bars=100)
 
 # Global instances
 db = DBManager()
+SYSTEM_ARMED = False  # 자동 매매 활성화 상태 (Default: False)
 
 # CORS
 app.add_middleware(
@@ -274,6 +277,22 @@ class AnalyzeRequest(BaseModel):
 
 class PanicSellRequest(BaseModel):
     confirm: bool
+
+
+class ArmRequest(BaseModel):
+    arm: bool
+
+
+class OrderRequest(BaseModel):
+    ticker: str
+    side: str  # 'buy' or 'sell'
+    quantity: float
+    type: str = "market"  # 'market' or 'limit'
+    price: Optional[float] = None
+
+
+class ClosePositionRequest(BaseModel):
+    ticker: str
 
 
 class TechnicalIndicators(BaseModel):
@@ -1066,6 +1085,282 @@ async def liquidate_all_positions(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/broker/status")
+async def get_broker_status(api_key: str = Security(get_api_key)):
+    """Returns Alpaca connection status and current system ARM state"""
+    if not trading_client:
+        return {"status": "DISCONNECTED", "is_armed": SYSTEM_ARMED, "error": "Trading client not initialized"}
+    
+    try:
+        acc = await asyncio.to_thread(trading_client.get_account)
+        return {
+            "status": "ALIVE",
+            "is_armed": SYSTEM_ARMED,
+            "account_status": acc.status,
+            "buying_power": float(acc.buying_power),
+            "equity": float(acc.equity),
+            "currency": acc.currency
+        }
+    except Exception as e:
+        return {"status": "ERROR", "is_armed": SYSTEM_ARMED, "error": str(e)}
+
+
+@app.post("/api/broker/arm")
+async def toggle_arm_system(req: ArmRequest, api_key: str = Security(get_api_key)):
+    """Toggles the global SYSTEM_ARMED state"""
+    global SYSTEM_ARMED
+    SYSTEM_ARMED = req.arm
+    
+    status_text = "ARMED (Combat Mode)" if SYSTEM_ARMED else "DISARMED (Safe Mode)"
+    print(f"📡 [SYSTEM] {status_text} by administrator.")
+    
+    await webhook.send_alert(
+        title=f"📡 SYSTEM {status_text}",
+        description=f"사령관이 시스템을 {'무장' if SYSTEM_ARMED else '해제'}했습니다. {'자동 매수/매도가 활성화됩니다.' if SYSTEM_ARMED else '자동 매매가 중지됩니다.'}",
+        color=0xFF00FF if SYSTEM_ARMED else 0x5D3FD3,
+    )
+    
+    return {"status": "success", "is_armed": SYSTEM_ARMED, "message": f"System {status_text}"}
+
+
+@app.post("/api/broker/order")
+async def execute_manual_order(req: OrderRequest, api_key: str = Security(get_api_key)):
+    """Executes a manual market or limit order via Alpaca"""
+    print(f"📥 [Manual Order] {req.side} {req.quantity} {req.ticker}")
+    if not trading_client:
+        raise HTTPException(status_code=503, detail="Trading client not initialized")
+    
+    try:
+        side = OrderSide.BUY if req.side.lower() == 'buy' else OrderSide.SELL
+        symbol = req.ticker.upper()
+        
+        if req.type.lower() == 'market':
+            order_data = MarketOrderRequest(
+                symbol=symbol,
+                qty=req.quantity,
+                side=side,
+                time_in_force=TimeInForce.GTC
+            )
+        else:
+            if not req.price:
+                raise HTTPException(status_code=400, detail="Limit price is required for limit orders")
+            order_data = LimitOrderRequest(
+                symbol=symbol,
+                qty=req.quantity,
+                side=side,
+                limit_price=req.price,
+                time_in_force=TimeInForce.GTC
+            )
+            
+        print(f"⚖️ [Manual Order] Submitting to Alpaca: {symbol} x {req.quantity} {req.side}")
+        order = await asyncio.to_thread(trading_client.submit_order, order_data)
+        
+        # --- [NEW] Supabase Sync Logic ---
+        if supabase:
+            try:
+                # 1. 현재가 및 ATR 획득 (포지션 기록용)
+                ticker_yf = yf.Ticker(symbol)
+                df_yf = await asyncio.to_thread(ticker_yf.history, period="5d")
+                current_price = req.price if req.price else df_yf['Close'].iloc[-1]
+                
+                # ATR 계산 (기본값 5%)
+                atr = current_price * 0.05
+                if len(df_yf) >= 5:
+                    import ta
+                    high = df_yf['High']
+                    low = df_yf['Low']
+                    close = df_yf['Close']
+                    atr_series = ta.volatility.AverageTrueRange(high, low, close, window=5).atr()
+                    if not pd.isna(atr_series.iloc[-1]):
+                        atr = float(atr_series.iloc[-1])
+
+                # 2. BUY (Entry or Add)
+                if side == OrderSide.BUY:
+                    # 기존 포지션 확인
+                    existing_pos = await asyncio.to_thread(
+                        supabase.table("active_positions").select("*").eq("ticker", symbol).execute
+                    )
+                    
+                    if existing_pos.data:
+                        # 평단가 및 수량 업데이트 (단순 합산)
+                        old = existing_pos.data[0]
+                        new_amount = float(old["amount"]) + req.quantity
+                        new_entry_price = (float(old["entry_price"]) * float(old["amount"]) + current_price * req.quantity) / new_amount
+                        
+                        await asyncio.to_thread(
+                            supabase.table("active_positions").update({
+                                "amount": new_amount,
+                                "entry_price": new_entry_price,
+                                "highest_high": max(float(old["highest_high"]), current_price),
+                                "updated_at": datetime.now().isoformat()
+                            }).eq("ticker", symbol).execute
+                        )
+                    else:
+                        # 신규 포지션 생성
+                        new_pos = {
+                            "ticker": symbol,
+                            "entry_price": current_price,
+                            "entry_date": datetime.now().date().isoformat(),
+                            "initial_atr": atr,
+                            "highest_high": current_price,
+                            "days_held": 0,
+                            "amount": req.quantity
+                        }
+                        await asyncio.to_thread(
+                            supabase.table("active_positions").insert(new_pos).execute
+                        )
+
+                # 3. SELL (Exit or Reduce)
+                elif side == OrderSide.SELL:
+                    existing_pos = await asyncio.to_thread(
+                        supabase.table("active_positions").select("*").eq("ticker", symbol).execute
+                    )
+                    
+                    if existing_pos.data:
+                        old = existing_pos.data[0]
+                        old_amount = float(old["amount"])
+                        
+                        if req.quantity >= old_amount:
+                            # 전체 청산
+                            await asyncio.to_thread(
+                                supabase.table("active_positions").delete().eq("ticker", symbol).execute
+                            )
+                            # Trade History 기록
+                            pnl = (current_price - float(old["entry_price"])) * old_amount
+                            pnl_pct = (current_price / float(old["entry_price"]) - 1) * 100
+                            
+                            history_data = {
+                                "ticker": symbol,
+                                "entry_date": old["entry_date"],
+                                "exit_date": datetime.now().date().isoformat(),
+                                "entry_price": old["entry_price"],
+                                "exit_price": current_price,
+                                "pnl": pnl,
+                                "pnl_percent": pnl_pct,
+                                "exit_reason": "MANUAL_SELL"
+                            }
+                            await asyncio.to_thread(
+                                supabase.table("trade_history").insert(history_data).execute
+                            )
+                        else:
+                            # 부분 매도 (수량만 차감)
+                            await asyncio.to_thread(
+                                supabase.table("active_positions").update({
+                                    "amount": old_amount - req.quantity,
+                                    "updated_at": datetime.now().isoformat()
+                                }).eq("ticker", symbol).execute
+                            )
+                
+                print(f"✅ [Sync] Manual trade for {symbol} synced to Supabase.")
+            except Exception as sync_e:
+                print(f"⚠️ [Sync Error] Failed to sync manual trade: {sync_e}")
+
+        # Webhook 알림
+        color = 0x2ECC71 if side == OrderSide.BUY else 0xE74C3C
+        await webhook.send_alert(
+            title=f"🎯 [MANUAL ORDER] {symbol} {req.side.upper()}",
+            description=f"수량: {req.quantity}주 | 유형: {req.type.upper()}\n상태: {order.status}",
+            color=color
+        )
+        
+        return {
+            "status": "success",
+            "order_id": str(order.id),
+            "client_order_id": order.client_order_id,
+            "message": f"Manual {req.side} order for {symbol} submitted and synced."
+        }
+    except Exception as e:
+        error_msg = str(e)
+        print(f"❌ [Manual Order] Execution failed: {error_msg}")
+        return {"status": "error", "error": error_msg}
+
+
+@app.post("/api/broker/close-position")
+async def close_specific_position(req: ClosePositionRequest, api_key: str = Security(get_api_key)):
+    """Closes a specific position by ticker"""
+    if not trading_client:
+        raise HTTPException(status_code=500, detail="Trading client not initialized")
+    
+    try:
+        symbol = req.ticker.upper()
+        # Alpaca close_position_by_symbol requires symbol or asset_id
+        result = await asyncio.to_thread(trading_client.close_position_by_symbol, symbol)
+        
+        await webhook.send_alert(
+            title=f"🛑 [MANUAL CLOSE] {symbol}",
+            description=f"{symbol} 포지션에 대한 수동 청산 명령이 실행되었습니다.",
+            color=0xE06666,
+        )
+        
+        return {
+            "status": "success",
+            "symbol": symbol,
+            "message": f"Position for {symbol} has been closed."
+        }
+    except Exception as e:
+        print(f"❌ Close Position Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/broker/positions")
+async def get_broker_positions(api_key: str = Security(get_api_key)):
+    """Alpaca 보유 포지션 조회"""
+    if not trading_client:
+        return []
+    try:
+        positions = await asyncio.to_thread(trading_client.get_all_positions)
+        return [
+            {
+                "id": p.asset_id,
+                "ticker": p.symbol,
+                "entry_price": float(p.avg_entry_price),
+                "current_price": float(p.current_price),
+                "quantity": float(p.qty),
+                "market_value": float(p.market_value),
+                "unrealized_pl": float(p.unrealized_pl),
+                "unrealized_plpc": float(p.unrealized_plpc) * 100,
+                "change_percent": float(p.change_today) * 100
+            }
+            for p in positions
+        ]
+    except Exception as e:
+        print(f"❌ Broker Positions Error: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/api/broker/orders")
+async def get_broker_orders(limit: int = 50, api_key: str = Security(get_api_key)):
+    """Alpaca 최근 주문 내역 조회"""
+    if not trading_client:
+        return []
+    try:
+        # 최근 주문 가져오기 (체결된 것뿐만 아니라 모든 상태)
+        from alpaca.trading.requests import GetOrdersRequest
+        from alpaca.trading.enums import OrderStatus
+        
+        req = GetOrdersRequest(status=OrderStatus.ALL, limit=limit, nested=True)
+        orders = await asyncio.to_thread(trading_client.get_orders, filter=req)
+        return [
+            {
+                "id": str(o.id),
+                "ticker": o.symbol,
+                "side": o.side.value,
+                "type": o.type.value,
+                "quantity": float(o.qty) if o.qty else 0,
+                "filled_qty": float(o.filled_qty) if o.filled_qty else 0,
+                "filled_avg_price": float(o.filled_avg_price) if o.filled_avg_price else 0,
+                "status": o.status.value,
+                "created_at": o.created_at.isoformat(),
+                "filled_at": o.filled_at.isoformat() if o.filled_at else None
+            }
+            for o in orders
+        ]
+    except Exception as e:
+        print(f"❌ Broker Orders Error: {e}")
+        return {"error": str(e)}
+
+
+
 # Backtesting endpoint
 
 
@@ -1341,6 +1636,8 @@ try:
         else None
     )
     if supabase:
+        is_service = SUPABASE_KEY == os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        print(f"🚀 [INIT] Supabase Client Connected (Role: {'Service' if is_service else 'Anon'})")
         paper_engine = PaperTradingManager(supabase)
 except Exception:
     supabase = None
@@ -1371,10 +1668,23 @@ async def on_minute_bar_closed(bar):
         # 5. 서비스 연동 (DB, Discord, Paper Trading)
         if supabase:
             try:
-                # DB 저장
-                await asyncio.to_thread(
-                    supabase.table("realtime_signals").insert(payload).execute
-                )
+                # DB 저장 (Resilient Insert)
+                try:
+                    await asyncio.to_thread(
+                        supabase.table("realtime_signals").insert(payload).execute
+                    )
+                except Exception as db_err:
+                    err_str = str(db_err)
+                    # If column is missing (PGRST204), retry with common missing columns removed
+                    if "PGRST204" in err_str or "data_source" in err_str or "volume_multiplier" in err_str:
+                        safe_payload = payload.copy()
+                        safe_payload.pop("data_source", None)
+                        safe_payload.pop("volume_multiplier", None)
+                        await asyncio.to_thread(
+                            supabase.table("realtime_signals").insert(safe_payload).execute
+                        )
+                    else:
+                        raise db_err
 
                 # 강력한 신호 시 Discord 알림
                 if payload.get("strength") == "STRONG":
@@ -1400,6 +1710,7 @@ async def on_minute_bar_closed(bar):
                         strength=payload.get("strength"),
                         rsi=payload.get("rsi"),
                         ai_report=payload.get("ai_report", ""),
+                        is_armed=SYSTEM_ARMED,
                     )
 
                 print(
@@ -1520,12 +1831,25 @@ async def run_startup_sequence():
                 # WebSocket 전송
                 await manager.broadcast(payload)
 
-                # DB 저장 (영속성 확보)
+                # DB 저장 (영속성 확보 - Resilient)
                 if supabase:
-                    await asyncio.to_thread(
-                        supabase.table("realtime_signals").insert(payload).execute
-                    )
-                    print(f"💾 Snapshot for {ticker} saved to DB.")
+                    try:
+                        await asyncio.to_thread(
+                            supabase.table("realtime_signals").insert(payload).execute
+                        )
+                        print(f"💾 Snapshot for {ticker} saved to DB.")
+                    except Exception as db_err:
+                        err_str = str(db_err)
+                        if "PGRST204" in err_str or "data_source" in err_str or "volume_multiplier" in err_str:
+                            safe_payload = payload.copy()
+                            safe_payload.pop("data_source", None)
+                            safe_payload.pop("volume_multiplier", None)
+                            await asyncio.to_thread(
+                                supabase.table("realtime_signals").insert(safe_payload).execute
+                            )
+                            print(f"💾 Snapshot for {ticker} saved (Safe Mode).")
+                        else:
+                            print(f"⚠️ Initial pulse for {ticker} failed: {db_err}")
             except Exception as e:
                 print(f"⚠️ Initial pulse for {ticker} failed: {e}")
 

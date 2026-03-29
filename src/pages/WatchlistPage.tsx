@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { Zap } from 'lucide-react';
 import { getWatchlist, removeFromWatchlist, addToWatchlist, type WatchlistItem } from '../services/watchlistService';
 import { 
   fetchMultipleStocksOptimized
@@ -24,7 +25,7 @@ export const WatchlistPage = () => {
   const [terminalData, setTerminalData] = useState<any | null>(null);
   const [addLoading, setAddLoading] = useState(false); // 🆕 Ticker adding state
 
-  const loadData = async (silent = false) => {
+  const loadData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     else setIsRefreshing(true);
     try {
@@ -52,7 +53,7 @@ export const WatchlistPage = () => {
       setLoading(false);
       setIsRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -63,7 +64,7 @@ export const WatchlistPage = () => {
     }, 30000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [loadData]);
 
   const filteredItems = watchlistItems.filter(item => 
     item.ticker.toLowerCase().includes(searchTerm.toLowerCase())
@@ -79,6 +80,7 @@ export const WatchlistPage = () => {
   const handleAddTicker = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && e.currentTarget.value) {
       const val = e.currentTarget.value.trim().toUpperCase();
+      const inputElement = e.currentTarget;
       if (val) {
         setAddLoading(true);
         try {
@@ -100,7 +102,7 @@ export const WatchlistPage = () => {
             initialDna
           );
           
-          e.currentTarget.value = '';
+          inputElement.value = '';
           loadData(true);
         } catch (err) {
           console.error('Failed to add ticker:', err);
@@ -113,53 +115,66 @@ export const WatchlistPage = () => {
   };
 
   return (
-    <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-8 animate-in fade-in duration-500 bg-slate-50 min-h-screen relative">
+    <div className="min-h-screen bg-[#020617] relative overflow-hidden">
+      {/* Terminal Grid Overlay */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+           style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+      
+      {/* Ambient Glows */}
+      <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-indigo-500/10 blur-[120px] rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-cyan-500/10 blur-[120px] rounded-full translate-x-1/2 translate-y-1/2 pointer-events-none" />
+
       {/* 🆕 Global Refresh Indicator */}
       {isRefreshing && (
-        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-2">
-          <div className="w-2 h-2 bg-[#0176d3] rounded-full animate-pulse" />
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Refreshing Orbit...</span>
+        <div className="fixed top-20 right-8 z-[100] flex items-center gap-3 bg-[#0b101a]/90 backdrop-blur-xl px-4 py-2 rounded-xl border border-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.2)] animate-in fade-in slide-in-from-top-4">
+          <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
+          <span className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em]">Synchronizing Orbit...</span>
         </div>
       )}
 
-      <WatchlistHeader 
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-      />
+      <div className="max-w-[1700px] mx-auto px-6 py-8 space-y-8 animate-in fade-in duration-700 relative z-10">
+        <WatchlistHeader 
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
 
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-40 gap-4 opacity-70">
-          <div className="w-12 h-12 border-2 border-[#0176d3]/20 border-t-[#0176d3] rounded-full animate-spin" />
-          <p className="font-mono text-xs text-slate-500 tracking-widest">SYNCHRONIZING ORBIT...</p>
-        </div>
-      ) : filteredItems.length === 0 ? (
-        <div className={addLoading ? "opacity-50 pointer-events-none transition-opacity" : ""}>
-          <WatchlistEmptyState 
-            onAddTicker={handleAddTicker}
-            onNavigateScanner={() => navigate('/scanner')}
-          />
-        </div>
-      ) : (
-        <div className={viewMode === 'grid' 
-          ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-          : "space-y-3"
-        }>
-          <AnimatePresence>
-            {filteredItems.map((item) => (
-              <WatchlistItemCard 
-                key={item.ticker} 
-                item={item} 
-                stock={getStock(item.ticker)} 
-                viewMode={viewMode}
-                onRemove={handleRemove}
-                onDeepDive={(data) => setTerminalData(data)}
-              />
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-48 gap-8">
+            <div className="relative">
+              <div className="w-20 h-20 border-4 border-indigo-500/10 border-t-indigo-500 rounded-full animate-spin" />
+              <Zap className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-indigo-400 animate-pulse" />
+            </div>
+            <p className="font-black text-[10px] text-slate-500 tracking-[0.4em] uppercase animate-pulse">Initializing Monitoring Orbit Matrix...</p>
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className={addLoading ? "opacity-50 pointer-events-none transition-opacity" : ""}>
+            <WatchlistEmptyState 
+              onAddTicker={handleAddTicker}
+              onNavigateScanner={() => navigate('/scanner')}
+            />
+          </div>
+        ) : (
+          <div className={viewMode === 'grid' 
+            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            : "space-y-4"
+          }>
+            <AnimatePresence>
+              {filteredItems.map((item) => (
+                <WatchlistItemCard 
+                  key={item.ticker} 
+                  item={item} 
+                  stock={getStock(item.ticker)} 
+                  viewMode={viewMode}
+                  onRemove={handleRemove}
+                  onDeepDive={(data) => setTerminalData(data)}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
 
       {terminalData && (
         <StockTerminalModal 

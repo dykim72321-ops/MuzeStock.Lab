@@ -1,99 +1,113 @@
-import { useState, useEffect } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-    X,
-    TrendingUp,
-    TrendingDown,
-    Zap,
-    Target,
-    ChevronRight,
-    Fingerprint,
-    ShieldCheck,
-    List,
-    Loader2,
-    Activity,
-    HelpCircle
+    X, TrendingUp, TrendingDown, Zap, Target,
+    Fingerprint, ShieldCheck, Activity, Dna, ArrowUpRight,
+    List
 } from 'lucide-react';
 import clsx from 'clsx';
 
-// 🆕 TechnicalGauge Component
-const TechnicalGauge = ({ 
-    label, 
-    value, 
-    min = 0, 
-    max = 100, 
-    type = 'linear',
-    unit = '',
-    zones = { low: 30, high: 70 }
+// 🆕 Neural Projection Chart (SVG 기반 과거 + 예측 하이브리드 차트)
+const NeuralProjectionChart = ({ 
+    currentPrice, 
+    targetPrice, 
+    _stopPrice 
 }: { 
-    label: string, 
-    value: number, 
-    min?: number, 
-    max?: number, 
-    type?: 'linear' | 'surge',
-    unit?: string,
-    zones?: { low: number, high: number }
+    currentPrice: number, 
+    targetPrice: number,
+    _stopPrice: number 
 }) => {
-    const percentage = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
-    
-    if (type === 'surge') {
-        const isSurge = value >= 2.0;
-        return (
-            <div className="bg-white/5 p-4 rounded-2xl border border-white/5 hover:border-indigo-500/30 transition-all group/surge">
-                <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</span>
-                    {isSurge && <Zap className="w-3 h-3 text-amber-400 animate-pulse" />}
-                </div>
-                <div className="flex items-baseline gap-2">
-                    <span className={clsx(
-                        "text-3xl font-black italic tracking-tighter transition-all",
-                        isSurge ? "text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.4)]" : "text-slate-300"
-                    )}>
-                        {value.toFixed(1)}{unit}
-                    </span>
-                    {isSurge && <span className="text-[10px] font-black text-amber-500/80 uppercase animate-bounce">🔥 SURGE</span>}
-                </div>
-                <div className="mt-2 w-full h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5 shadow-inner">
-                    <div 
-                        className={clsx("h-full transition-all duration-1000 rounded-full", isSurge ? "bg-gradient-to-r from-amber-600 to-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.5)]" : "bg-slate-700")}
-                        style={{ width: `${Math.min(100, (value / 5) * 100)}%` }}
-                    />
-                </div>
-            </div>
-        );
-    }
+    const isUp = targetPrice >= currentPrice;
+    const color = isUp ? '#22d3ee' : '#f43f5e'; // Cyan or Rose
+    const dropShadow = isUp ? 'drop-shadow-[0_0_12px_rgba(34,211,238,0.8)]' : 'drop-shadow-[0_0_12px_rgba(244,63,94,0.8)]';
 
     return (
-        <div className="bg-white/5 p-4 rounded-2xl border border-white/5 hover:border-indigo-500/30 transition-all">
-            <div className="flex justify-between items-center mb-2">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</span>
-                <span className="text-xs font-black text-white">{value.toFixed(1)}{unit}</span>
-            </div>
-            <div className="relative w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5 shadow-inner">
-                {/* Zones Indicators */}
-                <div className="absolute inset-0 flex">
-                    <div className="h-full bg-emerald-500/10" style={{ width: `${zones.low}%` }} />
-                    <div className="h-full border-x border-white/5" style={{ width: `${zones.high - zones.low}%` }} />
-                    <div className="h-full bg-rose-500/10" style={{ width: `${100 - zones.high}%` }} />
+        <div className="relative w-full h-48 bg-[#020617]/60 rounded-3xl border border-slate-800/80 overflow-hidden flex flex-col justify-between p-6 group">
+            {/* 배경 그리드 */}
+            <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
+            
+            <div className="relative z-10 flex justify-between items-start">
+                <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Neural Projection: 24H</span>
                 </div>
-                
-                {/* Progress Bar */}
-                <div 
-                    className={clsx(
-                        "h-full transition-all duration-1000 ease-out rounded-full shadow-[0_0_10px_rgba(255,255,255,0.1)]",
-                        value <= zones.low ? "bg-gradient-to-r from-emerald-600 to-emerald-400" : value >= zones.high ? "bg-gradient-to-r from-rose-600 to-rose-400" : "bg-gradient-to-r from-indigo-600 to-indigo-400"
-                    )}
-                    style={{ width: `${percentage}%` }}
-                />
+                <div className="flex gap-1">
+                    <div className="w-1 h-1 bg-emerald-500/40 rounded-full" />
+                    <div className="w-1 h-1 bg-indigo-500 rounded-full" />
+                </div>
             </div>
-            <div className="flex justify-between mt-1 opacity-20 text-[8px] font-black uppercase text-slate-500 tracking-tighter">
-                <span>OS</span>
-                <span>Neutral</span>
-                <span>OB</span>
+
+            <svg className="w-full h-full absolute inset-0 preserve-3d" preserveAspectRatio="none" viewBox="0 0 100 100">
+                {/* 과거 데이터 (가상의 Catmull-Rom Spline, 실선) */}
+                <motion.path 
+                    d="M 10,75 Q 30,65 50,70 T 80,60" 
+                    fill="none" stroke="#334155" strokeWidth="2.5" 
+                    initial={{ pathLength: 0 }} 
+                    animate={{ pathLength: 1 }} 
+                    transition={{ duration: 1.2, ease: "easeInOut" }}
+                />
+                
+                {/* AI 예측 궤적 (점선 + 네온 글로우) */}
+                <motion.path 
+                    d={isUp ? "M 80,60 Q 90,55 100,35" : "M 80,60 Q 90,65 100,85"} 
+                    fill="none" stroke={color} strokeWidth="3" strokeDasharray="6 4"
+                    className={dropShadow}
+                    initial={{ pathLength: 0, opacity: 0 }} 
+                    animate={{ pathLength: 1, opacity: 1 }} 
+                    transition={{ duration: 1.5, delay: 1, ease: "easeInOut" }}
+                />
+                
+                {/* 타겟 포인트 펄스 */}
+                <motion.circle 
+                    cx="100" cy={isUp ? "35" : "85"} r="3.5" fill={color} className={dropShadow}
+                    initial={{ scale: 0 }} 
+                    animate={{ scale: [1, 1.4, 1] }} 
+                    transition={{ repeat: Infinity, duration: 2 }}
+                />
+
+                {/* Stop Loss Line (Subtle) */}
+                <line x1="10" y1="88" x2="100" y2="88" stroke="#f43f5e" strokeWidth="1" strokeDasharray="2 2" opacity="0.2" />
+            </svg>
+            
+            <div className="relative z-10 w-full flex justify-between items-end">
+                <div className="space-y-1">
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                        Current Orbit
+                    </span>
+                    <div className="text-3xl font-black text-white font-mono tracking-tighter transition-all group-hover:text-indigo-400">
+                        ${currentPrice.toFixed(2)}
+                    </div>
+                </div>
+                <div className="text-right space-y-1">
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 justify-end">
+                        <Target className="w-3 h-3 text-cyan-400" /> AI Target
+                    </span>
+                    <div className={clsx("text-3xl font-black font-mono tracking-tighter", isUp ? "text-cyan-400" : "text-rose-400")}>
+                        ${targetPrice.toFixed(2)}
+                    </div>
+                </div>
             </div>
         </div>
     );
 };
+
+// 🆕 DnaMatrixBar Component
+const DnaMatrixBar = ({ label, value, colorClass }: { label: string, value: number, colorClass: string }) => (
+    <div className="space-y-2">
+        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+            <span className="text-slate-400">{label}</span>
+            <span className={clsx("font-mono", colorClass.replace('bg-', 'text-'))}>{value}%</span>
+        </div>
+        <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden border border-white/5">
+            <motion.div 
+                initial={{ width: 0 }} 
+                animate={{ width: `${value}%` }} 
+                transition={{ duration: 1, ease: "easeOut" }}
+                className={clsx("h-full rounded-full transition-all", colorClass)}
+            />
+        </div>
+    </div>
+);
 
 interface StockTerminalModalProps {
     isOpen: boolean;
@@ -110,52 +124,42 @@ interface StockTerminalModalProps {
         change?: string;
         kellyWeight?: number;
         efficiencyRatio?: number;
-        matchedLegend?: { ticker: string; similarity: number };
-        quantSummary?: string;
-        quantData?: {
-            math_mode: boolean;
-            ma20_distance_pct: number;
-            rsi_14: number;
-            historical_win_rate_pct: number;
-            similar_historical_cases: number;
-            volatility_20d_pct: number;
-            volume_surge_multiplier: number;
-        };
+        targetPrice?: number;
+        stopPrice?: number;
+        quantData?: any;
     };
     onAddToWatchlist?: () => Promise<void>;
+    onExecuteTrade?: (tradeParams: any) => void;
 }
 
 export const StockTerminalModal = ({ 
     isOpen, 
     onClose, 
     data,
-    onAddToWatchlist
+    onAddToWatchlist,
+    onExecuteTrade
 }: StockTerminalModalProps) => {
-    const [isAddingWatchlist, setIsAddingWatchlist] = useState(false);
-    
-    // 💡 융합된 프론트엔드 아키텍처: Props 데이터와 "추가로 불러온 상세 데이터"를 분리하여 관리합니다.
     const [fetchedAnalysis, setFetchedAnalysis] = useState<Partial<typeof data> | null>(null);
+    const isMounted = useRef(false);
 
-    // 💡 렌더링 시점에 Props 데이터와 추가 분석 데이터를 병합 (Derived State 안티패턴 제거)
-    const displayData = { ...data, ...fetchedAnalysis };
-
-    // 상세 분석 데이터(bullPoints 등)가 부족할 경우 Supabase에서 비동기로 보완
     useEffect(() => {
-        // 모달이 열리거나 대상 종목이 바뀔 때 이전 상세 데이터 초기화
+        isMounted.current = true;
+        return () => { isMounted.current = false; };
+    }, []);
+
+    const displayData = fetchedAnalysis ? { ...data, ...fetchedAnalysis } : data;
+
+    useEffect(() => {
         setFetchedAnalysis(null);
+        if (!isOpen) return;
 
         const fetchMissingData = async () => {
-            // 이미 데이터가 충분하거나 기본 안내 문구가 아닌 경우 중복 호출 방지
-            const hasDetailedPoints = data.bullPoints && 
-                                     data.bullPoints.length > 0 && 
-                                     data.bullPoints[0] !== "No details" && 
-                                     data.bullPoints[0] !== "모멘텀 지표 분석 중";
-            
+            const hasDetailedPoints = data.bullPoints && data.bullPoints.length > 0 && data.bullPoints[0] !== "모멘텀 지표 분석 중";
             if (hasDetailedPoints) return;
             
             try {
                 const { supabase } = await import('../../lib/supabase');
-                const { data: cacheData, error } = await supabase
+                const { data: cacheData } = await supabase
                     .from('stock_analysis_cache')
                     .select('analysis')
                     .eq('ticker', data.ticker)
@@ -163,315 +167,198 @@ export const StockTerminalModal = ({
                     .limit(1)
                     .maybeSingle();
 
-                if (error) throw error;
-
-                if (cacheData?.analysis) {
+                if (isMounted.current && cacheData?.analysis) {
                     const analysis = cacheData.analysis;
                     setFetchedAnalysis({
-                        bullPoints: analysis.bullCase || ["강세 요인 데이터가 부족합니다."],
-                        bearPoints: analysis.bearCase || ["약세 요인 데이터가 부족합니다."],
+                        bullPoints: analysis.bullCase || ["강세 요인 데이터 부족"],
+                        bearPoints: analysis.bearCase || ["약세 요인 데이터 부족"],
                         formulaVerdict: analysis.matchReasoning || data.formulaVerdict,
                         riskLevel: analysis.riskLevel || data.riskLevel,
                     });
-                } else {
-                    setFetchedAnalysis({
-                        bullPoints: ["기술적 강세 시그널이 아직 포착되지 않았습니다.", "시스템 스캔을 다시 실행해 보세요."],
-                        bearPoints: ["리스크 요인 분석 중입니다."],
-                        formulaVerdict: "해당 종목에 대한 시스템 분석 데이터가 존재하지 않습니다."
-                    });
                 }
             } catch (err) {
-                console.error("Failed to fetch missing analysis:", err);
+                console.error("Analysis fetch error:", err);
             }
         };
 
-        if (isOpen) {
-            fetchMissingData();
-        }
-    }, [data.ticker, isOpen]); // data 전체가 아닌 고유 식별자 ticker와 열림 상태에만 의존
+        fetchMissingData();
+    }, [data.ticker, isOpen]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                onClose();
-            }
+            if (e.key === 'Escape') onClose();
         };
-
         if (isOpen) {
             document.body.style.overflow = 'hidden';
             window.addEventListener('keydown', handleKeyDown);
-        } else {
-            document.body.style.overflow = '';
         }
-
         return () => {
             document.body.style.overflow = '';
             window.removeEventListener('keydown', handleKeyDown);
         };
     }, [isOpen, onClose]);
 
-
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 md:p-10">
-                    {/* Backdrop */}
-                    <div
-                        onClick={onClose}
-                        className="absolute inset-0 bg-[#020617]/90 backdrop-blur-2xl"
-                    />
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-[#020617]/95 backdrop-blur-3xl" />
 
-                    {/* Modal Container */}
-                    <div
-                        className="relative w-full max-w-5xl lg:max-w-6xl max-h-[95vh] md:max-h-[90vh] bg-[#020617]/90 backdrop-blur-3xl border border-white/10 rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-[0_0_80px_rgba(99,102,241,0.2)] flex flex-col md:flex-row"
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+                        className="relative w-full max-w-4xl bg-[#0A0F1C]/90 backdrop-blur-3xl border border-slate-800 rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(34,211,238,0.1)] flex flex-col"
                     >
-                        {/* Terminal Grid Overlay */}
-                        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
-                             style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
-                        
-                        {/* Ambient Background Glows */}
-                        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-indigo-500/10 blur-[120px] rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-                        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-cyan-500/10 blur-[120px] rounded-full translate-x-1/2 translate-y-1/2 pointer-events-none" />
-
-                        {/* Left Column: Core Identity & Chart */}
-                        <div className="w-full md:w-1/2 lg:w-[45%] p-5 md:p-8 border-b md:border-b-0 md:border-r border-white/5 flex flex-col relative z-10 shrink-0">
-                            <div className="flex justify-between items-start mb-6 md:mb-10">
-                                <div>
-                                    <div className="flex items-center gap-3 mb-1">
-                                        <span className="px-2 py-1 rounded text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold tracking-widest uppercase mb-2 inline-block">
-                                            시스템 심층 분석
-                                        </span>
-                                    </div>
-                                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white tracking-tighter flex items-center gap-3">
-                                        {displayData.ticker}
-                                        <Fingerprint className="w-6 h-6 md:w-8 md:h-8 text-indigo-400 opacity-50" />
-                                    </h1>
-                                    <p className="text-slate-400 text-[10px] md:text-sm font-medium flex items-center gap-2 mt-1 md:mt-2">
-                                        <span className={clsx(
-                                            "w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]",
-                                            displayData.dnaScore >= 70 ? "bg-emerald-500 shadow-emerald-500/50" : displayData.dnaScore >= 50 ? "bg-amber-500 shadow-amber-500/50" : "bg-rose-500 shadow-rose-500/50"
-                                        )} />
-                                        시스템 분석 신뢰도: <span className="text-white font-bold">{displayData.dnaScore}%</span>
-                                    </p>
+                        {/* 1. HUD Header Section */}
+                        <div className="p-8 border-b border-slate-800/80 flex justify-between items-start bg-gradient-to-b from-slate-900/50 to-transparent relative z-10">
+                            <div className="flex items-center gap-6">
+                                <div className="w-16 h-16 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 flex items-center justify-center shadow-[inset_0_0_20px_rgba(99,102,241,0.2)]">
+                                    <Dna className="w-8 h-8 text-indigo-400" />
                                 </div>
-                                <button
-                                    onClick={onClose}
-                                    className="p-2 md:p-3 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors group"
-                                >
-                                    <X className="w-5 h-5 md:w-6 md:h-6 text-slate-400 group-hover:text-white transition-colors" />
-                                </button>
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                        <span className="px-2 py-0.5 rounded text-[9px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-black tracking-[0.2em] uppercase">Deep Dive Mode</span>
+                                        <span className="px-2 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-black tracking-[0.2em] uppercase">Neural Engine Sync Active</span>
+                                    </div>
+                                    <h1 className="text-4xl font-black text-white tracking-tighter flex items-center gap-4">
+                                        <span className="text-slate-500 opacity-40">/</span>
+                                        {displayData.ticker}
+                                        <span className="text-xs font-bold text-slate-500 opacity-60 uppercase tracking-widest bg-slate-800/50 px-2 py-0.5 rounded">NASDAQ</span>
+                                    </h1>
+                                </div>
+                            </div>
+                            <button onClick={onClose} className="p-3 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors group">
+                                <X className="w-5 h-5 text-slate-400 group-hover:text-white" />
+                            </button>
+                        </div>
+
+                        {/* 2. HUD Core Content (Single Pane) */}
+                        <div className="p-8 space-y-8 overflow-y-auto max-h-[70vh] custom-scrollbar relative z-10">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+                                <div className="space-y-3">
+                                    <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] flex items-center gap-2 mb-3">
+                                        <Activity className="w-4 h-4 text-indigo-500" /> Neural Projection Matrix
+                                    </h3>
+                                    <NeuralProjectionChart 
+                                        currentPrice={displayData.price || 0} 
+                                        targetPrice={displayData.targetPrice || (displayData.price ? displayData.price * 1.05 : 0)}
+                                        _stopPrice={displayData.stopPrice || (displayData.price ? displayData.price * 0.95 : 0)}
+                                    />
+                                    <div className="grid grid-cols-2 gap-4 mt-6">
+                                        <div className="bg-[#020617]/50 p-4 rounded-2xl border border-slate-800 font-mono">
+                                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">Day High</span>
+                                            <span className="text-lg font-black text-white">$825.40</span>
+                                        </div>
+                                        <div className="bg-[#020617]/50 p-4 rounded-2xl border border-slate-800 font-mono">
+                                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">Volume (24H)</span>
+                                            <span className="text-lg font-black text-white">42.8M</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-[#020617]/40 rounded-3xl border border-slate-800/80 p-8 flex flex-col justify-center relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                        <Fingerprint className="w-24 h-24" />
+                                    </div>
+                                    <div className="relative z-10">
+                                        <div className="flex justify-between items-end mb-6">
+                                            <div>
+                                                <h3 className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.3em] mb-1">Core DNA Matrix</h3>
+                                                <p className="text-[10px] text-slate-500 font-medium tracking-tight">Confidence Verification Node</p>
+                                            </div>
+                                            <span className="text-5xl font-black text-white font-mono tracking-tighter drop-shadow-[0_0_15px_rgba(34,211,238,0.4)]">
+                                                {displayData.dnaScore}
+                                            </span>
+                                        </div>
+                                        <div className="space-y-6">
+                                            <DnaMatrixBar label="Institutional Flow" value={Math.min(displayData.dnaScore + 10, 98)} colorClass="bg-emerald-400" />
+                                            <DnaMatrixBar label="Relative Strength" value={Math.min(displayData.dnaScore - 5, 100)} colorClass="bg-indigo-400" />
+                                            <DnaMatrixBar label="Sentiment Engine" value={Math.min(displayData.dnaScore + 2, 100)} colorClass="bg-cyan-400" />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* DNA Gauge Visualization */}
-                            <div className="flex-1 flex flex-col justify-center">
-                                <div className="h-32 md:h-48 w-full relative mb-8 flex flex-col justify-center px-4 md:px-8 bg-black/20 rounded-3xl border border-white/5">
-                                    <div className="flex justify-between items-end mb-4">
-                                        <span className="text-slate-400 font-black text-xs tracking-widest uppercase flex items-center gap-2 group/dna relative cursor-help">
-                                            <Target className="w-4 h-4 text-indigo-400" />
-                                            System Quant Analysis
-                                        </span>
-                                        <span className="text-4xl md:text-5xl font-black text-white">{displayData.dnaScore}</span>
+                            <div className="bg-[#020617]/50 rounded-3xl border border-slate-800/50 p-8 space-y-6">
+                                <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] flex items-center gap-2 mb-4">
+                                    <Zap className="w-4 h-4 text-indigo-500 fill-indigo-500/20" /> System Verdict & Catalysts
+                                </h3>
+                                <p className="text-md text-slate-300 font-medium leading-relaxed mb-6">
+                                    {displayData.formulaVerdict || "시스템 분석 결과를 불러오는 중입니다..."}
+                                </p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-800/50">
+                                    <div className="space-y-3">
+                                        <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest block mb-2">Alpha Catalysts</span>
+                                        <ul className="space-y-2">
+                                            {displayData.bullPoints?.slice(0, 3).map((pt, i) => (
+                                                <li key={i} className="flex gap-2 text-xs text-slate-400 font-medium items-start">
+                                                    <TrendingUp className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" /> {pt}
+                                                </li>
+                                            ))}
+                                        </ul>
                                     </div>
-                                    <div className="w-full h-8 md:h-10 flex gap-[2px] md:gap-1 relative">
-                                        {[...Array(20)].map((_, i) => {
-                                            const threshold = (i + 1) * 5;
-                                            const isActive = displayData.dnaScore >= threshold;
-                                            return (
-                                                <div
-                                                    key={i}
-                                                    className={clsx(
-                                                        "flex-1 rounded-[2px] transition-all duration-500",
-                                                        isActive 
-                                                            ? (displayData.dnaScore >= 70 ? 'bg-gradient-to-t from-emerald-600 to-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : displayData.dnaScore >= 50 ? 'bg-gradient-to-t from-amber-600 to-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'bg-gradient-to-t from-rose-600 to-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.3)]') 
-                                                            : 'bg-white/5 border border-white/5'
-                                                    )}
-                                                    style={{ 
-                                                        transform: isActive ? 'scaleY(1)' : 'scaleY(0.7)',
-                                                        opacity: isActive ? 1 : 0.5,
-                                                        transitionDelay: `${i * 20}ms`
-                                                    }}
-                                                />
-                                            );
-                                        })}
-                                    </div>
-                                    <div className="flex justify-between text-[9px] items-center text-slate-500 font-black font-mono mt-4 tracking-widest">
-                                        <span>STATUS: READY</span>
-                                        <div className="flex gap-4">
-                                            <span>● SYSTEM_STABLE</span>
-                                            <span>THROUGHPUT: 100%</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-
-                                <div 
-                                    className="mt-auto bg-indigo-500/10 p-5 rounded-2xl border border-indigo-500/30 group/kelly relative cursor-help shadow-[inset_0_0_20px_rgba(99,102,241,0.1)]"
-                                >
-                                    <p className="text-[10px] text-indigo-300 uppercase font-black tracking-[0.2em] mb-2 flex items-center gap-1">
-                                        <ShieldCheck className="w-3 h-3" />
-                                        사용자 포트폴리오 추천 비중
-                                        <HelpCircle className="w-3 h-3 opacity-50" />
-                                    </p>
-                                    <div className="flex items-center justify-between relative z-10">
-                                        <span className="text-4xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-                                            {displayData.kellyWeight || 0}%
-                                        </span>
-                                        <div className="text-right">
-                                            <span className="text-[10px] text-indigo-300/80 font-bold block uppercase tracking-tighter">Safe Allocation</span>
-                                            <span className="text-[8px] text-indigo-400/60 font-medium italic">Quarter-Kelly Applied</span>
-                                        </div>
-                                    </div>
-                                    <div className="absolute bottom-full left-0 mb-3 w-full bg-slate-900/95 backdrop-blur-xl text-white text-[11px] p-4 rounded-xl shadow-2xl opacity-0 group-hover/kelly:opacity-100 transition-all z-50 pointer-events-none leading-relaxed font-normal normal-case tracking-normal border border-white/10">
-                                        <span className="text-indigo-400 font-bold block mb-1 uppercase tracking-widest text-[10px]">Position Sizing Guide</span> 
-                                        승률과 손익비를 수학적으로 계산한 포트폴리오 비중입니다. 초저가주의 높은 변동성을 반영하여 이론값의 25%만 제안하는 보수적 수치(Quarter-Kelly)입니다.
+                                    <div className="space-y-3">
+                                        <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest block mb-2">Delta Risks</span>
+                                        <ul className="space-y-2">
+                                            {displayData.bearPoints?.slice(0, 3).map((pt, i) => (
+                                                <li key={i} className="flex gap-2 text-xs text-slate-500 font-medium items-start">
+                                                    <TrendingDown className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" /> {pt}
+                                                </li>
+                                            ))}
+                                        </ul>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Right Column: Narrative & Evidence */}
-                        <div className="flex-1 p-4 md:p-8 bg-black/20 flex flex-col overflow-y-auto w-full min-w-0 relative z-10
-                                        [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent 
-                                        [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20">
-                            <div className="space-y-6 md:space-y-10">
-                                {/* Strategic Result Section */}
-                                <div>
-                                    <h3 className="text-[10px] md:text-xs font-black text-indigo-400 uppercase tracking-[0.2em] mb-3 md:mb-4 flex items-center gap-2">
-                                        <Zap className="w-4 h-4 fill-indigo-400" />
-                                        시스템 전략 리포트 (System Verdict)
-                                    </h3>
-                                    {(!displayData.formulaVerdict || displayData.formulaVerdict.includes("해당 자산에 대한") || displayData.formulaVerdict.includes("평가지가 존재하지")) ? (
-                                        <div className="flex gap-4 mb-4">
-                                            {displayData.quantData ? (
-                                                <>
-                                                    <div className="bg-white/5 px-4 py-2 rounded-xl border border-white/10">
-                                                        <p className="text-[9px] text-slate-500 font-bold uppercase mb-1">Win Rate</p>
-                                                        <p className="text-lg font-black text-emerald-400">{displayData.quantData.historical_win_rate_pct}%</p>
-                                                    </div>
-                                                    <div className="bg-white/5 px-4 py-2 rounded-xl border border-white/10">
-                                                        <p className="text-[9px] text-slate-500 font-bold uppercase mb-1">Sim. Cases</p>
-                                                        <p className="text-lg font-black text-indigo-400">{displayData.quantData.similar_historical_cases}</p>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <p className="text-sm text-slate-400 font-medium italic mb-4 mt-2 px-2">
-                                                    {displayData.formulaVerdict}
-                                                </p>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm sm:text-base md:text-lg lg:text-xl text-slate-200 font-medium leading-relaxed tracking-tight">
-                                            {displayData.formulaVerdict}
-                                        </p>
-                                    )}
-                                </div>
-
-                                {/* Advanced Quant Metrics Pills (Moved to right column for balance) */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mt-2">
-                                    <div className="sm:col-span-2 bg-white/5 p-3 md:p-4 rounded-2xl md:rounded-3xl border border-white/5 hover:bg-white/10 transition-colors group/er relative cursor-help">
-                                        <p className="text-[9px] md:text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1 flex items-center gap-1">
-                                            Efficiency Ratio (ER)
-                                            <HelpCircle className="w-2.5 h-2.5 opacity-30" />
-                                        </p>
-                                        <div className="flex items-end gap-1 md:gap-2 text-2xl md:text-3xl font-black text-emerald-400">
-                                            {displayData.efficiencyRatio || '0.00'}
-                                            <Activity className="w-4 h-4 md:w-5 md:h-5 mb-0.5 md:mb-1" />
-                                        </div>
-                                        <div className="absolute bottom-full left-0 mb-3 w-72 bg-slate-900/95 backdrop-blur-xl text-white text-[11px] p-4 rounded-xl shadow-2xl opacity-0 group-hover/er:opacity-100 transition-all z-50 pointer-events-none border border-white/10 leading-relaxed font-normal normal-case tracking-normal">
-                                            <span className="text-emerald-400 font-bold block mb-1 uppercase tracking-widest text-[10px]">Trend Purity (ER)</span>
-                                            추세의 방향성을 측정합니다. 1.0에 가까울수록 가격 변동의 노이즈가 적고 한 방향으로의 힘이 강력함을 수학적으로 증명합니다.
-                                        </div>
-                                    </div>
-                                    
-                                    {/* RVOL & RSI Gauges */}
-                                    <div className="sm:col-span-2 grid grid-cols-2 gap-3">
-                                        <TechnicalGauge 
-                                            label="RVOL (Relative Vol)" 
-                                            value={displayData.quantData?.volume_surge_multiplier || 1.0} 
-                                            type="surge" 
-                                            unit="x"
-                                        />
-                                        <TechnicalGauge 
-                                            label="RSI (Daily)" 
-                                            value={displayData.quantData?.rsi_14 || 50} 
-                                            unit=""
-                                            zones={{ low: 30, high: 70 }}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Bull vs Bear Grid */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-8">
-                                    <div className="space-y-3 md:space-y-4">
-                                        <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
-                                            <TrendingUp className="w-3 h-3" />
-                                            {displayData.quantData ? '수치 기반 강세 지표' : '강세 요인 (Bullish)'}
-                                        </h4>
-                                        <ul className="space-y-3">
-                                            {displayData.bullPoints && displayData.bullPoints.length > 0 && displayData.bullPoints[0] !== "No details" && displayData.bullPoints[0] !== "모멘텀 지표 분석 중" ? (
-                                                displayData.bullPoints.map((point, i) => (
-                                                    <li key={i} className="flex gap-3 text-slate-300 text-sm font-medium leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5 hover:border-emerald-500/30 transition-colors shadow-sm">
-                                                        <ChevronRight className="w-5 h-5 text-emerald-400 shrink-0" />
-                                                        {point}
-                                                    </li>
-                                                ))
-                                            ) : (
-                                                <div className="py-6 px-4 rounded-xl border border-white/5 bg-white/5 flex flex-col items-center justify-center gap-2 opacity-60 shadow-inner">
-                                                    <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
-                                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest text-center">Identifying Bullish<br/>Confirmation...</span>
-                                                </div>
-                                            )}
-                                        </ul>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <h4 className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-2">
-                                            <TrendingDown className="w-3 h-3" />
-                                            {displayData.quantData ? '수치 기반 약세/변동성 지표' : '약세 요인 (Bearish)'}
-                                        </h4>
-                                        <ul className="space-y-3">
-                                            {displayData.bearPoints && displayData.bearPoints.length > 0 && displayData.bearPoints[0] !== "No details" && displayData.bearPoints[0] !== "리스크 요인 스캔 중" ? (
-                                                displayData.bearPoints.map((point, i) => (
-                                                    <li key={i} className="flex gap-3 text-slate-300 text-sm font-medium leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5 hover:border-rose-500/30 transition-colors shadow-sm">
-                                                        <ChevronRight className="w-5 h-5 text-rose-400 shrink-0" />
-                                                        {point}
-                                                    </li>
-                                                ))
-                                            ) : (
-                                                <div className="py-6 px-4 rounded-xl border border-white/5 bg-white/5 flex flex-col items-center justify-center gap-2 opacity-60 shadow-inner">
-                                                    <Activity className="w-6 h-6 text-slate-400" />
-                                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest text-center">Scanning Risk<br/>Vectors...</span>
-                                                </div>
-                                            )}
-                                        </ul>
-                                    </div>
-                                </div>
-
-
-                                {/* Action Footer */}
-                                <div className="pt-6 flex flex-col sm:flex-row gap-4 relative z-20">
+                        {/* 3. Smart Execute Action Footer */}
+                        <div className="p-8 border-t border-slate-800/80 bg-[#020617] flex justify-between items-center relative z-10">
+                            <div className="flex items-center gap-4">
+                                <button onClick={onClose} className="text-[10px] font-black text-slate-500 hover:text-slate-300 uppercase tracking-[0.2em] transition-colors bg-white/5 px-6 py-3 rounded-xl border border-white/5">
+                                    Close
+                                </button>
+                                
+                                {onAddToWatchlist && (
                                     <button 
                                         onClick={async () => {
-                                            if (onAddToWatchlist) {
-                                                setIsAddingWatchlist(true);
-                                                try {
-                                                    await onAddToWatchlist();
-                                                } catch (error) {
-                                                    console.error("Failed to add to watchlist:", error);
-                                                } finally {
-                                                    setIsAddingWatchlist(false);
-                                                }
+                                            try {
+                                                await onAddToWatchlist();
+                                            } catch (error) {
+                                                console.error("Watchlist add error:", error);
                                             }
                                         }}
-                                        disabled={isAddingWatchlist}
-                                        className="flex-1 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 hover:from-indigo-500/20 hover:to-purple-500/20 text-white font-black py-4 rounded-2xl border border-indigo-500/20 hover:border-indigo-500/40 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 disabled:opacity-50 shadow-[0_0_20px_rgba(99,102,241,0.1)] hover:shadow-[0_0_30px_rgba(99,102,241,0.2)] hover:-translate-y-0.5"
+                                        className="text-[10px] font-black text-cyan-400 hover:text-cyan-300 uppercase tracking-[0.2em] transition-colors bg-cyan-500/5 px-6 py-3 rounded-xl border border-cyan-500/10 flex items-center gap-2"
                                     >
-                                        {isAddingWatchlist ? <Loader2 className="w-4 h-4 animate-spin" /> : <List className="w-4 h-4" />}
-                                        관심 종목 추가
+                                        <List className="w-3.5 h-3.5" />
+                                        Watchlist
                                     </button>
+                                )}
+                            </div>
+                            
+                            <div className="flex items-center gap-4">
+                                <div className="hidden md:flex flex-col items-end mr-2 text-right">
+                                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Confidence Allocation</span>
+                                    <span className="text-xs font-black text-indigo-400 font-mono">{displayData.kellyWeight || 25}% Q-Kelly</span>
                                 </div>
+                                <button 
+                                    onClick={() => onExecuteTrade && onExecuteTrade({
+                                        ticker: displayData.ticker,
+                                        price: displayData.price,
+                                        targetPrice: displayData.targetPrice,
+                                        stopPrice: displayData.stopPrice,
+                                        lotSize: displayData.kellyWeight
+                                    })}
+                                    className="group relative px-10 py-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-[0.2em] transition-all shadow-[0_0_30px_rgba(79,70,229,0.4)] flex items-center gap-3 active:scale-95"
+                                >
+                                    <ShieldCheck className="w-4 h-4 text-white" />
+                                    <span>Execute Trade</span>
+                                    <ArrowUpRight className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                                </button>
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
             )}
         </AnimatePresence>

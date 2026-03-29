@@ -26,6 +26,7 @@ class PaperTradingManager:
         strength: str,
         rsi: float,
         ai_report: str = "",
+        is_armed: bool = False,
     ):
         """
         v4 State Machine:
@@ -41,7 +42,7 @@ class PaperTradingManager:
             return
 
         # --- 1. 신규 매수 (STRONG BUY & No position) ---
-        if signal_type == "BUY" and strength == "STRONG" and not pos:
+        if signal_type == "BUY" and strength == "STRONG" and not pos and is_armed:
             # 켈리 비중에 따른 가상 매수 (단순화: 가용한 현금의 15% 정도씩 진입 가정)
             buy_budget = acc["cash_available"] * 0.15
             if buy_budget < 500:  # 최소 주문 금액
@@ -97,7 +98,7 @@ class PaperTradingManager:
                 ts_threshold = max(ts_threshold, new_ts)
 
             # B. SCALE_OUT 체크 (RSI > 60)
-            if rsi > 60 and not is_scaled_out:
+            if rsi > 60 and not is_scaled_out and is_armed:
                 sell_units = units * 0.5
                 profit_cash = sell_units * price
 
@@ -135,7 +136,7 @@ class PaperTradingManager:
                 return
 
             # C. TRAILING STOP 체크
-            if price < ts_threshold:
+            if price < ts_threshold and is_armed:
                 profit_cash = units * price
                 pnl_pct = (price / entry_price - 1) * 100
                 profit_amt = (price - entry_price) * units

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Zap, Search } from 'lucide-react';
 import { getTopStocks } from '../services/stockService';
 import type { Stock } from '../types';
 import { StockTerminalModal } from '../components/dashboard/StockTerminalModal';
@@ -112,53 +112,69 @@ export const ScannerPage = () => {
   };
 
   return (
-    <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-8 animate-in fade-in duration-500 bg-slate-50 min-h-screen">
-      <ScannerHeader 
-        loading={loading}
-        onRefresh={fetchStocks}
-        onNavigateWatchlist={() => navigate('/watchlist')}
-      />
+    <div className="min-h-screen bg-[#020617] relative overflow-hidden">
+      {/* Terminal Grid Background Overlay */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+           style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+      
+      {/* Ambient Glows */}
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-indigo-500/10 blur-[120px] rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-blue-500/10 blur-[120px] rounded-full -translate-x-1/2 translate-y-1/2 pointer-events-none" />
 
-      <ScannerControls 
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        minDna={minDna}
-        onMinDnaToggle={() => setMinDna(minDna === 70 ? 0 : 70)}
-        isHistorical={isHistorical}
-        onHistoricalToggle={() => setIsHistorical(!isHistorical)}
-        selectedRisk={selectedRisk}
-        onRiskChange={setSelectedRisk}
-        selectedSector={selectedSector}
-        onSectorChange={setSelectedSector}
-        sectors={sectors}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-      />
+      <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-8 animate-in fade-in duration-700 relative z-10">
+        <ScannerHeader 
+          loading={loading}
+          onRefresh={fetchStocks}
+          onNavigateWatchlist={() => navigate('/watchlist')}
+        />
 
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-40 space-y-6 relative">
-          <Loader2 className="w-16 h-16 text-[#0176d3] animate-spin relative z-10 opacitiy-80" />
-          <p className="text-slate-400 font-black text-xs tracking-widest uppercase animate-pulse">Filtering Market Signal Matrix...</p>
-        </div>
-      ) : processedStocks.length === 0 ? (
-        <div className="text-center py-40 bg-white rounded-2xl border-2 border-dashed border-slate-200 shadow-inner">
-          <p className="text-slate-500 font-bold text-lg">No results matched your search matrix.</p>
-          <button onClick={() => { setSearchTerm(''); setMinDna(0); setSelectedRisk('All'); setSelectedSector('All'); }} className="mt-4 text-[#0176d3] font-black uppercase text-xs hover:underline tracking-widest">Reset Core Filters</button>
-        </div>
-      ) : (
-        <>
-          <ScannerTopFive stocks={stocks} onDeepDive={handleDeepDive} />
-          <div className="h-4" />
-          <ScannerAssetList 
-            viewMode={viewMode}
-            stocks={processedStocks}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onSort={toggleSort}
-            onDeepDive={handleDeepDive}
-          />
-        </>
-      )}
+        <ScannerControls 
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          minDna={minDna}
+          onMinDnaToggle={() => setMinDna(minDna === 70 ? 0 : 70)}
+          isHistorical={isHistorical}
+          onHistoricalToggle={() => setIsHistorical(!isHistorical)}
+          selectedRisk={selectedRisk}
+          onRiskChange={setSelectedRisk}
+          selectedSector={selectedSector}
+          onSectorChange={setSelectedSector}
+          sectors={sectors}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-40 space-y-8">
+            <div className="relative">
+              <div className="w-20 h-20 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
+              <Zap className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-indigo-400 animate-pulse" />
+            </div>
+            <p className="text-slate-400 font-black text-xs tracking-[0.3em] uppercase animate-pulse">Filtering Market Signal Matrix...</p>
+          </div>
+        ) : processedStocks.length === 0 ? (
+          <div className="text-center py-40 bg-[#0b101a]/40 rounded-[2rem] border border-dashed border-slate-800 shadow-2xl backdrop-blur-sm">
+            <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-800">
+               <Search className="w-8 h-8 text-slate-600" />
+            </div>
+            <p className="text-slate-400 font-bold text-lg mb-4">No results matched your search matrix.</p>
+            <button onClick={() => { setSearchTerm(''); setMinDna(0); setSelectedRisk('All'); setSelectedSector('All'); }} className="text-indigo-400 font-black uppercase text-xs hover:text-indigo-300 tracking-widest transition-colors py-2 px-4 bg-indigo-500/10 rounded-lg border border-indigo-500/20">Reset Core Filters</button>
+          </div>
+        ) : (
+          <>
+            <ScannerTopFive stocks={stocks} onDeepDive={handleDeepDive} />
+            <div className="h-4" />
+            <ScannerAssetList 
+              viewMode={viewMode}
+              stocks={processedStocks}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={toggleSort}
+              onDeepDive={handleDeepDive}
+            />
+          </>
+        )}
+      </div>
 
       {terminalData && (
         <StockTerminalModal

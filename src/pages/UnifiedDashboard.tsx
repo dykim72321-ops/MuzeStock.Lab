@@ -1,18 +1,15 @@
-import { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+
 import { 
-  List, 
-  Zap, 
-  TrendingUp, 
-  Activity, 
-  ArrowRight,
-  ShieldCheck,
-  Star
+  Zap,
+  ShieldCheck
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { fetchStrategyStats, apiFetch } from '../services/pythonApiService';
+import { fetchStrategyStats } from '../services/pythonApiService';
 import { CommandSettings } from '../components/dashboard/CommandSettings';
-import clsx from 'clsx';
+import { StrategicSignalMatrix } from '../components/dashboard/StrategicSignalMatrix';
+import { AlphaDiscoverySection } from '../components/dashboard/AlphaDiscoverySection';
+import { MonitoringOrbit } from '../components/dashboard/MonitoringOrbit';
+
 
 // Hooks & Services
 import { useMarketEngine } from '../hooks/useMarketEngine';
@@ -22,16 +19,13 @@ import { processSignal } from '../utils/signalProcessor';
 import { toast } from 'sonner';
 import { supabase as supabaseClient } from '../lib/supabase';
 
-// Components
-import { MarketCommandHeader } from '../components/layout/MarketCommandHeader';
-import { QuantSignalCard } from '../components/ui/QuantSignalCard';
+
 import { StockTerminalModal } from '../components/dashboard/StockTerminalModal';
 import { LiveExecutionCenter } from '../components/dashboard/LiveExecutionCenter';
 import { PerformanceSummary } from '../components/dashboard/PerformanceSummary';
 
 export const UnifiedDashboard = () => {
-  const navigate = useNavigate();
-  const { pulseMap, isConnected, isHunting, huntStatus, triggerHunt } = useMarketEngine();
+  const { pulseMap } = useMarketEngine();
 
   // 1. Data States
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([]);
@@ -40,10 +34,10 @@ export const UnifiedDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [terminalData, setTerminalData] = useState<any | null>(null);
   const [strategyStats, setStrategyStats] = useState<any | null>(null);
-  const [pulseStatus, setPulseStatus] = useState<any>(null);
+  const [lastFetchedTime, setLastFetchedTime] = useState<string>('--:--:--');
 
   // 2. Fetch Data
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
       setLoading(true);
       try {
         const items = await getWatchlist();
@@ -64,26 +58,21 @@ export const UnifiedDashboard = () => {
         
         if (dError) console.error('Discovery fetch error:', dError);
 
-        try {
-          const pData = await apiFetch('/api/pulse/status');
-          setPulseStatus(pData);
-        } catch (e) {
-          console.warn('[Dashboard] Pulse status fetch failed');
-        }
-        
+
         setWatchlistStocks(watchlistData);
         setDiscoveryStocks(dData || []);
         setStrategyStats(statsData);
+        setLastFetchedTime(new Date().toISOString().substring(11, 19));
       } catch (err) {
         console.error('Failed to load unified data:', err);
       } finally {
         setLoading(false);
       }
-    };
+    }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   // 3. Derived States
   const strongTickers = useMemo(() => 
@@ -119,310 +108,108 @@ export const UnifiedDashboard = () => {
   };
 
   return (
-    <div className="max-w-[1800px] mx-auto px-4 md:px-8 py-8 space-y-8 animate-in fade-in duration-700 bg-slate-50 min-h-screen relative overflow-hidden">
-      {/* Background Decorative Gradients */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-500/5 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-emerald-500/5 blur-[120px] rounded-full pointer-events-none" />
+    <div className="min-h-screen bg-[#020617] relative overflow-hidden">
+      {/* Terminal Grid Overlay */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+           style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+      
+      {/* Ambient Glows */}
+      <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-indigo-500/10 blur-[120px] rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+      <div className="absolute bottom-1/2 right-0 w-[500px] h-[500px] bg-cyan-500/10 blur-[120px] rounded-full translate-x-1/2 pointer-events-none" />
+      <div className="absolute bottom-0 left-1/2 w-[800px] h-[400px] bg-blue-600/10 blur-[120px] rounded-full -translate-x-1/2 pointer-events-none" />
 
-      {/* 1. Unified Header */}
-      <MarketCommandHeader 
-        title="통합 지휘 통제실"
-        subtitle={pulseStatus?.market_status === 'CLOSED' ? "🌙 Market Closed (Snapshot Analysis View)" : "⚡ Real-time Market Pulse Live v4"}
-        isConnected={isConnected}
-        isHunting={isHunting}
-        huntStatus={huntStatus}
-        onTriggerHunt={triggerHunt}
-      />
-
-      {loading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-           <div className="lg:col-span-8 space-y-8">
-              <div className="h-[400px] bg-white rounded-3xl border border-slate-200 animate-pulse" />
-              <div className="h-[300px] bg-white rounded-3xl border border-slate-200 animate-pulse" />
-           </div>
-           <div className="lg:col-span-4">
-              <div className="h-[700px] bg-slate-900 rounded-3xl animate-pulse" />
-           </div>
+      {/* 🆕 Global Refresh Indicator (Syncing mode) */}
+      {loading && (
+        <div className="fixed top-24 right-8 z-[100] flex items-center gap-3 bg-[#0b101a]/90 backdrop-blur-xl px-4 py-2 rounded-xl border border-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.2)] animate-in fade-in slide-in-from-top-4">
+          <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
+          <span className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em]">Synchronizing Nexus...</span>
         </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-            
-        {/* TOP TIPS AREA (New) */}
-        <div className="lg:col-span-12">
-          <div className="bg-indigo-600/5 border border-indigo-500/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center gap-6 animate-in slide-in-from-top-4 duration-1000">
-            <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
-              <Star className="w-6 h-6 text-white" />
+      )}
+
+      <div className="max-w-[1700px] mx-auto px-6 py-8 space-y-10 animate-in fade-in duration-700 relative z-10">
+        {/* 1. Unified Header (Alpha Discovery Terminal) */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 border-b border-slate-800/50 pb-8">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <span className="w-1.5 h-4 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
+              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em]">Integrated Intelligence Nexus</span>
             </div>
-            <div className="flex-1">
-              <h3 className="text-sm font-black text-indigo-900 uppercase tracking-tight mb-1">Commander's Intelligence Brief</h3>
-              <p className="text-xs text-indigo-700/80 leading-relaxed font-medium">
-                현재 알고리즘 v4.2가 활성화되어 있습니다. **DNA Score 85점 이상**의 종목은 즉각적인 타격 신호로 간주됩니다. 
-                신속한 진입을 위해 **ARM SYSTEM**을 활성화하고, 긴급 상황 시 **Panic Liquidate All** 버튼으로 모든 포지션을 즉시 청산하십시오.
-              </p>
+            <h1 className="text-4xl font-black text-white flex items-center gap-4 tracking-tighter">
+              <Zap className="w-10 h-10 text-indigo-500 fill-indigo-500/20" />
+              Alpha Discovery Terminal
+            </h1>
+          </div>
+          <div className="flex items-center gap-8">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Global Market Status</span>
+              <div className="flex items-center gap-3 bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)] animate-pulse" />
+                <span className="text-xs font-black text-emerald-400 uppercase tracking-widest leading-none">Market Open</span>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <div className="px-3 py-1.5 bg-white/50 border border-indigo-100 rounded-xl text-[10px] font-black text-indigo-600 uppercase tracking-widest">v4.2 Active</div>
-              <div className="px-3 py-1.5 bg-white/50 border border-indigo-100 rounded-xl text-[10px] font-black text-emerald-600 uppercase tracking-widest">Secure Cloud</div>
-            </div>
+            <button className="flex items-center gap-3 px-6 py-3 bg-indigo-900/10 border border-indigo-500/30 rounded-2xl hover:bg-indigo-900/20 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)] group/guard">
+              <ShieldCheck className="w-5 h-5 text-indigo-400 group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">NexGuard Locked</span>
+            </button>
           </div>
         </div>
 
-        {/* LEFT COLUMN: Strategic Execution & Trading (8/12) */}
-            <div className="lg:col-span-8 space-y-8 relative z-10">
-              
-              {/* A. 실전 타격 통제실 (Execution Center) - HIGHLIGHTED TOP POSITION */}
-              <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-[32px] blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
-                <div className="relative">
+        {loading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-8 space-y-8">
+                <div className="h-[400px] bg-[#0b101a]/40 rounded-[2.5rem] border border-slate-800 animate-pulse" />
+                <div className="h-[300px] bg-[#0b101a]/40 rounded-[2.5rem] border border-slate-800 animate-pulse" />
+            </div>
+            <div className="lg:col-span-4">
+                <div className="h-[700px] bg-[#0b101a]/40 rounded-[2.5rem] border border-slate-800 animate-pulse" />
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-10">
+            {/* TOP ROW: Alpha Discovery (Full Width) */}
+            <div className="relative z-10">
+              <AlphaDiscoverySection 
+                filteredDiscovery={filteredDiscovery} 
+                handleDeepDive={handleDeepDive} 
+                lastFetchedTime={lastFetchedTime}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start relative z-10">
+              {/* LEFT COLUMN: Strategic Signal Matrix (8/12) */}
+              <div className="lg:col-span-8 space-y-10">
+                <StrategicSignalMatrix 
+                  strongTickers={strongTickers} 
+                  normalTickers={normalTickers} 
+                  pulseMap={pulseMap} 
+                />
+
+                {/* 🆕 Integrated Command Center (Live Execution) */}
+                <div className="mt-10">
                   <LiveExecutionCenter />
                 </div>
               </div>
 
-              {/* B. Live Signal Matrix (Dashboard Part) */}
-              <section className="space-y-6">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                  <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-indigo-600" />
-                    Strategic Signal Matrix
-                  </h2>
-                  <span className="text-[10px] font-black text-emerald-600 px-2 py-0.5 bg-emerald-50 rounded border border-emerald-100 uppercase tracking-widest">
-                    {strongTickers.length + normalTickers.length} active signals
-                  </span>
-                </div>
-
-                {/* STRONG SIGNALS with Charts */}
-                {strongTickers.length > 0 && (
-                  <div className="grid grid-cols-1 gap-6">
-                    {strongTickers.map(ticker => {
-                       const rawData = pulseMap[ticker];
-                       const displaySignal = processSignal(rawData);
-                       const cardData = {
-                         dna_score: displaySignal.dnaScore,
-                         bull_case: displaySignal.bullPoints.join(", "),
-                         bear_case: displaySignal.bearPoints.join(", "),
-                         reasoning_ko: displaySignal.reasoning,
-                         tags: displaySignal.tags,
-                       };
-
-                       return (
-                         <div key={ticker} className="glass-card rounded-3xl p-6 hover-glow animate-in fade-in slide-in-from-bottom-4 transition-all duration-500">
-                            <div className="flex items-center justify-between mb-4">
-                               <div className="flex items-center gap-3">
-                                  <div className="w-1.5 h-8 bg-indigo-500 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
-                                  <h3 className="text-4xl font-black text-slate-900 tracking-tighter">{ticker}</h3>
-                               </div>
-                               <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full uppercase border border-indigo-100">Mathematical Signal Triggered</span>
-                            </div>
-                            <QuantSignalCard data={cardData} />
-                         </div>
-                       );
-                    })}
-                  </div>
-                )}
-
-                {/* NORMAL SIGNALS (Grid) */}
-                {normalTickers.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {normalTickers.map((ticker) => (
-                      <div key={ticker} className="glass-card rounded-2xl p-0 overflow-hidden hover-glow transition-all">
-                        <QuantSignalCard 
-                          data={pulseMap[ticker].quant_metadata || null} 
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {strongTickers.length === 0 && normalTickers.length === 0 && (
-                  <div className="glass-card rounded-3xl border border-dashed border-slate-300 p-16 text-center">
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Activity className="w-8 h-8 text-slate-200 animate-pulse" />
-                    </div>
-                    <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Awaiting Quant Engine Stream...</p>
-                  </div>
-                )}
-              </section>
-
-              {/* C. Market Discovery -> 퀀트 핫 아이템 (TOP 5) */}
-              <section className="space-y-6">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                  <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-amber-500" />
-                    Alpha Discovery (Top Picks)
-                  </h2>
-                  <button 
-                    onClick={() => navigate('/scanner')}
-                    className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 flex items-center gap-1 uppercase tracking-widest transition-colors"
-                  >
-                    Scan Intelligence <ArrowRight className="w-3 h-3" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-                  {filteredDiscovery.map((stock, idx) => (
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: idx * 0.05 }}
-                      key={stock.ticker}
-                      onClick={() => handleDeepDive(stock)}
-                      className="relative group cursor-pointer"
-                    >
-                      <div className="absolute -top-3 -left-3 w-7 h-7 rounded-full bg-slate-900 border-2 border-white text-white flex items-center justify-center font-black text-[10px] z-20 shadow-lg group-hover:bg-indigo-600 transition-colors">
-                        {idx + 1}
-                      </div>
-                      <div className="glass-card p-5 rounded-2xl hover:border-indigo-500/50 hover-glow transition-all h-full flex flex-col">
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="w-9 h-9 bg-slate-50 rounded-lg flex items-center justify-center font-black text-xs text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                            {stock.ticker[0]}
-                          </div>
-                          <span className={clsx(
-                            "text-[10px] font-black font-mono",
-                            (stock.change_percent || stock.changePercent || 0) >= 0 ? "text-emerald-500" : "text-rose-500"
-                          )}>
-                            {(stock.change_percent || stock.changePercent || 0) >= 0 ? '+' : ''}{(stock.change_percent || stock.changePercent || 0).toFixed(1)}%
-                          </span>
-                        </div>
-                        <div>
-                          <span className="block text-lg font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{stock.ticker}</span>
-                          <span className="block text-[8px] text-slate-400 font-bold uppercase truncate">{stock.name}</span>
-                        </div>
-                        <div className="mt-auto pt-4 flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-slate-400 font-mono">${(stock.price || 0).toFixed(1)}</span>
-                          <div className="flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                            <Zap className="w-3 h-3 text-indigo-600 fill-current" />
-                            <span className="text-[9px] font-black text-indigo-600 font-mono">{stock.dna_score || stock.dnaScore}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </section>
-            </div>
-
-            {/* RIGHT COLUMN: Monitoring & Performance Orbit (4/12) */}
-            <div className="lg:col-span-4 space-y-6 relative z-10">
-              
-              {/* 1. Performance Summary Widget */}
-              <PerformanceSummary stats={strategyStats} />
-
-              {/* 2. Monitoring Orbit Section */}
-              <section className="bg-slate-950 rounded-3xl p-6 shadow-2xl border border-slate-800 h-full relative overflow-hidden">
-                {/* Background Accent */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/10 blur-[60px] pointer-events-none" />
+              {/* RIGHT COLUMN: Monitoring Orbit & Stats (4/12) */}
+              <div className="lg:col-span-4 space-y-8">
+                <PerformanceSummary stats={strategyStats} />
                 
-                <div className="flex items-center justify-between mb-6 relative z-10">
-                    <h2 className="text-sm font-black text-white flex items-center gap-2 uppercase tracking-widest">
-                      <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                      Monitoring Orbit
-                    </h2>
-                    <button 
-                      onClick={() => navigate('/watchlist')}
-                      className="p-1.5 bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors border border-slate-700"
-                    >
-                      <List className="w-4 h-4" />
-                    </button>
-                </div>
-
-                <div className="space-y-4 relative z-10">
-                  {watchlistItems.length > 0 ? (
-                    watchlistItems.map((item, idx) => {
-                      const stock = watchlistStocks.find(s => s.ticker === item.ticker);
-                      const buyPrice = item.buyPrice || stock?.price || 0;
-                      const currentReturnPct = buyPrice > 0 ? ((stock?.price || 0) - buyPrice) / buyPrice * 100 : 0;
-                      
-                      return (
-                        <motion.div 
-                          key={item.ticker}
-                          initial={{ x: 20, opacity: 0 }}
-                          animate={{ x: 0, opacity: 1 }}
-                          transition={{ delay: idx * 0.1 }}
-                          className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/50 transition-all group cursor-pointer"
-                          onClick={() => stock && handleDeepDive(stock)}
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center font-black text-xs text-indigo-400 border border-slate-700">
-                                {item.ticker[0]}
-                              </div>
-                              <div>
-                                <span className="block text-sm font-black text-white tracking-tight">{item.ticker}</span>
-                                <span className="block text-[9px] text-slate-600 font-bold uppercase tracking-widest">{item.status}</span>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className={clsx(
-                                "text-xs font-black font-mono",
-                                currentReturnPct >= 0 ? "text-emerald-400" : "text-rose-400"
-                              )}>
-                                {currentReturnPct >= 0 ? '+' : ''}{currentReturnPct.toFixed(1)}%
-                              </div>
-                              {stock && (
-                                  ${stock.price.toFixed(2)}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" 
-                                style={{ width: `${stock?.dna_score || stock?.dnaScore || 50}%` }} 
-                              />
-                            </div>
-                            <span className="text-[10px] font-black text-slate-500 font-mono">
-                              {stock?.dna_score || stock?.dnaScore || '--'}
-                            </span>
-                          </div>
-                        </motion.div>
-                      );
-                    })
-                  ) : (
-                    <div className="py-20 text-center opacity-30">
-                      <Star className="w-10 h-10 mx-auto mb-2" />
-                      <p className="text-xs font-black uppercase tracking-widest">Orbit is Empty</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-8 pt-6 border-t border-slate-800/50 relative z-10">
-                   <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-5 rounded-2xl border border-indigo-500/20 shadow-inner">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                          <ShieldCheck className="w-5 h-5 text-white" />
-                        </div>
-                        <span className="text-[11px] font-black text-indigo-300 uppercase tracking-wider">System Guard Advanced Active</span>
-                      </div>
-                      <p className="text-[11px] text-slate-400 leading-relaxed font-medium mb-3">
-                        본 시스템은 모든 거래 시 **Kelly Criterion (f*)** 기반의 자산 배분과 **MDD 2.5% 자동 방어** 로직이 실시간으로 작동하고 있습니다. 
-                      </p>
-                      <div className="flex items-center gap-4 py-2 border-t border-indigo-500/10">
-                        <div className="flex flex-col">
-                          <span className="text-[8px] text-indigo-400 font-black uppercase">Risk Mode</span>
-                          <span className="text-[10px] text-white font-bold uppercase">Dynamic Defense</span>
-                        </div>
-                        <div className="h-6 w-px bg-indigo-500/10" />
-                        <div className="flex flex-col">
-                          <span className="text-[8px] text-purple-400 font-black uppercase">Protection</span>
-                          <span className="text-[10px] text-white font-bold uppercase">Max MDD 2.5%</span>
-                        </div>
-                      </div>
-                   </div>
-                </div>
-              </section>
+                <MonitoringOrbit 
+                  watchlistItems={watchlistItems} 
+                  watchlistStocks={watchlistStocks} 
+                  pulseMap={pulseMap}
+                  handleDeepDive={handleDeepDive} 
+                />
+              </div>
+            </div>
+            
+            {/* Hidden / Internal Modules (Kept for functionality) */}
+            <div className="hidden">
+              <CommandSettings />
             </div>
           </div>
-
-          {/* 시스템 관제 패널 - FOOTER AREA */}
-          <div className="grid grid-cols-1 gap-8 relative z-10">
-            <CommandSettings />
-          </div>
-        </>
-      )}
+        )}
+      </div>
 
       {/* Modal Integration */}
       {terminalData && (

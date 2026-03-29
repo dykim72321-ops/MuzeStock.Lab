@@ -52,24 +52,24 @@ export const MuzepartSearchPage: React.FC = () => {
     <div className="space-y-6">
       {/* Connection Error Banner */}
       {!isBackendConnected && (
-        <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-xl text-sm">
-          <AlertTriangle className="w-4 h-4 text-rose-500" />
-          <span className="text-rose-700 font-medium flex-1">{connectionError || '백엔드 서버에 연결할 수 없습니다'}</span>
-          <button onClick={handleRetryConnection} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-rose-200 rounded-lg text-rose-700 font-bold hover:bg-rose-100 transition-colors">
+        <div className="flex items-center gap-3 p-4 bg-rose-900/20 border border-rose-500/30 rounded-xl text-sm shadow-[0_0_15px_rgba(244,63,94,0.1)]">
+          <AlertTriangle className="w-4 h-4 text-rose-400" />
+          <span className="text-rose-300 font-medium flex-1">{connectionError || '백엔드 서버에 연결할 수 없습니다'}</span>
+          <button onClick={handleRetryConnection} className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-900/50 border border-rose-400/30 rounded-lg text-rose-400 font-bold hover:bg-rose-800/50 transition-colors">
             <RefreshCw className="w-3 h-3" /> 재시도
           </button>
         </div>
       )}
 
       {/* Page Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-panel p-6 rounded-xl border border-slate-800 shadow-xl">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-[#0176d3] rounded-lg shadow-md">
+          <div className="p-3 bg-cyan-600 rounded-lg shadow-[0_0_15px_rgba(8,145,178,0.4)]">
             <Search className="w-6 h-6 text-white" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-0.5">Global Sourcing</p>
-            <h1 className="text-2xl font-black text-slate-900 leading-tight">제품 검색</h1>
+            <p className="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-0.5">Global Sourcing</p>
+            <h1 className="text-2xl font-black text-white leading-tight">제품 검색</h1>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -139,7 +139,7 @@ export const MuzepartSearchPage: React.FC = () => {
         {/* Results Panel */}
         <div className="lg:col-span-3">
           {error && (
-            <div className="p-6 bg-rose-50 border border-rose-200 rounded-xl text-center text-rose-700 font-bold mb-6">
+            <div className="p-6 bg-rose-900/20 border border-rose-500/30 rounded-xl text-center text-rose-400 font-bold mb-6">
               [SYSTEM ERROR] {error}
             </div>
           )}
@@ -164,20 +164,20 @@ export const MuzepartSearchPage: React.FC = () => {
           {phase === 'RESULTS' && (
             <div className="space-y-4">
               {/* Controls */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 glass-panel rounded-xl border border-slate-800 shadow-xl">
                 <div className="flex items-center gap-4">
-                  <span className="text-sm text-slate-600">
-                    <strong>{processedResults.length}</strong> results found
+                  <span className="text-sm text-slate-300">
+                    <strong className="text-white">{processedResults.length}</strong> results found
                   </span>
-                  <div className="flex bg-slate-100 p-1 rounded-lg">
+                  <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-800">
                     <button 
-                      className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-[#0176d3]' : 'text-slate-500 hover:text-slate-700'}`}
+                      className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-cyan-900/40 shadow-sm text-cyan-400 border border-cyan-500/30' : 'text-slate-500 hover:text-slate-300'}`}
                       onClick={() => setViewMode('table')}
                     >
                       <List className="w-4 h-4" />
                     </button>
                     <button 
-                      className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-[#0176d3]' : 'text-slate-500 hover:text-slate-700'}`}
+                      className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-cyan-900/40 shadow-sm text-cyan-400 border border-cyan-500/30' : 'text-slate-500 hover:text-slate-300'}`}
                       onClick={() => setViewMode('grid')}
                     >
                       <LayoutGrid className="w-4 h-4" />
@@ -230,20 +230,20 @@ export const MuzepartSearchPage: React.FC = () => {
 
               {/* Table View */}
               {viewMode === 'table' ? (
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="glass-panel rounded-xl border border-slate-800 shadow-xl overflow-hidden">
                   <table className="w-full text-sm text-left">
-                    <thead className="bg-slate-50 border-b border-slate-200">
+                    <thead className="bg-slate-900/80 border-b border-slate-800">
                       <tr>
-                        <th className={`px-4 py-3 font-bold text-slate-700 uppercase tracking-tight cursor-pointer ${getSortClass(sortField, 'distributor', sortOrder)}`} onClick={() => handleSort('distributor')}>Distributor</th>
-                        <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-tight">MPN / Manufacturer</th>
-                        <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-tight">Package</th>
-                        <th className={`px-4 py-3 font-bold text-slate-700 uppercase tracking-tight cursor-pointer ${getSortClass(sortField, 'stock', sortOrder)}`} onClick={() => handleSort('stock')}>Stock</th>
-                        <th className={`px-4 py-3 font-bold text-slate-700 uppercase tracking-tight cursor-pointer ${getSortClass(sortField, 'price', sortOrder)}`} onClick={() => handleSort('price')}>Price</th>
-                        <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-tight">Delivery</th>
-                        <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-tight">Actions</th>
+                        <th className={`px-4 py-3 font-bold text-slate-300 uppercase tracking-tight cursor-pointer ${getSortClass(sortField, 'distributor', sortOrder)}`} onClick={() => handleSort('distributor')}>Distributor</th>
+                        <th className="px-4 py-3 font-bold text-slate-300 uppercase tracking-tight">MPN / Manufacturer</th>
+                        <th className="px-4 py-3 font-bold text-slate-300 uppercase tracking-tight">Package</th>
+                        <th className={`px-4 py-3 font-bold text-slate-300 uppercase tracking-tight cursor-pointer ${getSortClass(sortField, 'stock', sortOrder)}`} onClick={() => handleSort('stock')}>Stock</th>
+                        <th className={`px-4 py-3 font-bold text-slate-300 uppercase tracking-tight cursor-pointer ${getSortClass(sortField, 'price', sortOrder)}`} onClick={() => handleSort('price')}>Price</th>
+                        <th className="px-4 py-3 font-bold text-slate-300 uppercase tracking-tight">Delivery</th>
+                        <th className="px-4 py-3 font-bold text-slate-300 uppercase tracking-tight">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-800 text-slate-200">
                       {paginatedResults.map((part: any) => (
                         <MuzepartResultRow 
                           key={`${part.id}-${part.distributor}`}
