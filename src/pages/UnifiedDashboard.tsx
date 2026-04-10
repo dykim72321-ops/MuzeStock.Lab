@@ -107,7 +107,9 @@ export const UnifiedDashboard = () => {
 
   const filteredDiscovery = useMemo(() => {
     const watchlistTickers = new Set(watchlistItems.map(i => i.ticker));
-    return (discoveryStocks || []).filter(s => !watchlistTickers.has(s.ticker)).slice(0, 5);
+    return (discoveryStocks || [])
+      .filter(s => !watchlistTickers.has(s.ticker) && (s.dna_score || 0) >= 80)
+      .slice(0, 5);
   }, [discoveryStocks, watchlistItems]);
 
   const handleDeepDive = (stock: any) => {
