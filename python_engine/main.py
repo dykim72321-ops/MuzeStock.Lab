@@ -1113,6 +1113,74 @@ async def get_broker_status(api_key: str = Security(get_api_key)):
         return {"status": "ERROR", "is_armed": SYSTEM_ARMED, "error": str(e)}
 
 
+@app.get("/api/broker/paper/account")
+async def get_paper_account(api_key: str = Security(get_api_key)):
+    """Supabase 기반 페이퍼 트레이딩 계좌 정보 조회"""
+    if not paper_engine:
+        return {"error": "Paper engine not initialized"}
+    try:
+        acc = await paper_engine.get_account()
+        if not acc:
+            return {"error": "Account not found"}
+        
+        # 가상 계좌의 경우 0으로 표시되는 오늘 PnL 계산 (단순화)
+        balance = float(acc.get("balance", 0))
+        initial = 100000.0 # 기본값
+        pnl = balance - initial
+        pnl_pct = (pnl / initial * 100) if initial > 0 else 0
+
+        return {
+            "buying_power": float(acc.get("cash_available", 0)),
+            "equity": float(acc.get("equity", balance)),
+            "today_pnl": round(pnl, 2),
+            "today_pnl_pct": round(pnl_pct, 2),
+            "current_drawdown": 0.0,
+            "currency": acc.get("currency", "USD"),
+            "status": acc.get("status", "ACTIVE"),
+            "is_paper_trading": True
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/api/broker/paper/positions")
+async def get_paper_positions(api_key: str = Security(get_api_key)):
+    """Supabase 기반 페이퍼 트레이딩 현재 포지션 조회"""
+    if not paper_engine:
+        return []
+    try:
+        res = await asyncio.to_thread(supabase.table("paper_positions").select("*").execute)
+        return res.data
+    except Exception:
+        return []
+
+
+@app.get("/api/broker/paper/history")
+async def get_paper_history(api_key: str = Security(get_api_key)):
+    """Supabase 기반 페이퍼 트레이딩 매매 이력 조회"""
+    if not paper_engine:
+        return []
+    try:
+        res = await asyncio.to_thread(supabase.table("paper_history").select("*").order("created_at", desc=True).limit(30).execute)
+        # 익숙한 구조로 변환
+        history = []
+        for item in res.data:
+            history.append({
+                "id": str(item.get("id")),
+                "ticker": item.get("ticker"),
+                "side": "sell", # 히스토리는 주로 청산 기록
+                "type": "trailing_stop",
+                "quantity": "--",
+                "filled_qty": "--",
+                "filled_avg_price": item.get("exit_price"),
+                "status": "filled",
+                "created_at": item.get("created_at")
+            })
+        return history
+    except Exception:
+        return []
+
+
 @app.post("/api/broker/arm")
 async def toggle_arm_system(req: ArmRequest, api_key: str = Security(get_api_key)):
     """Toggles the global SYSTEM_ARMED state"""
@@ -1445,6 +1513,17 @@ async def get_strategy_stats():
         "message": "System Edge Confirmed (Weekend Batch)",
         "badge": "🛡️ System Edge: 승률 61.2% (검증됨)",
     }
+
+
+@app.get("/api/discoveries")
+async def get_discoveries(limit: int = 10, sort_by: str = "updated_at"):
+    """오늘의 추천 종목(Alpha Discovery Picks) 목록 반환"""
+    try:
+        results = await asyncio.to_thread(db.get_latest_discoveries, limit, sort_by)
+        return results
+    except Exception as e:
+        print(f"❌ Discovery Fetch Error: {e}")
+        return []
 
 
 def calculate_advanced_signals(df: pd.DataFrame):
@@ -1815,36 +1894,8 @@ async def start_alpaca_stream(tickers: Optional[List[str]] = None):
             print("❌ Alpaca API Key missing. Stream cannot start.")
             return
 
-        # 3a. Pre-validate auth before entering the infinite stream loop
-        try:
-            import websockets
-            import json as _json
-
-            ws_url = "wss://stream.data.alpaca.markets/v2/iex"
-            async with websockets.connect(ws_url) as ws:
-                await ws.recv()  # welcome message
-                await ws.send(
-                    _json.dumps(
-                        {"action": "auth", "key": api_key, "secret": api_secret}
-                    )
-                )
-                auth_resp = _json.loads(await ws.recv())
-                if isinstance(auth_resp, list):
-                    auth_resp = auth_resp[0]
-                if auth_resp.get("msg") != "authenticated":
-                    print(f"🔑 [Alpaca] Pre-auth check FAILED: {auth_resp}")
-                    print(f"   → API key may be invalid or expired.")
-                    print(
-                        f"   → Please check https://app.alpaca.markets/paper/dashboard/overview"
-                    )
-                    return
-                print("✅ [Alpaca] Pre-auth check passed.")
-        except Exception as pre_auth_err:
-            print(
-                f"⚠️ [Alpaca] Pre-auth check error (continuing anyway): {pre_auth_err}"
-            )
-
-        # Alpaca Paper Trading vs Live Auto detection (Free keys use 'iex' feed)
+        # 3a. Alpaca 스트림 초기화 (공식 라이브러리가 인증을 처리하도록 함)
+        # Note: IEX 피드는 실계좌/모의투자 키 모두 동일한 주소를 사용합니다.
         stream = StockDataStream(api_key, api_secret, feed=DataFeed.IEX)
 
         # 4. 구독 설정 (1분봉 닫힘 이벤트)
@@ -1881,9 +1932,9 @@ async def start_alpaca_stream(tickers: Optional[List[str]] = None):
                     else:
                         raise
                 except Exception as e:
-                    print(f"⚠️ [Alpaca] Stream error: {e}. Reconnecting in 5s...")
+                    print(f"⚠️ [Alpaca] Stream error: {e}. Reconnecting in 30s...")
                     auth_failure_count = 0  # Reset on non-auth errors
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(30)
 
         await _guarded_run_forever()
 
@@ -1928,6 +1979,10 @@ async def startup_event():
 
 async def run_startup_sequence():
     """초기화 시퀀스: 워밍업 후 스냅샷 펄스 방출 및 스트림 시작"""
+    # 0. 페이퍼 트레이딩 계좌 초기화 (필요 시)
+    if paper_engine:
+        await paper_engine.initialize_account()
+
     active_tickers = await asyncio.to_thread(db.get_active_tickers, limit=15)
     if not active_tickers:
         return
