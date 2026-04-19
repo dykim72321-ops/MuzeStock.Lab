@@ -225,6 +225,13 @@ export async function closePosition(ticker: string): Promise<any> {
 }
 
 /**
+ * 페이퍼 트레이딩 포지션 수동 청산 (사령관 매도)
+ */
+export async function sellPaperPosition(ticker: string): Promise<any> {
+  return brokerApiFetch('/api/broker/paper/sell', 'POST', { ticker });
+}
+
+/**
  * RSI 역추세 전략 백테스팅 실행
  */
 export async function fetchBacktestData(

@@ -27,16 +27,19 @@ export const CommandSettings: React.FC = () => {
   const handleSaveSettings = async () => {
     setIsSaving(true);
     try {
-      // [Fix] RLS 정책 우회를 위해 백엔드 프록시 API 호출
-      const result = await (window as any).apiFetch('/api/system/settings', 'PUT', { 
-        alert_threshold: dnaThreshold, 
-        webhook_url: webhookUrl 
-      });
+      const { error } = await supabase
+        .from('system_settings')
+        .update({
+          alert_threshold: dnaThreshold,
+          webhook_url: webhookUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', 1);
 
-      if (result.error) throw new Error(result.error);
-      
+      if (error) throw error;
+
       toast.success('Matrix Config Saved', {
-        description: 'System thresholds globally updated via Secure Proxy.',
+        description: 'System thresholds globally updated.',
       });
     } catch (error) {
       console.error('Settings save error:', error);

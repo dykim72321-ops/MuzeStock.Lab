@@ -2,6 +2,8 @@
 
 **100% Quant Algorithm Architecture — Zero AI Heuristics**
 
+> **v4 Paper Trading Auto-Sell fully implemented.** The Operations Command (작전지휘소) dashboard now supports real-time position monitoring, automated 2-stage exits (Scale-Out + Trailing Stop), and manual sell buttons per position.
+
 MuzeStock.Lab is a fully systematic, data-driven quantitative trading engine engineered for robust alpha generation. Every position taken is backed by mathematically structured statistical models, specifically tailored for volatile penny stocks and high-beta assets. There are **no LLM outputs, no AI-generated text, and no black-box heuristics** in any execution path.
 
 ---
@@ -11,13 +13,15 @@ MuzeStock.Lab is a fully systematic, data-driven quantitative trading engine eng
 1. [Alpha Source](#alpha-source)
 2. [Core Philosophy](#core-philosophy)
 3. [Key Engine Implementations](#key-engine-implementations)
-4. [Architecture](#architecture)
-5. [Prerequisites](#prerequisites)
-6. [Environment Variables](#environment-variables)
-7. [Setup & Installation](#setup--installation)
-8. [Usage](#usage)
-9. [CI/CD](#cicd)
-10. [Disclaimer](#disclaimer)
+4. [Paper Trading Auto-Sell System](#paper-trading-auto-sell-system)
+5. [Operations Command Dashboard](#operations-command-dashboard)
+6. [Architecture](#architecture)
+7. [Prerequisites](#prerequisites)
+8. [Environment Variables](#environment-variables)
+9. [Setup & Installation](#setup--installation)
+10. [Usage](#usage)
+11. [CI/CD](#cicd)
+12. [Disclaimer](#disclaimer)
 
 ---
 
@@ -93,6 +97,106 @@ Located in `python_engine/portfolio_backtester.py`. Parameters are dynamically r
 
 ---
 
+## Paper Trading Auto-Sell System
+
+The v4 paper trading engine (`python_engine/paper_engine.py`) implements a fully automated 2-stage exit state machine triggered on every 1-minute Alpaca bar close.
+
+### Automated Exit Flow
+
+```
+Alpaca 1-min bar → on_minute_bar_closed() → paper_engine.process_signal()
+    │
+    ├─ [Stage 1 — Scale-Out]  RSI > 60 & not scaled-out & ARMED
+    │   → Sell 50% of position at market price
+    │   → Raise trailing stop to entry_price × 1.01 (break-even +1%)
+    │   → Status: HOLD → SCALE_OUT
+    │   → Discord 🟠 alert
+    │
+    ├─ [Stage 2 — Trailing Stop]  price < ts_threshold & ARMED
+    │   → Liquidate remaining units at market price
+    │   → Record PnL to paper_history table
+    │   → Delete from paper_positions
+    │   → Discord ✅ / 🛑 alert
+    │
+    └─ [Normal]  Update current_price, highest_price, ts_threshold
+```
+
+### Trailing Stop Tightening
+
+| Phase | Multiplier | Trigger |
+|---|---|---|
+| Initial entry | 90% of entry price | Set on BUY |
+| Price rise | 90% of highest_high | Dynamic update |
+| After Scale-Out | entry_price × 1.01 | RSI > 60 |
+
+### Manual Sell (사령관 수동 매도)
+
+The Operations Command dashboard provides a **per-position SELL button**. On click:
+
+1. Fetches live price via yfinance (fallback: last streamed `current_price`)
+2. Calculates PnL vs entry price
+3. Posts to `POST /api/broker/paper/sell`
+4. Backend liquidates position, writes `paper_history`, sends Discord alert
+5. UI refreshes automatically
+
+### API Endpoints (Paper Trading)
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/broker/paper/account` | GET | Virtual account cash & equity |
+| `/api/broker/paper/positions` | GET | All open paper positions |
+| `/api/broker/paper/history` | GET | Last 30 closed trades |
+| `/api/broker/paper/sell` | POST | Manual position liquidation |
+| `/api/broker/arm` | POST | Toggle SYSTEM_ARMED (auto-trade on/off) |
+
+---
+
+## Operations Command Dashboard
+
+The **작전지휘소** (`/stock/dashboard`) is the real-time command center for monitoring and controlling the trading engine.
+
+### Dashboard Sections
+
+| Section | Component | Data Source |
+|---|---|---|
+| **System Defense (MDD)** | `Dashboard.tsx` | `GET /api/strategy/stats` via FastAPI |
+| **Engine Win Rate** | `Dashboard.tsx` | `GET /api/strategy/stats` via FastAPI |
+| **Live Detection** | `Dashboard.tsx` + `useMarketEngine` | `GET /api/pulse/status` + `WS /ws/pulse` |
+| **Virtual Portfolio** | `PortfolioStatus.tsx` | `GET /api/broker/paper/*` via FastAPI |
+| **System Control Panel** | `CommandSettings.tsx` | `system_settings` table via Supabase client |
+| **Quant Signal Feed** | `QuantSignalCard.tsx` | WebSocket `WS /ws/pulse` real-time stream |
+
+### Dashboard Connection Map
+
+```
+Browser
+  ├─ WS  ws://<host>/py-api/ws/pulse  ──────────────────► FastAPI :8001 /ws/pulse
+  │        (Vite proxy: /py-api → localhost:8001)
+  │
+  ├─ REST /py-api/api/broker/paper/*  ──────────────────► FastAPI :8001 (X-Admin-Key auth)
+  ├─ REST /py-api/api/strategy/stats  ──────────────────► FastAPI :8001
+  ├─ REST /py-api/api/pulse/status    ──────────────────► FastAPI :8001
+  │
+  ├─ Supabase JS  system_settings     ──────────────────► Supabase DB (RLS: anon UPDATE ok)
+  ├─ Supabase JS  watchlist / paper_* ──────────────────► Supabase DB
+  │
+  └─ Edge Fn  admin-proxy/api/hunt    ──────────────────► Supabase Edge Function
+```
+
+### Known Constraints
+
+| Item | Detail |
+|---|---|
+| **Backend required** | FastAPI must be running on `:8001` for Portfolio, Stats, Pulse feed |
+| **Market hours** | WebSocket pulse only fires during Alpaca market hours; off-hours shows last snapshot |
+| **Trigger Hunt** | Calls `admin-proxy` Supabase Edge Function — requires it to be deployed |
+
+### System Armed State
+
+The `SYSTEM_ARMED` flag (toggled via **System Control Panel**) gates all automated buy and sell execution. When disarmed, the engine streams and scores but does not trade.
+
+---
+
 ## Architecture
 
 ### Stack
@@ -118,7 +222,7 @@ Located in `python_engine/portfolio_backtester.py`. Parameters are dynamically r
              ▼                   ▼
 ┌────────────────────┐  ┌─────────────────────────────┐
 │  FastAPI Backend   │  │   Supabase Edge Functions   │
-│  main.py :8000     │  │   run-quant-scanner         │
+│  main.py :8001     │  │   run-quant-scanner         │
 │                    │  │   analyze-stock             │
 │  /api/analyze      │  │   execute-trades            │
 │  /api/portfolio    │  │   monitor-positions         │
@@ -144,10 +248,10 @@ Located in `python_engine/portfolio_backtester.py`. Parameters are dynamically r
 
 | Module | Purpose |
 |---|---|
-| `main.py` | FastAPI server — analysis, broker, WebSocket endpoints |
+| `main.py` | FastAPI server — analysis, broker, paper trading, WebSocket endpoints |
+| `paper_engine.py` | Paper trading state machine — auto buy/sell/scale-out/trailing stop |
 | `portfolio_backtester.py` | DNA Validator + Walk-Forward Analysis |
 | `optimize_dna.py` | Grid-search optimizer for γ, δ, λ parameters |
-| `paper_engine.py` | Paper trading manager (Supabase-backed) |
 | `scraper.py` | Playwright-based market data scraper |
 | `db_manager.py` | Supabase client factory |
 | `cache_manager.py` | Request caching layer |
@@ -155,6 +259,14 @@ Located in `python_engine/portfolio_backtester.py`. Parameters are dynamically r
 | `webhook_manager.py` | Discord alert dispatcher |
 | `inventory_service.py` | Position inventory tracking |
 | `utils.py` | Shared utilities |
+
+### Supabase Tables (Paper Trading)
+
+| Table | Purpose |
+|---|---|
+| `paper_account` | Virtual cash balance |
+| `paper_positions` | Active positions: entry/current/highest price, TS threshold, units, status |
+| `paper_history` | Closed trades: entry/exit price, PnL%, exit reason |
 
 ---
 
@@ -311,8 +423,13 @@ Paper trading state is persisted in the `paper_account` and `paper_positions` Su
 | `/api/broker/account` | GET | Account equity & buying power |
 | `/api/broker/order` | POST | Place a new order |
 | `/api/broker/positions` | GET | Open positions |
-| `/api/broker/close-position` | POST | Close a specific position |
-| `/api/broker/liquidate-all` | POST | Liquidate all positions |
+| `/api/broker/close-position` | POST | Close a specific Alpaca position |
+| `/api/broker/liquidate-all` | POST | Liquidate all Alpaca positions |
+| `/api/broker/paper/account` | GET | Paper trading account balance |
+| `/api/broker/paper/positions` | GET | Open paper positions |
+| `/api/broker/paper/history` | GET | Closed paper trade history |
+| `/api/broker/paper/sell` | POST | Manual paper position liquidation |
+| `/api/broker/arm` | POST | Toggle SYSTEM_ARMED auto-trade flag |
 | `/api/validate_candidates` | POST | Batch-validate candidate tickers |
 | `/api/strategy/stats` | GET | Strategy performance statistics |
 | `/ws/pulse` | WebSocket | Live market data stream |

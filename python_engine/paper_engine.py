@@ -56,6 +56,66 @@ class PaperTradingManager:
         res = await asyncio.to_thread(query.execute)
         return res.data[0] if res.data else None
 
+    async def _sync_watchlist_buy(self, ticker: str, price: float, ts_threshold: float, dna_score: float):
+        """매수 시 관심종목 자동 등록 (status=HOLDING). 이미 있으면 업데이트."""
+        payload = {
+            "ticker": ticker,
+            "status": "HOLDING",
+            "buy_price": round(price, 4),
+            "stop_loss": round(ts_threshold, 4),
+            "initial_dna_score": round(dna_score, 1),
+        }
+        try:
+            # service role → RLS 우회. user_id=null 허용 (시스템 자동 등록)
+            # BUG-3 fix: filter by user_id IS NULL to avoid overwriting users' manual entries
+            existing = await asyncio.to_thread(
+                self.supabase.table("watchlist")
+                .select("ticker")
+                .eq("ticker", ticker)
+                .is_("user_id", "null")
+                .execute
+            )
+            if existing.data:
+                await asyncio.to_thread(
+                    self.supabase.table("watchlist")
+                    .update({"status": "HOLDING", "buy_price": payload["buy_price"], "stop_loss": payload["stop_loss"]})
+                    .eq("ticker", ticker)
+                    .is_("user_id", "null")
+                    .execute
+                )
+            else:
+                await asyncio.to_thread(
+                    self.supabase.table("watchlist").insert(payload).execute
+                )
+        except Exception as e:
+            print(f"⚠️ [Watchlist Sync BUY] {ticker}: {e}")
+
+    async def _sync_watchlist_exit(self, ticker: str):
+        """청산 시 관심종목 상태를 EXITED로 업데이트."""
+        try:
+            await asyncio.to_thread(
+                self.supabase.table("watchlist")
+                .update({"status": "EXITED"})
+                .eq("ticker", ticker)
+                .is_("user_id", "null")
+                .execute
+            )
+        except Exception as e:
+            print(f"⚠️ [Watchlist Sync EXIT] {ticker}: {e}")
+
+    async def _sync_watchlist_stop_loss(self, ticker: str, stop_loss: float):
+        """트레일링 스탑 이동 시 관심종목 stop_loss 동기화."""
+        try:
+            await asyncio.to_thread(
+                self.supabase.table("watchlist")
+                .update({"stop_loss": round(stop_loss, 4)})
+                .eq("ticker", ticker)
+                .is_("user_id", "null")
+                .execute
+            )
+        except Exception as e:
+            print(f"⚠️ [Watchlist Sync SL] {ticker}: {e}")
+
     async def process_signal(
         self,
         ticker: str,
@@ -65,12 +125,13 @@ class PaperTradingManager:
         rsi: float,
         ai_report: str = "",
         is_armed: bool = False,
+        dna_score: float = 85.0,
     ):
         """
         v4 State Machine:
-        1. STRONG BUY -> 매수 (3/4 Kelly)
-        2. HOLD 중 RSI > 60 -> 50% 분할 익절 (SCALE_OUT) & TS 상향
-        3. 가격 < TS_Threshold -> 전량 손절 (TRAILING_STOP)
+        1. STRONG BUY (DNA≥80) → 매수 (3/4 Kelly) + 관심종목 자동 등록 (HOLDING)
+        2. HOLD 중 RSI > 60 → 50% 분할 익절 (SCALE_OUT) & TS 상향 + watchlist stop_loss 동기화
+        3. 가격 < TS_Threshold → 전량 청산 (TRAILING_STOP) + 관심종목 EXITED
         """
         pos = await self.get_position(ticker)
         acc = await self.get_account()
@@ -80,7 +141,8 @@ class PaperTradingManager:
             return
 
         # --- 1. 신규 매수 (STRONG BUY & No position) ---
-        if signal_type == "BUY" and strength == "STRONG" and not pos and is_armed:
+        # LOGIC-1 fix: gate on dna_score >= 80 per system design
+        if signal_type == "BUY" and strength == "STRONG" and not pos and is_armed and dna_score >= 80:
             # 켈리 비중에 따른 가상 매수 (단순화: 가용한 현금의 15% 정도씩 진입 가정)
             buy_budget = acc["cash_available"] * 0.15
             if buy_budget < 500:  # 최소 주문 금액
@@ -116,9 +178,11 @@ class PaperTradingManager:
 
                 await self.webhook.send_alert(
                     title=f"🚀 [PAPER BUY] {ticker}",
-                    description=f"진입가: ${price:.2f} | 수량: {units:.2f}주\n초기 손절선: ${ts_threshold:.2f} (-10%)",
+                    description=f"진입가: ${price:.2f} | 수량: {units:.2f}주\nDNA: {dna_score:.0f} | 손절선: ${ts_threshold:.2f} (-10%)",
                     color=0x2ECC71,
                 )
+                # 관심종목 자동 등록 (DNA≥80 매수 → HOLDING)
+                await self._sync_watchlist_buy(ticker, price, ts_threshold, dna_score)
             except Exception as e:
                 print(f"❌ Buy Error: {e}")
 
@@ -135,8 +199,9 @@ class PaperTradingManager:
                 new_ts = highest_price * 0.90
                 ts_threshold = max(ts_threshold, new_ts)
 
-            # B. SCALE_OUT 체크 (RSI > 60)
-            if rsi > 60 and not is_scaled_out and is_armed:
+            # B. SCALE_OUT 체크 (RSI > 60 + 수익권 진입 확인)
+            # LOGIC-2 fix: only scale-out when in profit to avoid locking in a loss
+            if rsi > 60 and not is_scaled_out and is_armed and price > entry_price:
                 sell_units = units * 0.5
                 profit_cash = sell_units * price
 
@@ -171,6 +236,8 @@ class PaperTradingManager:
                     description=f"50% 분할 익절 완료: ${price:.2f}\n방어선 상향: ${new_ts_val:.2f} (본절+1%)",
                     color=0xE67E22,
                 )
+                # 관심종목 stop_loss 동기화 (TS 이동)
+                await self._sync_watchlist_stop_loss(ticker, new_ts_val)
                 return
 
             # C. TRAILING STOP 체크
@@ -215,6 +282,8 @@ class PaperTradingManager:
                     description=f"청산가: ${price:.2f} | 수익률: {pnl_pct:.2f}%\n사유: 트레일링 스탑 발동",
                     color=0x34495E,
                 )
+                # 관심종목 상태 → EXITED
+                await self._sync_watchlist_exit(ticker)
             else:
                 # 일반 업데이트
                 await asyncio.to_thread(

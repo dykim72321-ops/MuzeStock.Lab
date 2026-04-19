@@ -18,7 +18,9 @@ import { toast } from 'sonner';
 import { ManualTradeModal } from './ManualTradeModal';
 
 interface AccountStatus {
-  buying_power: number;
+  cash_available: number;
+  total_assets: number;
+  invested_capital?: number;
   today_pnl: number;
   today_pnl_pct: number;
   current_drawdown: number;
@@ -97,10 +99,16 @@ export const LiveExecutionCenter = () => {
         return;
       }
 
-      // 2. Fallback to Alpaca Broker Account
+      // 2. Fallback to Alpaca Broker Account (normalize field names)
       const data = await fetchBrokerAccount();
       if (data && !data.error) {
-        setAccount(data);
+        setAccount({
+          cash_available: data.cash_available ?? data.buying_power ?? 0,
+          total_assets: data.total_assets ?? data.equity ?? 0,
+          today_pnl: data.today_pnl ?? 0,
+          today_pnl_pct: data.today_pnl_pct ?? 0,
+          current_drawdown: data.current_drawdown ?? 0,
+        });
         setBrokerConnected(true);
       } else if (data?.error) {
         setBrokerConnected(false);
@@ -282,12 +290,12 @@ export const LiveExecutionCenter = () => {
                   <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mb-3">
                     {account?.is_paper_trading ? 'Paper Buying Power' : 'Broker Buying Power'}
                   </p>
-                  <p className="text-3xl font-black text-white tabular-nums tracking-tighter">${account ? account.buying_power.toLocaleString() : '---'}</p>
+                  <p className="text-3xl font-black text-white tabular-nums tracking-tighter">${(account?.cash_available ?? 0).toLocaleString()}</p>
               </div>
               <div className="bg-[#020617]/40 backdrop-blur-md border border-slate-800/80 p-6 rounded-3xl relative overflow-hidden group shadow-lg">
                   <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mb-3">Today's PnL</p>
-                  <p className={clsx("text-3xl font-black tabular-nums tracking-tighter", (account?.today_pnl || 0) >= 0 ? "text-emerald-400" : "text-rose-400")}>
-                    {account ? `${account.today_pnl >= 0 ? '+' : ''}$${account.today_pnl.toLocaleString()}` : '---'}
+                  <p className={clsx("text-3xl font-black tabular-nums tracking-tighter", (account?.today_pnl ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                    {account ? `${(account.today_pnl ?? 0) >= 0 ? '+' : ''}$${(account.today_pnl ?? 0).toLocaleString()}` : '---'}
                   </p>
               </div>
               <div className="bg-rose-500/[0.03] backdrop-blur-md border border-rose-500/20 p-6 rounded-3xl relative overflow-hidden group shadow-lg">

@@ -54,6 +54,22 @@ webhook = WebhookManager()
 # PaperTradingManager 인스턴스 (Supabase가 초기화된 후 설정)
 paper_engine = None
 
+# Alpaca 스트림 중복 방지 플래그
+_stream_active = False
+
+
+def is_market_hours() -> bool:
+    """US 시장 개장 여부 (ET 기준 평일 09:30~16:00). DST 단순 근사."""
+    from datetime import timezone, timedelta
+    et = timezone(timedelta(hours=-4))  # EDT (여름 기준 -4, 겨울 EST=-5)
+    now_et = datetime.now(et)
+    if now_et.weekday() >= 5:
+        return False
+    open_min = 9 * 60 + 30
+    close_min = 16 * 60
+    cur_min = now_et.hour * 60 + now_et.minute
+    return open_min <= cur_min < close_min
+
 
 # .env 파일에서 환경변수 로드
 load_dotenv()
@@ -296,6 +312,10 @@ class OrderRequest(BaseModel):
 
 
 class ClosePositionRequest(BaseModel):
+    ticker: str
+
+
+class PaperSellRequest(BaseModel):
     ticker: str
 
 
@@ -1136,8 +1156,9 @@ async def get_paper_account(api_key: str = Security(get_api_key)):
         current_drawdown = round(min(pnl_pct, 0), 2)
 
         return {
-            "buying_power": round(cash_available, 2),
-            "equity": round(total_assets, 2),
+            "cash_available": round(cash_available, 2),
+            "total_assets": round(total_assets, 2),
+            "invested_capital": round(invested_capital, 2),
             "today_pnl": round(pnl, 2),
             "today_pnl_pct": round(pnl_pct, 2),
             "current_drawdown": current_drawdown,
@@ -1198,6 +1219,86 @@ async def get_paper_history(api_key: str = Security(get_api_key)):
         return history
     except Exception:
         return []
+
+
+@app.post("/api/broker/paper/sell")
+async def manual_paper_sell(req: PaperSellRequest, api_key: str = Security(get_api_key)):
+    """사령관 수동 페이퍼 트레이딩 포지션 청산"""
+    if not paper_engine:
+        raise HTTPException(status_code=503, detail="Paper engine not initialized")
+
+    ticker = req.ticker.upper()
+
+    pos_res = await asyncio.to_thread(
+        supabase.table("paper_positions").select("*").eq("ticker", ticker).execute
+    )
+    if not pos_res.data:
+        raise HTTPException(status_code=404, detail=f"No open position for {ticker}")
+
+    pos = pos_res.data[0]
+    entry_price = float(pos["entry_price"])
+    units = float(pos["units"])
+
+    # 현재가: yfinance 우선, fallback → stored current_price
+    current_price = float(pos.get("current_price") or entry_price)
+    try:
+        tick = yf.Ticker(ticker)
+        hist = tick.history(period="1d", interval="1m")
+        if not hist.empty:
+            current_price = float(hist["Close"].iloc[-1])
+    except Exception:
+        pass
+
+    pnl_pct = (current_price / entry_price - 1) * 100
+    profit_amt = (current_price - entry_price) * units
+    proceeds = current_price * units
+
+    acc_res = await asyncio.to_thread(
+        supabase.table("paper_account").select("*").limit(1).execute
+    )
+    if acc_res.data:
+        acc = acc_res.data[0]
+        new_cash = float(acc["cash_available"]) + proceeds
+        await asyncio.to_thread(
+            supabase.table("paper_account")
+            .update({"cash_available": new_cash})
+            .eq("id", acc["id"])
+            .execute
+        )
+
+    history_data = {
+        "ticker": ticker,
+        "entry_price": entry_price,
+        "exit_price": current_price,
+        "pnl_pct": round(pnl_pct, 2),
+        "profit_amt": round(profit_amt, 2),
+        "exit_reason": "Manual Sell",
+    }
+    await asyncio.to_thread(
+        supabase.table("paper_history").insert(history_data).execute
+    )
+
+    await asyncio.to_thread(
+        supabase.table("paper_positions").delete().eq("ticker", ticker).execute
+    )
+
+    # BUG-4 fix: sync watchlist status to EXITED on manual sell
+    await paper_engine._sync_watchlist_exit(ticker)
+
+    status_emoji = "✅" if pnl_pct > 0 else "🛑"
+    await paper_engine.webhook.send_alert(
+        title=f"{status_emoji} [PAPER MANUAL EXIT] {ticker}",
+        description=f"수동 청산가: ${current_price:.2f} | 수익률: {pnl_pct:.2f}%\n사유: 사령관 수동 매도",
+        color=0x2ECC71 if pnl_pct > 0 else 0xE74C3C,
+    )
+
+    return {
+        "status": "success",
+        "ticker": ticker,
+        "exit_price": round(current_price, 2),
+        "pnl_pct": round(pnl_pct, 2),
+        "profit_amt": round(profit_amt, 2),
+    }
 
 
 @app.post("/api/broker/arm")
@@ -1871,6 +1972,9 @@ async def on_minute_bar_closed(bar):
                         rsi=payload.get("rsi"),
                         ai_report=payload.get("ai_report", ""),
                         is_armed=SYSTEM_ARMED,
+                        dna_score=float(
+                            payload.get("ai_metadata", {}).get("dna_score", 85.0)
+                        ),
                     )
 
                 print(
@@ -1962,12 +2066,21 @@ async def start_alpaca_stream(tickers: Optional[List[str]] = None):
         print(error_msg)
         await webhook.send_alert(
             title="[CRITICAL] Pulse Engine Stream Offline",
-            description=f"스트림 엔진에 치명적 오류가 발생했습니다. 60초 후 재연결을 시도합니다.\nError: {e}",
+            description=f"스트림 엔진에 치명적 오류가 발생했습니다.\nError: {e}",
             color=0xFF0000,
         )
-        print("⏳ 60초 후 재연결을 시도합니다...")
-        await asyncio.sleep(60)
-        asyncio.create_task(start_alpaca_stream(active_tickers))
+        # connection limit exceeded 는 더 긴 백오프 (API 연결 누적 방지)
+        if "connection limit" in str(e).lower():
+            wait_sec = 300
+            print(f"⏳ Connection limit hit — {wait_sec}초 후 재연결 시도...")
+        else:
+            wait_sec = 60
+            print(f"⏳ {wait_sec}초 후 재연결 시도...")
+        await asyncio.sleep(wait_sec)
+        if is_market_hours():
+            asyncio.create_task(start_alpaca_stream(active_tickers))
+        else:
+            print("🌙 [Pulse] 시장 폐장 — 스트림 재시작 스킵 (스냅샷 모드 유지)")
 
 
 async def system_heartbeat():
@@ -2059,7 +2172,10 @@ async def run_startup_sequence():
     # 3. 실시간 스트림 및 하트비트 시작
     asyncio.create_task(system_heartbeat())
     if active_tickers:
-        await start_alpaca_stream(active_tickers)
+        if is_market_hours():
+            await start_alpaca_stream(active_tickers)
+        else:
+            print("🌙 [Pulse] 시장 폐장 — Alpaca 스트림 스킵. 스냅샷 데이터만 사용.")
 
 
 # --- REALTIME PULSE ENGINE (End) ---
