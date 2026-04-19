@@ -56,7 +56,9 @@ class PaperTradingManager:
         res = await asyncio.to_thread(query.execute)
         return res.data[0] if res.data else None
 
-    async def _sync_watchlist_buy(self, ticker: str, price: float, ts_threshold: float, dna_score: float):
+    async def _sync_watchlist_buy(
+        self, ticker: str, price: float, ts_threshold: float, dna_score: float
+    ):
         """매수 시 관심종목 자동 등록 (status=HOLDING). 이미 있으면 업데이트."""
         payload = {
             "ticker": ticker,
@@ -78,7 +80,13 @@ class PaperTradingManager:
             if existing.data:
                 await asyncio.to_thread(
                     self.supabase.table("watchlist")
-                    .update({"status": "HOLDING", "buy_price": payload["buy_price"], "stop_loss": payload["stop_loss"]})
+                    .update(
+                        {
+                            "status": "HOLDING",
+                            "buy_price": payload["buy_price"],
+                            "stop_loss": payload["stop_loss"],
+                        }
+                    )
                     .eq("ticker", ticker)
                     .is_("user_id", "null")
                     .execute
@@ -142,7 +150,13 @@ class PaperTradingManager:
 
         # --- 1. 신규 매수 (STRONG BUY & No position) ---
         # LOGIC-1 fix: gate on dna_score >= 80 per system design
-        if signal_type == "BUY" and strength == "STRONG" and not pos and is_armed and dna_score >= 80:
+        if (
+            signal_type == "BUY"
+            and strength == "STRONG"
+            and not pos
+            and is_armed
+            and dna_score >= 80
+        ):
             # 켈리 비중에 따른 가상 매수 (단순화: 가용한 현금의 15% 정도씩 진입 가정)
             buy_budget = acc["cash_available"] * 0.15
             if buy_budget < 500:  # 최소 주문 금액

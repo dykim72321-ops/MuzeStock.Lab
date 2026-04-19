@@ -61,6 +61,7 @@ _stream_active = False
 def is_market_hours() -> bool:
     """US 시장 개장 여부 (ET 기준 평일 09:30~16:00). DST 단순 근사."""
     from datetime import timezone, timedelta
+
     et = timezone(timedelta(hours=-4))  # EDT (여름 기준 -4, 겨울 EST=-5)
     now_et = datetime.now(et)
     if now_et.weekday() >= 5:
@@ -1222,7 +1223,9 @@ async def get_paper_history(api_key: str = Security(get_api_key)):
 
 
 @app.post("/api/broker/paper/sell")
-async def manual_paper_sell(req: PaperSellRequest, api_key: str = Security(get_api_key)):
+async def manual_paper_sell(
+    req: PaperSellRequest, api_key: str = Security(get_api_key)
+):
     """사령관 수동 페이퍼 트레이딩 포지션 청산"""
     if not paper_engine:
         raise HTTPException(status_code=503, detail="Paper engine not initialized")
