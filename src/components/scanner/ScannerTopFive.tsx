@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
-import { TrendingUp, Zap } from 'lucide-react';
-import { Card } from '../ui/Card';
+import { TrendingUp } from 'lucide-react';
 import clsx from 'clsx';
 import type { Stock } from '../../types';
 

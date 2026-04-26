@@ -4,6 +4,15 @@ import asyncio
 
 INITIAL_CAPITAL = 100000.0
 
+# ── 포지션 사이징 / 리스크 상수 ──────────────────────────────────────────────
+KELLY_FRACTION = 0.15       # 가용 현금 대비 진입 비중 (3/4 Kelly ≈ 15%)
+MIN_BUY_BUDGET = 500.0      # 최소 주문 금액 (달러)
+TS_INIT_PCT = 0.90          # 초기 트레일링 스탑: 진입가 × 90% (-10%)
+TS_TRAIL_PCT = 0.90         # 최고가 갱신 시 TS 추적 비율: highest × 90%
+SCALE_OUT_RATIO = 0.50      # Scale-Out 시 매도 비율 (50%)
+SCALE_OUT_TS_PCT = 1.01     # Scale-Out 후 TS 본절 + 1%
+POS_WEIGHT = 0.15           # paper_positions.weight 기록값
+
 
 class PaperTradingManager:
     def __init__(self, supabase_client: Client):
@@ -134,10 +143,11 @@ class PaperTradingManager:
         ai_report: str = "",
         is_armed: bool = False,
         dna_score: float = 85.0,
+        kelly_weight: float = 0.0,
     ):
         """
         v4 State Machine:
-        1. STRONG BUY (DNA≥80) → 매수 (3/4 Kelly) + 관심종목 자동 등록 (HOLDING)
+        1. STRONG BUY (DNA≥80) → 매수 (Kelly 비중 or 기본 KELLY_FRACTION) + 관심종목 자동 등록 (HOLDING)
         2. HOLD 중 RSI > 60 → 50% 분할 익절 (SCALE_OUT) & TS 상향 + watchlist stop_loss 동기화
         3. 가격 < TS_Threshold → 전량 청산 (TRAILING_STOP) + 관심종목 EXITED
         """
@@ -157,18 +167,20 @@ class PaperTradingManager:
             and is_armed
             and dna_score >= 80
         ):
-            # 켈리 비중에 따른 가상 매수 (단순화: 가용한 현금의 15% 정도씩 진입 가정)
-            buy_budget = acc["cash_available"] * 0.15
-            if buy_budget < 500:  # 최소 주문 금액
+            # Kelly 엔진이 계산한 비중이 유효하면 사용, 없으면 기본값(KELLY_FRACTION)
+            effective_fraction = kelly_weight / 100.0 if kelly_weight > 0 else KELLY_FRACTION
+            effective_fraction = min(effective_fraction, 0.25)  # 단일 종목 최대 25% 제한
+            buy_budget = acc["cash_available"] * effective_fraction
+            if buy_budget < MIN_BUY_BUDGET:
                 return
 
             units = buy_budget / price
-            ts_threshold = price * 0.90  # 초기 트레일링 스탑 -10%
+            ts_threshold = price * TS_INIT_PCT
 
             new_pos = {
                 "ticker": ticker.upper(),
                 "status": "HOLD",
-                "weight": 0.15,
+                "weight": round(effective_fraction, 4),
                 "entry_price": price,
                 "current_price": price,
                 "highest_price": price,
@@ -178,27 +190,45 @@ class PaperTradingManager:
             }
 
             try:
-                await asyncio.to_thread(
+                pos_res = await asyncio.to_thread(
                     self.supabase.table("paper_positions").insert(new_pos).execute
                 )
-                # 현금 차감
+                if not pos_res.data:
+                    raise RuntimeError(f"Position INSERT returned no data for {ticker}")
+
+                # INSERT 성공 확인 후에만 현금 차감 (원자성 보장)
                 new_cash = acc["cash_available"] - buy_budget
-                await asyncio.to_thread(
+                cash_res = await asyncio.to_thread(
                     self.supabase.table("paper_account")
                     .update({"cash_available": new_cash})
                     .eq("id", acc["id"])
                     .execute
                 )
+                if not cash_res.data:
+                    # 현금 차감 실패 시 방금 INSERT한 포지션을 롤백
+                    await asyncio.to_thread(
+                        self.supabase.table("paper_positions")
+                        .delete()
+                        .eq("ticker", ticker)
+                        .execute
+                    )
+                    raise RuntimeError(f"Cash UPDATE failed for {ticker}, position rolled back")
 
+                report_line = f"\n💡 {ai_report}" if ai_report else ""
                 await self.webhook.send_alert(
                     title=f"🚀 [PAPER BUY] {ticker}",
-                    description=f"진입가: ${price:.2f} | 수량: {units:.2f}주\nDNA: {dna_score:.0f} | 손절선: ${ts_threshold:.2f} (-10%)",
+                    description=(
+                        f"진입가: ${price:.2f} | 수량: {units:.2f}주\n"
+                        f"DNA: {dna_score:.0f} | 손절선: ${ts_threshold:.2f} (-10%)\n"
+                        f"비중: {effective_fraction*100:.1f}%{report_line}"
+                    ),
                     color=0x2ECC71,
                 )
                 # 관심종목 자동 등록 (DNA≥80 매수 → HOLDING)
                 await self._sync_watchlist_buy(ticker, price, ts_threshold, dna_score)
             except Exception as e:
                 print(f"❌ Buy Error: {e}")
+                raise
 
         # --- 2. 기존 포지션 관리 (Trailing Stop & Scale Out) ---
         if pos:
@@ -210,13 +240,13 @@ class PaperTradingManager:
 
             # A. 업데이트 (최고가 갱신 시 TS 상향)
             if not is_scaled_out:
-                new_ts = highest_price * 0.90
+                new_ts = highest_price * TS_TRAIL_PCT
                 ts_threshold = max(ts_threshold, new_ts)
 
             # B. SCALE_OUT 체크 (RSI > 60 + 수익권 진입 확인)
             # LOGIC-2 fix: only scale-out when in profit to avoid locking in a loss
             if rsi > 60 and not is_scaled_out and is_armed and price > entry_price:
-                sell_units = units * 0.5
+                sell_units = units * SCALE_OUT_RATIO
                 profit_cash = sell_units * price
 
                 # 가상 계좌 업데이트
@@ -229,7 +259,7 @@ class PaperTradingManager:
                 )
 
                 # 포지션 업데이트: 수량 반토막, TS 본절+1% 상향
-                new_ts_val = entry_price * 1.01
+                new_ts_val = entry_price * SCALE_OUT_TS_PCT
                 update_data = {
                     "status": "SCALE_OUT",
                     "units": units - sell_units,
@@ -252,6 +282,7 @@ class PaperTradingManager:
                 )
                 # 관심종목 stop_loss 동기화 (TS 이동)
                 await self._sync_watchlist_stop_loss(ticker, new_ts_val)
+                # 같은 봉에서 Scale-Out과 Trailing Stop이 동시에 발동하는 것을 방지
                 return
 
             # C. TRAILING STOP 체크 (리스크 관리: ARMED 여부와 무관하게 항상 실행)

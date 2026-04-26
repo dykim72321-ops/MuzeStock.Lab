@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, Zap, Search } from 'lucide-react';
+import { Zap, Search } from 'lucide-react';
 import { getTopStocks } from '../services/stockService';
 import type { Stock } from '../types';
 import { StockTerminalModal } from '../components/dashboard/StockTerminalModal';

@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, ReferenceLine, CartesianGrid,
 } from 'recharts';
 import { motion } from 'framer-motion';
-import { X, TrendingUp, TrendingDown, ShieldAlert, Fingerprint, AlertTriangle } from 'lucide-react';
+import { X, ShieldAlert, Fingerprint, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
 import type { WatchlistItem } from '../../services/watchlistService';
 

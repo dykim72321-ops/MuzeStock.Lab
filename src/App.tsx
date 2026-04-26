@@ -15,7 +15,6 @@ import { queryClient } from './lib/queryClient';
 //   /watchlist  → 관심 종목
 //   /backtesting→ 백테스팅 히스토리
 //   /settings   → 환경 설정
-const PulseDashboard = lazy(() => import('./pages/PulseDashboard'));
 const ScannerPage = lazy(() => import('./pages/ScannerPage').then(m => ({ default: m.ScannerPage })));
 const AlphaFundView = lazy(() => import('./pages/AlphaFundView').then(m => ({ default: m.AlphaFundView })));
 const WatchlistPage = lazy(() => import('./pages/WatchlistPage').then(m => ({ default: m.WatchlistPage })));
@@ -58,8 +57,8 @@ function App() {
                 <Route path="command" element={<Navigate to="/stock/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
 
-                {/* 실시간 퀀트 펄스 */}
-                <Route path="pulse" element={<PulseDashboard />} />
+                {/* /pulse는 Dashboard(작전 지휘소)로 redirect — PulseDashboard 기능이 통합됨 */}
+                <Route path="pulse" element={<Navigate to="/dashboard" replace />} />
 
                 {/* 2. 퀀트 핫 아이템 (마켓 스캐너) */}
                 <Route path="scanner" element={<ScannerPage />} />

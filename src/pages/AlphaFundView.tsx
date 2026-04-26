@@ -111,7 +111,7 @@ export const AlphaFundView = () => {
     };
 
     fetchPortfolio();
-    const timer = setInterval(fetchPortfolio, 5000);
+    const timer = setInterval(fetchPortfolio, 15000);
     return () => clearInterval(timer);
   }, []);
 

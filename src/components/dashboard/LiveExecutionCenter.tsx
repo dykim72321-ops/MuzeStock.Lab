@@ -1,19 +1,18 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Terminal, Zap, Target, History, ShieldCheck, Clock, Activity,
-  Lock, Unlock, AlertOctagon, TrendingDown, DollarSign, PlusCircle,
-  TrendingUp, CheckCircle, XCircle
+  Terminal, Activity,
+  Lock, Unlock, TrendingDown,
+  TrendingUp, CheckCircle, XCircle, PlusCircle
 } from 'lucide-react';
 import clsx from 'clsx';
 import { fetchQuantSignals } from '../../services/stockService';
-import { 
-  fetchBrokerAccount, fetchBrokerStatus, toggleSystemArm, 
+import {
+  fetchBrokerAccount, fetchBrokerStatus, toggleSystemArm,
   closePosition as closeBrokerPosition, liquidateAllPositions,
   fetchBrokerPositions, fetchBrokerOrders,
   fetchPaperAccount, fetchPaperPositions, fetchPaperHistory
 } from '../../services/pythonApiService';
-import { Tooltip } from '../ui/Tooltip';
 import { toast } from 'sonner';
 import { ManualTradeModal } from './ManualTradeModal';
 
@@ -130,19 +129,16 @@ export const LiveExecutionCenter = () => {
   };
 
   useEffect(() => {
-    loadAllData();
-    fetchAccount();
-    fetchArmStatus();
-    
-    const dataInterval = setInterval(loadAllData, 30000); 
-    const accInterval = setInterval(fetchAccount, 10000); 
-    const armInterval = setInterval(fetchArmStatus, 15000);
-    
-    return () => {
-      clearInterval(dataInterval);
-      clearInterval(accInterval);
-      clearInterval(armInterval);
+    const refresh = () => {
+      loadAllData();
+      fetchAccount();
+      fetchArmStatus();
     };
+    refresh();
+
+    // 30초 단일 인터벌로 통합 (기존 10s/15s/30s 분산 → 불필요한 요청 제거)
+    const interval = setInterval(refresh, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleToggleArm = async () => {
@@ -288,7 +284,7 @@ export const LiveExecutionCenter = () => {
           <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-[#020617]/40 backdrop-blur-md border border-slate-800/80 p-6 rounded-3xl relative overflow-hidden group shadow-lg">
                   <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mb-3">
-                    {account?.is_paper_trading ? 'Paper Buying Power' : 'Broker Buying Power'}
+                    {'Paper Buying Power'}
                   </p>
                   <p className="text-3xl font-black text-white tabular-nums tracking-tighter">${(account?.cash_available ?? 0).toLocaleString()}</p>
               </div>

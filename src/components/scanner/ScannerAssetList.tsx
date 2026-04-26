@@ -3,7 +3,6 @@ import {
   TrendingUp, TrendingDown, ArrowUpWideNarrow, ArrowDownWideNarrow, 
   ArrowUpRight, Zap 
 } from 'lucide-react';
-import { Card } from '../ui/Card';
 import { TargetStopDisplay } from './TargetStopDisplay';
 import clsx from 'clsx';
 import type { Stock } from '../../types';

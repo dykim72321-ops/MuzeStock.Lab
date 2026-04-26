@@ -4,7 +4,7 @@ import {
   Zap,
   ShieldCheck
 } from 'lucide-react';
-import { fetchStrategyStats } from '../services/pythonApiService';
+import { useStrategyStats } from '../hooks/useStrategyStats';
 import { CommandSettings } from '../components/dashboard/CommandSettings';
 import { StrategicSignalMatrix } from '../components/dashboard/StrategicSignalMatrix';
 import { AlphaDiscoverySection } from '../components/dashboard/AlphaDiscoverySection';
@@ -26,6 +26,7 @@ import { PerformanceSummary } from '../components/dashboard/PerformanceSummary';
 
 export const UnifiedDashboard = () => {
   const { pulseMap } = useMarketEngine();
+  const { data: strategyStats } = useStrategyStats();
 
   // 1. Data States
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([]);
@@ -33,7 +34,6 @@ export const UnifiedDashboard = () => {
   const [discoveryStocks, setDiscoveryStocks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [terminalData, setTerminalData] = useState<any | null>(null);
-  const [strategyStats, setStrategyStats] = useState<any | null>(null);
   const [lastFetchedTime, setLastFetchedTime] = useState<string>('--:--:--');
   const [isMarketOpen, setIsMarketOpen] = useState(false);
 
@@ -64,24 +64,19 @@ export const UnifiedDashboard = () => {
         setWatchlistItems(items);
         
         // Parallelized fetching
-        const [watchlistData, statsData] = await Promise.all([
+        const [watchlistData, discoveryResult] = await Promise.all([
           items.length > 0 ? fetchMultipleStocksOptimized(items.map(i => i.ticker)) : Promise.resolve([]),
-          fetchStrategyStats()
+          supabaseClient
+            .from('daily_discovery')
+            .select('*')
+            .order('dna_score', { ascending: false })
+            .limit(15),
         ]);
 
-        // [Fix] Direct Supabase fetch using imported client
-        const { data: dData, error: dError } = await supabaseClient
-          .from('daily_discovery')
-          .select('*')
-          .order('dna_score', { ascending: false })
-          .limit(15);
-        
-        if (dError) console.error('Discovery fetch error:', dError);
-
+        if (discoveryResult.error) console.error('Discovery fetch error:', discoveryResult.error);
 
         setWatchlistStocks(watchlistData);
-        setDiscoveryStocks(dData || []);
-        setStrategyStats(statsData);
+        setDiscoveryStocks(discoveryResult.data || []);
         setLastFetchedTime(new Date().toISOString().substring(11, 19));
       } catch (err) {
         console.error('Failed to load unified data:', err);

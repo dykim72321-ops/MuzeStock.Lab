@@ -1910,23 +1910,27 @@ def calculate_advanced_signals(df: pd.DataFrame, avg_daily_volume: float = 0.0):
         df["RVOL"] = df["Volume"] / (df["Avg_Vol_30d"] + 1e-9)
 
     # 5. 추격 매수(FOMO) 방지 필터
-    # 당일 시가 대비 종가가 50% 이상 급등한 경우 상투 위험으로 간주
-    df["Is_Extended"] = df["Close"] > (df["Open"] * 1.5)
+    # 당일 시가 대비 OR 전일 종가 대비 50% 이상 급등한 경우 상투 위험으로 간주
+    df["Is_Extended"] = (df["Close"] > df["Open"] * 1.5) | (
+        df["Close"] > df["Close"].shift(1) * 1.5
+    )
 
     # 6. 전략적 합치 (Confluence) 로직
     # Strong Buy: RSI < 45 AND MACD Golden Cross AND ADX > 20 AND RVOL > 3.0 AND Not Extended
+    # shift(1) < 0 (strict): 직전 봉이 정확히 0인 경우 거짓 신호 제거
     df["Strong_Buy"] = (
         (df["RSI"] < 45)
         & (df["MACD_Diff"] > 0)
-        & (df["MACD_Diff"].shift(1) <= 0)
+        & (df["MACD_Diff"].shift(1) < 0)
         & (df["ADX"] > 20)
         & (df["RVOL"] > 3.0)
         & (~df["Is_Extended"])
     )
 
     # Strong Sell: RSI > 65 AND MACD Dead Cross
+    # shift(1) > 0 (strict): 대칭적으로 엄격한 기준 적용
     df["Strong_Sell"] = (
-        (df["RSI"] > 65) & (df["MACD_Diff"] < 0) & (df["MACD_Diff"].shift(1) >= 0)
+        (df["RSI"] > 65) & (df["MACD_Diff"] < 0) & (df["MACD_Diff"].shift(1) > 0)
     )
 
     return df
@@ -2298,6 +2302,7 @@ async def on_minute_bar_closed(bar):
                         dna_score=float(
                             payload.get("ai_metadata", {}).get("dna_score", 85.0)
                         ),
+                        kelly_weight=float(payload.get("recommended_weight", 0.0)),
                     )
 
                 print(

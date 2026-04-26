@@ -8,14 +8,12 @@ import {
 import clsx from 'clsx';
 
 // 🆕 Neural Projection Chart (SVG 기반 과거 + 예측 하이브리드 차트)
-const NeuralProjectionChart = ({ 
-    currentPrice, 
-    targetPrice, 
-    _stopPrice 
-}: { 
-    currentPrice: number, 
+const NeuralProjectionChart = ({
+    currentPrice,
+    targetPrice,
+}: {
+    currentPrice: number,
     targetPrice: number,
-    _stopPrice: number 
 }) => {
     const isUp = targetPrice >= currentPrice;
     const color = isUp ? '#22d3ee' : '#f43f5e'; // Cyan or Rose
@@ -127,6 +125,8 @@ interface StockTerminalModalProps {
         targetPrice?: number;
         stopPrice?: number;
         quantData?: any;
+        matchedLegend?: { ticker: string; similarity: number };
+        quantSummary?: string;
     };
     onAddToWatchlist?: () => Promise<void>;
     onExecuteTrade?: (tradeParams: any) => void;
@@ -241,10 +241,9 @@ export const StockTerminalModal = ({
                                     <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] flex items-center gap-2 mb-3">
                                         <Activity className="w-4 h-4 text-indigo-500" /> Neural Projection Matrix
                                     </h3>
-                                    <NeuralProjectionChart 
-                                        currentPrice={displayData.price || 0} 
+                                    <NeuralProjectionChart
+                                        currentPrice={displayData.price || 0}
                                         targetPrice={displayData.targetPrice || (displayData.price ? displayData.price * 1.05 : 0)}
-                                        _stopPrice={displayData.stopPrice || (displayData.price ? displayData.price * 0.95 : 0)}
                                     />
                                     <div className="grid grid-cols-2 gap-4 mt-6">
                                         <div className="bg-[#020617]/50 p-4 rounded-2xl border border-slate-800 font-mono">

@@ -16,13 +16,13 @@ export const MonitoringOrbit: React.FC<MonitoringOrbitProps> = ({
   watchlistItems,
   watchlistStocks,
   pulseMap,
-  handleDeepDive
+  handleDeepDive: _handleDeepDive,
 }) => {
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
 
-  const handleItemClick = (item: WatchlistItem, stock: any) => {
+  const handleItemClick = (item: WatchlistItem, _stock: any) => {
     if (selectedTicker === item.ticker) {
-      setSelectedTicker(null); // 토글 닫기
+      setSelectedTicker(null);
     } else {
       setSelectedTicker(item.ticker);
     }

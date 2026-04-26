@@ -21,19 +21,23 @@ const PERSONA_COLORS: Record<string, string> = {
 export const PersonaPerformance = () => {
   const [personas, setPersonas] = useState<PersonaStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPersonas = async () => {
       try {
         setLoading(true);
-        const { data } = await supabase
+        setError(null);
+        const { data, error: dbError } = await supabase
           .from('persona_performance')
           .select('*')
           .order('win_rate', { ascending: false });
 
+        if (dbError) throw dbError;
         setPersonas(data || []);
-      } catch (error) {
-        console.error('Failed to fetch persona performance:', error);
+      } catch (err: any) {
+        console.error('Failed to fetch persona performance:', err);
+        setError(err?.message ?? 'Failed to load persona data');
       } finally {
         setLoading(false);
       }
@@ -47,6 +51,16 @@ export const PersonaPerformance = () => {
       <Card className="p-5 h-full">
         <Skeleton className="h-6 w-1/3 mb-4" />
         <Skeleton className="h-[200px] w-full" />
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="p-5 h-full flex flex-col items-center justify-center gap-3">
+        <Trophy className="w-8 h-8 text-slate-600" />
+        <p className="text-sm font-bold text-slate-400">페르소나 데이터를 불러올 수 없습니다</p>
+        <p className="text-xs text-slate-600 font-mono">{error}</p>
       </Card>
     );
   }
