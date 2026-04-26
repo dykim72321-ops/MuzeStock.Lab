@@ -2289,6 +2289,29 @@ async def on_minute_bar_closed(bar):
                     )
                     await webhook.send_alert(title=title, description=desc, color=color)
 
+                # daily_discovery 공통 소스 upsert (ScannerPage + AlphaDiscovery 단일 진실 소스)
+                dna_val = float(payload.get("ai_metadata", {}).get("dna_score", 0.0))
+                try:
+                    await asyncio.to_thread(
+                        supabase.table("daily_discovery")
+                        .upsert(
+                            {
+                                "ticker": ticker_symbol,
+                                "dna_score": round(dna_val, 1),
+                                "rvol": float(payload.get("rvol", 1.0)),
+                                "price": float(payload.get("price", 0.0)),
+                                "change_percent": 0.0,
+                                "updated_at": datetime.now().isoformat(),
+                            },
+                            on_conflict="ticker",
+                        )
+                        .execute
+                    )
+                except Exception as dd_err:
+                    print(
+                        f"⚠️ [daily_discovery] upsert skipped for {ticker_symbol}: {dd_err}"
+                    )
+
                 # Paper Trading 자동 실행
                 if paper_engine:
                     await paper_engine.process_signal(
@@ -2299,9 +2322,7 @@ async def on_minute_bar_closed(bar):
                         rsi=payload.get("rsi"),
                         ai_report=payload.get("ai_report", ""),
                         is_armed=SYSTEM_ARMED,
-                        dna_score=float(
-                            payload.get("ai_metadata", {}).get("dna_score", 85.0)
-                        ),
+                        dna_score=dna_val,
                         kelly_weight=float(payload.get("recommended_weight", 0.0)),
                     )
 

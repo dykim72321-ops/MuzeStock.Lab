@@ -16,15 +16,16 @@ export const MonitoringOrbit: React.FC<MonitoringOrbitProps> = ({
   watchlistItems,
   watchlistStocks,
   pulseMap,
-  handleDeepDive: _handleDeepDive,
+  handleDeepDive,
 }) => {
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
 
-  const handleItemClick = (item: WatchlistItem, _stock: any) => {
+  const handleItemClick = (item: WatchlistItem, stock: any) => {
     if (selectedTicker === item.ticker) {
       setSelectedTicker(null);
     } else {
       setSelectedTicker(item.ticker);
+      if (stock) handleDeepDive(stock);
     }
   };
 

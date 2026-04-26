@@ -497,20 +497,19 @@ export async function fetchStockHistory(ticker: string, resolution: string = 'D'
 
 export async function getTopStocks(historical: boolean = false, limit: number = 30): Promise<Stock[]> {
   try {
-    // 1. 데이터 조회 (historical이면 시간 제한 해제)
+    // 1. daily_discovery에서 dna_score 내림차순 조회 (단일 진실 소스)
     let query = supabase
       .from('daily_discovery')
-      .select('*, stock_analysis_cache(analysis)');
-    
+      .select('*, stock_analysis_cache(analysis)')
+      .order('dna_score', { ascending: false });
+
     if (!historical) {
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       query = query.gte('updated_at', twentyFourHoursAgo);
     }
 
     const { data: discoveryData, error: discoveryError } = await query
-      .order('updated_at', { ascending: false })
       .limit(historical ? 100 : limit);
-
 
     if (discoveryError) throw discoveryError;
 
@@ -518,6 +517,7 @@ export async function getTopStocks(historical: boolean = false, limit: number = 
       ? discoveryData.map((item: { ticker: string }) => item.ticker)
       : WATCHLIST_TICKERS.slice(0, 10);
 
+    // 2. get-market-scanner로 실시간 가격/거래량 보강
     const { data: realTimeData, error: syncError } = await supabase.functions.invoke('get-market-scanner', {
       body: { tickers: tickersToSync }
     });
@@ -527,9 +527,15 @@ export async function getTopStocks(historical: boolean = false, limit: number = 
 
     const stocks: Stock[] = realTimeData.map((rtItem: { ticker: string, price?: number, changePercent?: number, rawVolume?: number }) => {
       const discoveryInfo = discoveryData?.find(d => d.ticker === rtItem.ticker);
-      const price = rtItem.price || 0;
-      const changePercent = rtItem.changePercent || 0;
+      const price = rtItem.price || discoveryInfo?.price || 0;
+      const changePercent = rtItem.changePercent || discoveryInfo?.change_percent || 0;
       const volume = rtItem.rawVolume || 0;
+
+      // daily_discovery.dna_score 우선 사용 — 백엔드(Python/EdgeFn) 계산값
+      // fallback: 프론트엔드 실시간 재계산
+      const dnaScore = discoveryInfo?.dna_score != null
+        ? Number(discoveryInfo.dna_score)
+        : calculateDnaScore(price, changePercent, volume, discoveryInfo?.average_volume_10d || 0);
 
       return {
         id: rtItem.ticker,
@@ -539,7 +545,7 @@ export async function getTopStocks(historical: boolean = false, limit: number = 
         changePercent,
         volume,
         marketCap: discoveryInfo?.market_cap || 'N/A',
-        dnaScore: calculateDnaScore(price, changePercent, volume, discoveryInfo?.average_volume_10d || 0),
+        dnaScore,
         sector: discoveryInfo?.sector || getSector(rtItem.ticker),
         description: discoveryInfo?.description || getDescription(rtItem.ticker),
         relevantMetrics: {
@@ -551,25 +557,11 @@ export async function getTopStocks(historical: boolean = false, limit: number = 
       };
     });
 
-    // 2. 섹터별 그룹화 및 다양성 적용
-    const bySector = stocks.reduce((acc, stock) => {
-      const sector = stock.sector || 'Unknown';
-      if (!acc[sector]) acc[sector] = [];
-      acc[sector].push(stock);
-      return acc;
-    }, {} as Record<string, Stock[]>);
-
-    // 3. 각 섹터에서 최대 3개씩 선택하여 다양성 확보
-    const diverseStocks = Object.values(bySector)
-      .flatMap(sectorStocks =>
-        sectorStocks
-          .sort((a, b) => b.dnaScore - a.dnaScore)
-          .slice(0, 3)
-      )
+    // 3. dna_score 내림차순 정렬 후 반환 (섹터 다양성 대신 점수 우선)
+    return stocks
       .sort((a, b) => b.dnaScore - a.dnaScore)
       .slice(0, 30);
 
-    return diverseStocks;
   } catch (err) {
     console.warn('Real-time sync failed, falling back to cache:', err);
     return fetchMultipleStocks(WATCHLIST_TICKERS.slice(0, 10));

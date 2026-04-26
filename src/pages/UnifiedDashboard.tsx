@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 
-import { 
+import {
   Zap,
-  ShieldCheck
+  ShieldCheck,
+  X
 } from 'lucide-react';
 import { useStrategyStats } from '../hooks/useStrategyStats';
 import { CommandSettings } from '../components/dashboard/CommandSettings';
@@ -36,19 +37,22 @@ export const UnifiedDashboard = () => {
   const [terminalData, setTerminalData] = useState<any | null>(null);
   const [lastFetchedTime, setLastFetchedTime] = useState<string>('--:--:--');
   const [isMarketOpen, setIsMarketOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // US 시장 개장 여부 체크 (ET 기준 평일 09:30~16:00)
   useEffect(() => {
     const checkMarket = () => {
       const now = new Date();
-      const etOffset = -5 * 60; // EST (DST 고려하지 않은 단순 기준)
-      const localOffset = now.getTimezoneOffset();
-      const etNow = new Date(now.getTime() + (localOffset + etOffset) * 60000);
-      const day = etNow.getDay(); // 0=일, 6=토
-      const hours = etNow.getHours();
-      const minutes = etNow.getMinutes();
+      // Intl.DateTimeFormat으로 미국 동부시간(ET) 정확히 계산 — DST 자동 반영
+      const etParts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        weekday: 'short', hour: 'numeric', minute: 'numeric', hour12: false,
+      }).formatToParts(now);
+      const day = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(etParts.find(p => p.type === 'weekday')?.value ?? 'Sun');
+      const hours = parseInt(etParts.find(p => p.type === 'hour')?.value ?? '0', 10);
+      const minutes = parseInt(etParts.find(p => p.type === 'minute')?.value ?? '0', 10);
       const timeInMin = hours * 60 + minutes;
-      const open = day >= 1 && day <= 5 && timeInMin >= 570 && timeInMin < 960; // 9:30~16:00
+      const open = day >= 1 && day <= 5 && timeInMin >= 570 && timeInMin < 960; // 9:30~16:00 ET
       setIsMarketOpen(open);
     };
     checkMarket();
@@ -69,6 +73,7 @@ export const UnifiedDashboard = () => {
           supabaseClient
             .from('daily_discovery')
             .select('*')
+            .gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
             .order('dna_score', { ascending: false })
             .limit(15),
         ]);
@@ -166,7 +171,10 @@ export const UnifiedDashboard = () => {
                 </span>
               </div>
             </div>
-            <button className="flex items-center gap-3 px-6 py-3 bg-indigo-900/10 border border-indigo-500/30 rounded-2xl hover:bg-indigo-900/20 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)] group/guard">
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="flex items-center gap-3 px-6 py-3 bg-indigo-900/10 border border-indigo-500/30 rounded-2xl hover:bg-indigo-900/20 transition-all shadow-[0_0_20px_rgba(99,102,241,0.1)] group/guard"
+            >
               <ShieldCheck className="w-5 h-5 text-indigo-400 group-hover:scale-110 transition-transform" />
               <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">NexGuard Locked</span>
             </button>
@@ -197,10 +205,11 @@ export const UnifiedDashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start relative z-10">
               {/* LEFT COLUMN: Strategic Signal Matrix (8/12) */}
               <div className="lg:col-span-8 space-y-10">
-                <StrategicSignalMatrix 
-                  strongTickers={strongTickers} 
-                  normalTickers={normalTickers} 
-                  pulseMap={pulseMap} 
+                <StrategicSignalMatrix
+                  strongTickers={strongTickers}
+                  normalTickers={normalTickers}
+                  pulseMap={pulseMap}
+                  handleDeepDive={handleDeepDive}
                 />
 
                 {/* 🆕 Integrated Command Center (Live Execution) */}
@@ -222,9 +231,31 @@ export const UnifiedDashboard = () => {
               </div>
             </div>
             
-            {/* Hidden / Internal Modules (Kept for functionality) */}
-            <div className="hidden">
-              <CommandSettings />
+            {/* Settings Slideout Backdrop */}
+            {isSettingsOpen && (
+              <div
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200]"
+                onClick={() => setIsSettingsOpen(false)}
+              />
+            )}
+
+            {/* Settings Slideout Panel */}
+            <div className={`fixed top-0 right-0 h-full w-full max-w-lg bg-[#0b101a] border-l border-slate-800 z-[210] overflow-y-auto transition-transform duration-300 ease-in-out ${isSettingsOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+              <div className="flex items-center justify-between px-6 py-5 border-b border-slate-800 sticky top-0 bg-[#0b101a] z-10">
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="w-5 h-5 text-indigo-400" />
+                  <span className="text-sm font-black text-white uppercase tracking-[0.2em]">NexGuard Control</span>
+                </div>
+                <button
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 transition-colors"
+                >
+                  <X className="w-4 h-4 text-slate-400" />
+                </button>
+              </div>
+              <div className="p-6">
+                <CommandSettings />
+              </div>
             </div>
           </div>
         )}

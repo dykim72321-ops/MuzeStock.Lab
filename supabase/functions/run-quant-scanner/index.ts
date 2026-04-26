@@ -259,13 +259,31 @@ serve(async (req) => {
     }
 
     if (signals.length > 0) {
-      const { error } = await supabase
+      // 1. quant_signals 아카이브 저장 (기존)
+      const { error: signalError } = await supabase
         .from('quant_signals')
         .upsert(signals, { onConflict: 'ticker,signal_date' });
-      
-      if (error) {
-        throw error;
+
+      if (signalError) throw signalError;
+
+      // 2. daily_discovery 공통 소스 upsert — 프론트엔드 두 섹션의 단일 진실 소스
+      const discoveries = signals.map(s => ({
+        ticker: s.ticker,
+        dna_score: s.dna_score,
+        rvol: s.rvol,
+        updated_at: new Date().toISOString(),
+      }));
+
+      const { error: discoveryError } = await supabase
+        .from('daily_discovery')
+        .upsert(discoveries, { onConflict: 'ticker' });
+
+      if (discoveryError) {
+        console.warn('[SCANNER] daily_discovery upsert failed (non-fatal):', discoveryError.message);
+      } else {
+        console.log(`💾 [SCANNER] ${discoveries.length} records upserted to daily_discovery.`);
       }
+
       console.log(`✅ [SCANNER] Successfully queued ${signals.length} signals.`);
       await sendDiscordNotification(`Successfully queued ${signals.length} new signals.`, 'SUCCESS');
     } else {

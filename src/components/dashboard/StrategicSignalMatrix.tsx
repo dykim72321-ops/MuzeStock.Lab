@@ -7,12 +7,14 @@ interface StrategicSignalMatrixProps {
   strongTickers: string[];
   normalTickers: string[];
   pulseMap: any;
+  handleDeepDive?: (stock: any) => void;
 }
 
 export const StrategicSignalMatrix: React.FC<StrategicSignalMatrixProps> = ({
   strongTickers,
   normalTickers,
-  pulseMap
+  pulseMap,
+  handleDeepDive,
 }) => {
   return (
     <section className="space-y-8 relative">
@@ -119,11 +121,14 @@ export const StrategicSignalMatrix: React.FC<StrategicSignalMatrixProps> = ({
 
                   <div className="mt-8 pt-6 border-t border-slate-800/50 flex justify-between items-center relative z-10">
                     <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Execution Node Locked</span>
-                    <button className={clsx(
-                        "px-8 py-3.5 rounded-2xl font-black text-xs text-white transition-all uppercase tracking-widest shadow-2xl active:scale-95", 
+                    <button
+                      onClick={() => handleDeepDive?.(rawData)}
+                      className={clsx(
+                        "px-8 py-3.5 rounded-2xl font-black text-xs text-white transition-all uppercase tracking-widest shadow-2xl active:scale-95",
                         isBull ? "bg-emerald-600 hover:bg-emerald-500" : "bg-rose-600 hover:bg-rose-500",
                         buttonShadow
-                    )}>
+                      )}
+                    >
                       {isBull ? "Execute Long" : "Execute Short"}
                     </button>
                   </div>
@@ -159,7 +164,10 @@ export const StrategicSignalMatrix: React.FC<StrategicSignalMatrixProps> = ({
                       <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">DNA Score</span>
                       <span className="text-xl font-black text-white font-mono leading-none mt-1">{displaySignal.dnaScore}</span>
                   </div>
-                  <button className="text-[9px] font-black text-indigo-400 hover:text-indigo-300 transition-all uppercase tracking-[0.2em] bg-indigo-500/5 px-4 py-2 rounded-xl border border-indigo-500/10">
+                  <button
+                    onClick={() => handleDeepDive?.(rawData)}
+                    className="text-[9px] font-black text-indigo-400 hover:text-indigo-300 transition-all uppercase tracking-[0.2em] bg-indigo-500/5 px-4 py-2 rounded-xl border border-indigo-500/10"
+                  >
                     Details
                   </button>
                 </div>
