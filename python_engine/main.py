@@ -35,7 +35,11 @@ from alpaca.data.enums import DataFeed
 import uuid
 import re
 from cachetools import TTLCache
-from scraper import SearchAggregator
+
+try:
+    from scraper import SearchAggregator
+except ImportError:
+    SearchAggregator = None
 from db_manager import DBManager
 import asyncio
 from datetime import datetime
