@@ -1847,26 +1847,97 @@ class BacktestRequest(BaseModel):
 
 
 backtest_cache = TTLCache(maxsize=100, ttl=900)
+stats_cache: TTLCache = TTLCache(maxsize=1, ttl=300)  # 5분 캐시 (폴링 비용 절감)
+
+# 손실 없이 수익만 있을 때 profit_factor 상한 (무한대 회피)
+_MAX_PROFIT_FACTOR = 99.0
+
+
+def _base_stats(is_simulated: bool, message: str, badge: str) -> dict:
+    return {
+        "win_rate": 0, "profit_factor": 0, "mdd": 0, "recovery_days": 0,
+        "avg_pnl": 0, "total_trades": 0,
+        "is_simulated": is_simulated, "message": message, "badge": badge,
+    }
 
 
 @app.get("/api/strategy/stats")
 async def get_strategy_stats():
-    """전달된 유니버스 전체에 대한 퀀트 전략 통계 매트릭스 반환 - [Lean Execution Mode]"""
-    # 💡 Core Philosophy: "검증은 연구실(Lab)에서, 터미널(Terminal)은 오직 실행(Execution)만"
-    # 주말에 동작하는 배치(Batch) 백테스팅 결과(strategy_metrics DB)를 단 0.01초 만에 반환합니다.
-    # 더 이상 장중에 브라우저 로딩이나 라이브 연산을 유발하지 않습니다.
+    """paper_history 기반 실거래 통계 반환 (5분 TTL 캐시 적용)."""
+    if not supabase:
+        return _base_stats(True, "DB 미연결 — 통계 없음", "⚠️ DB 미연결")
 
-    return {
-        "win_rate": 61.2,
-        "profit_factor": 1.52,
-        "mdd": -8.4,
-        "recovery_days": 14,
-        "avg_pnl": 4.2,
-        "total_trades": 342,
-        "is_simulated": False,
-        "message": "System Edge Confirmed (Weekend Batch)",
-        "badge": "🛡️ System Edge: 승률 61.2% (검증됨)",
-    }
+    if "stats" in stats_cache:
+        return stats_cache["stats"]
+
+    try:
+        res = await asyncio.to_thread(
+            supabase.table("paper_history")
+            .select("pnl_pct,profit_amt")
+            .order("created_at", desc=False)
+            .execute
+        )
+        trades = res.data or []
+
+        if not trades:
+            return _base_stats(False, "거래 내역 없음 — 첫 매매 후 통계가 집계됩니다", "📊 거래 대기 중")
+
+        # 단일 패스로 모든 누적값 계산
+        total_trades = len(trades)
+        win_count = 0
+        gross_profit = 0.0
+        gross_loss = 0.0
+        pnl_sum = 0.0
+        pnl_arr = np.empty(total_trades, dtype=np.float64)
+
+        for i, t in enumerate(trades):
+            pnl = float(t.get("pnl_pct") or 0)
+            amt = float(t.get("profit_amt") or 0)
+            pnl_arr[i] = pnl
+            pnl_sum += pnl
+            if pnl > 0:
+                win_count += 1
+            if amt > 0:
+                gross_profit += amt
+            elif amt < 0:
+                gross_loss -= amt  # gross_loss는 양수로 누적
+
+        win_rate = round(win_count / total_trades * 100, 1)
+        avg_pnl = round(pnl_sum / total_trades, 2)
+        profit_factor = (
+            round(gross_profit / gross_loss, 2) if gross_loss > 0
+            else (_MAX_PROFIT_FACTOR if gross_profit > 0 else 0.0)
+        )
+
+        # MDD: numpy 벡터화 (cumsum + running maximum)
+        cumulative = np.cumsum(pnl_arr)
+        running_max = np.maximum.accumulate(cumulative)
+        mdd = round(float(np.min(cumulative - running_max)), 2)
+
+        if win_rate >= 55 and profit_factor >= 1.3:
+            badge = f"🛡️ System Edge: 승률 {win_rate}% (실거래 검증)"
+        elif total_trades < 5:
+            badge = f"📊 데이터 축적 중 ({total_trades}건)"
+        else:
+            badge = f"📉 전략 점검 필요 (승률 {win_rate}%)"
+
+        result = {
+            "win_rate": win_rate,
+            "profit_factor": profit_factor,
+            "mdd": mdd,
+            "recovery_days": 0,
+            "avg_pnl": avg_pnl,
+            "total_trades": total_trades,
+            "is_simulated": False,
+            "message": f"실거래 {total_trades}건 기준 통계",
+            "badge": badge,
+        }
+        stats_cache["stats"] = result
+        return result
+
+    except Exception as e:
+        print(f"❌ [strategy/stats] {e}")
+        return _base_stats(True, f"통계 계산 오류: {e}", "⚠️ 오류")
 
 
 @app.get("/api/discoveries")
@@ -2294,7 +2365,8 @@ async def on_minute_bar_closed(bar):
                     await webhook.send_alert(title=title, description=desc, color=color)
 
                 # daily_discovery 공통 소스 upsert (ScannerPage + AlphaDiscovery 단일 진실 소스)
-                dna_val = float(payload.get("ai_metadata", {}).get("dna_score", 0.0))
+                # payload["dna_score"]가 최상위에 항상 세팅되므로 중첩 경로 대신 직접 접근
+                dna_val = float(payload.get("dna_score", 0.0))
                 try:
                     await asyncio.to_thread(
                         supabase.table("daily_discovery")

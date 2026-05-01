@@ -146,7 +146,7 @@ ts_threshold = price * 0.90          # 초기 손절선 -10%
 ### 탈출 기준 B — 트레일링 스탑 (전량 청산)
 
 ```
-조건: price < ts_threshold AND SYSTEM_ARMED
+조건: price < ts_threshold  ← SYSTEM_ARMED 해제 상태에서도 실행 (손실 확대 방지 우선)
 처리:
   - 전량 시장가 매도
   - paper_history INSERT (exit_reason="Trailing Stop")

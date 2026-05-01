@@ -255,7 +255,8 @@ class PaperTradingManager:
                 sell_units = units * SCALE_OUT_RATIO
                 profit_cash = sell_units * price
 
-                # 가상 계좌 업데이트
+                # 가상 계좌 업데이트 (cash_available만 갱신 — total_assets는 /api/broker/paper/account에서
+                # cash + invested_capital로 동적 계산하므로 DB 컬럼을 직접 쓰지 않음)
                 new_cash = acc["cash_available"] + profit_cash
                 await asyncio.to_thread(
                     self.supabase.table("paper_account")
@@ -291,7 +292,8 @@ class PaperTradingManager:
                 # 같은 봉에서 Scale-Out과 Trailing Stop이 동시에 발동하는 것을 방지
                 return
 
-            # C. TRAILING STOP 체크 (리스크 관리: ARMED 여부와 무관하게 항상 실행)
+            # C. TRAILING STOP 체크 (리스크 관리: ARMED 해제 상태에서도 실행 — 손실 확대 방지 우선)
+            # CLAUDE.md 탈출 기준 B의 "AND SYSTEM_ARMED" 조건은 의도적으로 제거됨
             if price < ts_threshold:
                 profit_cash = units * price
                 pnl_pct = (price / entry_price - 1) * 100

@@ -18,3 +18,4 @@ numpy
 alpaca-py>=0.17.0
 ta
 scikit-learn
+tzdata
