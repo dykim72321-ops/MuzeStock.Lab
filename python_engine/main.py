@@ -1855,9 +1855,15 @@ _MAX_PROFIT_FACTOR = 99.0
 
 def _base_stats(is_simulated: bool, message: str, badge: str) -> dict:
     return {
-        "win_rate": 0, "profit_factor": 0, "mdd": 0, "recovery_days": 0,
-        "avg_pnl": 0, "total_trades": 0,
-        "is_simulated": is_simulated, "message": message, "badge": badge,
+        "win_rate": 0,
+        "profit_factor": 0,
+        "mdd": 0,
+        "recovery_days": 0,
+        "avg_pnl": 0,
+        "total_trades": 0,
+        "is_simulated": is_simulated,
+        "message": message,
+        "badge": badge,
     }
 
 
@@ -1880,7 +1886,11 @@ async def get_strategy_stats():
         trades = res.data or []
 
         if not trades:
-            return _base_stats(False, "거래 내역 없음 — 첫 매매 후 통계가 집계됩니다", "📊 거래 대기 중")
+            return _base_stats(
+                False,
+                "거래 내역 없음 — 첫 매매 후 통계가 집계됩니다",
+                "📊 거래 대기 중",
+            )
 
         # 단일 패스로 모든 누적값 계산
         total_trades = len(trades)
@@ -1905,7 +1915,8 @@ async def get_strategy_stats():
         win_rate = round(win_count / total_trades * 100, 1)
         avg_pnl = round(pnl_sum / total_trades, 2)
         profit_factor = (
-            round(gross_profit / gross_loss, 2) if gross_loss > 0
+            round(gross_profit / gross_loss, 2)
+            if gross_loss > 0
             else (_MAX_PROFIT_FACTOR if gross_profit > 0 else 0.0)
         )
 
