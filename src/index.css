@@ -112,11 +112,39 @@
 
   /* Neo-Glassmorphism Panels */
   .glass-panel {
-    @apply bg-slate-800/40 backdrop-blur-xl border border-white/10 shadow-2xl;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    border-right: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    @apply shadow-2xl;
   }
-  
+
+  .glass-panel-hover {
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    border-right: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    @apply shadow-2xl transition-all duration-200;
+  }
+  .glass-panel-hover:hover {
+    background: rgba(15, 23, 42, 0.55);
+    border-top-color: rgba(255, 255, 255, 0.14);
+    border-left-color: rgba(255, 255, 255, 0.14);
+    @apply shadow-[0_8px_32px_rgba(0,0,0,0.4)];
+  }
+
   .glass-card {
     @apply bg-slate-800/50 backdrop-blur-md border border-slate-700/50 shadow-lg;
+  }
+
+  .neon-glow-primary {
+    box-shadow: 0 0 20px rgba(37, 99, 235, 0.15);
   }
 
   /* Interactive Elements / Neon Glows */
